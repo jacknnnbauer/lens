@@ -77,6 +77,31 @@ pub trait DictSource: Send + Sync {
     fn resource(&self, path: &str) -> Result<Option<Vec<u8>>>;
 }
 
+/// 读词典目录下的散装资源文件（mdx 同目录的 CSS、StarDict 的 res/）。
+/// 去掉 `?query` / `#fragment`；含 `..`、盘符或指向目录本身时返回 None，不允许越出 `dir`。
+pub fn read_local_resource(dir: &Path, path: &str) -> Result<Option<Vec<u8>>> {
+    let rel = path.split(['?', '#']).next().unwrap_or_default().trim().replace('\\', "/");
+    let mut full = dir.to_path_buf();
+    let mut depth = 0;
+    for comp in rel.split('/').filter(|c| !c.is_empty() && *c != ".") {
+        if comp == ".." || comp.contains(':') {
+            return Ok(None);
+        }
+        full.push(comp);
+        depth += 1;
+    }
+    if depth == 0 {
+        return Ok(None);
+    }
+    match std::fs::read(&full) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::IsADirectory) => Ok(None),
+        // Windows 上读目录会得到 PermissionDenied
+        Err(_) if full.is_dir() => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
 /// 已加载的词典：数据源 + 它的 FST（前缀 / 模糊查询直接用索引，不经过数据源）。
 #[derive(Clone)]
 pub struct LoadedDict {
@@ -96,6 +121,7 @@ pub fn open_dict(row: &dicts::DictRow, index_dir: &Path) -> Result<LoadedDict> {
     let meta = row.meta()?;
     let source: Arc<dyn DictSource> = match meta.kind {
         DictKind::Json => Arc::new(json::JsonDict::open(meta, &path, index.clone())?),
+        DictKind::Mdx => Arc::new(mdx::Mdx::open(meta, &path, index_dir, index.clone())?),
         DictKind::Stardict => {
             Arc::new(stardict::StarDict::open(meta, &path, index_dir, index.clone())?)
         }

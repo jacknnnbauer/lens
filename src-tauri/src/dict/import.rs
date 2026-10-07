@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use super::{index, json, open_dict, stardict, DictKind, DictMeta, DictRegistry};
+use super::{index, json, mdx, open_dict, stardict, DictKind, DictMeta, DictRegistry};
 use crate::db::dicts::{self, DictRow, IndexState};
 use crate::db::{now_ms, Db};
 use crate::error::{Error, Result};
@@ -16,7 +16,7 @@ pub fn detect_kind(path: &Path) -> Result<DictKind> {
     match ext.as_str() {
         "json" => Ok(DictKind::Json),
         "ifo" => Ok(DictKind::Stardict),
-        "mdx" => Err(Error::UnsupportedFormat("mdx（M1 后续实现）".into())),
+        "mdx" => Ok(DictKind::Mdx),
         _ => Err(Error::UnsupportedFormat(path.display().to_string())),
     }
 }
@@ -25,6 +25,7 @@ pub fn detect_kind(path: &Path) -> Result<DictKind> {
 enum Prepared {
     Json(json::JsonDictFile),
     StarDict(Box<stardict::Prepared>),
+    Mdx(Box<mdx::Prepared>),
 }
 
 impl Prepared {
@@ -32,6 +33,7 @@ impl Prepared {
         match kind {
             DictKind::Json => Ok(Self::Json(json::parse(path)?)),
             DictKind::Stardict => Ok(Self::StarDict(Box::new(stardict::prepare(path)?))),
+            DictKind::Mdx => Ok(Self::Mdx(Box::new(mdx::prepare(path)?))),
             other => Err(Error::UnsupportedFormat(other.as_str().to_string())),
         }
     }
@@ -40,13 +42,14 @@ impl Prepared {
         match self {
             Self::Json(f) => &f.name,
             Self::StarDict(p) => &p.ifo.bookname,
+            Self::Mdx(p) => &p.name,
         }
     }
 
     fn category(&self) -> Option<String> {
         match self {
             Self::Json(f) => f.category.clone(),
-            Self::StarDict(_) => None,
+            Self::StarDict(_) | Self::Mdx(_) => None,
         }
     }
 
@@ -54,6 +57,7 @@ impl Prepared {
         match self {
             Self::Json(f) => f.entries.len() as u64,
             Self::StarDict(p) => p.entry_count(),
+            Self::Mdx(p) => p.entry_count(),
         }
     }
 
@@ -61,6 +65,7 @@ impl Prepared {
         match self {
             Self::Json(f) => json::build_index(f, fst, dup),
             Self::StarDict(p) => stardict::build_index(p, index_dir, id, fst, dup),
+            Self::Mdx(p) => mdx::build_index(p, index_dir, id),
         }
     }
 }
@@ -185,9 +190,9 @@ mod tests {
             Err(Error::AlreadyImported(_))
         ));
 
-        let mdx = dir.path().join("x.mdx");
-        std::fs::write(&mdx, b"")?;
-        assert!(matches!(import_dict(&db, &registry, &mdx), Err(Error::UnsupportedFormat(_))));
+        let bgl = dir.path().join("x.bgl");
+        std::fs::write(&bgl, b"")?;
+        assert!(matches!(import_dict(&db, &registry, &bgl), Err(Error::UnsupportedFormat(_))));
         Ok(())
     }
 
@@ -242,6 +247,12 @@ mod tests {
         // 大小写不同的两个词头合并为一组，保留各自的原始词头
         let polish: Vec<_> = lookup_all(&reg, &meta.id, "polish")?.into_iter().map(|e| e.0).collect();
         assert_eq!(polish, ["Polish", "polish"]);
+
+        // res/ 目录资源；不允许越出 res/
+        let dict = reg.get(&meta.id)?.ok_or_else(|| Error::Other("未加载".into()))?;
+        assert_eq!(dict.source.resource("img/root.gif")?.as_deref(), Some(&b"GIF89a-fake"[..]));
+        assert_eq!(dict.source.resource("../roots-tm.ifo")?, None);
+        assert_eq!(dict.source.resource("img")?, None);
         Ok(())
     }
 
@@ -289,6 +300,207 @@ mod tests {
         std::fs::copy(fixture("stardict/roots-tm/roots-tm.ifo"), &ifo)?;
         std::fs::copy(fixture("stardict/roots-tm/roots-tm.idx"), dir.path().join("lonely.idx"))?;
         assert!(matches!(import_dict(&db, &reg, &ifo), Err(Error::InvalidDict(m)) if m.contains(".dict")));
+        assert!(db.with_conn(dicts::list)?.is_empty());
+        Ok(())
+    }
+
+    /// 真实词典兼容性 / 性能检查（只读原文件，索引建在临时目录）：
+    /// `LENS_REAL_DICTS="a.mdx;b.mdx" cargo test --release real_dicts -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_dicts() -> Result<()> {
+        use std::time::{Duration, Instant};
+        let Ok(list) = std::env::var("LENS_REAL_DICTS") else {
+            println!("未设置 LENS_REAL_DICTS，跳过");
+            return Ok(());
+        };
+        let probes = ["ubiquitous", "run", "ran", "colour", "bank", "take off", "résumé", "Polish", "set"];
+        let ms = |d: Duration| d.as_secs_f64() * 1000.0;
+        let mut failed = Vec::new();
+
+        for path in list.split(';').map(str::trim).filter(|p| !p.is_empty()) {
+            let path = PathBuf::from(path);
+            let size_mb = std::fs::metadata(&path).map(|m| m.len() as f64 / 1e6).unwrap_or(0.0);
+            let (_dir, db, reg) = setup()?;
+            let t = Instant::now();
+            let meta = match import_dict(&db, &reg, &path) {
+                Ok(m) => m,
+                Err(e) => {
+                    println!("✗ {} ({size_mb:.0} MB)：{e}", path.display());
+                    failed.push(path.display().to_string());
+                    continue;
+                }
+            };
+            let import = t.elapsed();
+
+            let t = Instant::now();
+            let fresh = DictRegistry::new(reg.index_dir().to_path_buf());
+            fresh.load_all(&db)?;
+            let open = t.elapsed();
+            let dict = fresh.get(&meta.id)?.ok_or_else(|| Error::Other("未加载".into()))?;
+
+            // 每个首字母取一批真实词头做计时样本
+            let mut sample: Vec<String> = probes.iter().map(|s| s.to_string()).collect();
+            for c in 'a'..='z' {
+                sample.extend(dict.index.prefix(&c.to_string(), 40).into_iter().map(|(k, _)| k));
+            }
+            let mut times = Vec::with_capacity(sample.len());
+            let mut errors = 0;
+            for w in &sample {
+                let t = Instant::now();
+                if let Err(e) = dict.source.lookup(w) {
+                    errors += 1;
+                    if errors <= 3 {
+                        println!("    查 {w:?} 出错：{e}");
+                    }
+                }
+                times.push(t.elapsed());
+            }
+            times.sort();
+            let p = |q: usize| ms(times[(times.len() * q / 100).min(times.len() - 1)]);
+
+            println!(
+                "✓ {} | {size_mb:.0} MB | {} 条 | 导入 {:.0} ms | 冷打开 {:.1} ms | 查词 n={} p50 {:.2} ms p95 {:.2} ms max {:.1} ms | 错误 {errors}",
+                meta.name,
+                meta.entry_count,
+                ms(import),
+                ms(open),
+                times.len(),
+                p(50),
+                p(95),
+                ms(times[times.len() - 1]),
+            );
+            for w in ["ubiquitous", "ran", "colour"] {
+                let hits = dict.source.lookup(w)?;
+                let preview: String = hits
+                    .first()
+                    .map(|e| match &e.body {
+                        EntryBody::Html(s) | EntryBody::Text(s) => s.chars().take(90).collect(),
+                    })
+                    .unwrap_or_default();
+                println!("    {w} → {} 条 {:?} {}", hits.len(), hits.first().map(|e| &e.headword), preview.replace('\n', " "));
+            }
+            // mdd 资源：取词条里引用的本地 css / 图片
+            let mut refs = Vec::new();
+            for w in ["ubiquitous", "colour", "bank"] {
+                for e in dict.source.lookup(w)? {
+                    let EntryBody::Html(h) = e.body else { continue };
+                    for attr in ["href=\"", "src=\""] {
+                        for part in h.split(attr).skip(1) {
+                            let r = part.split('"').next().unwrap_or_default();
+                            if !r.contains("://") && !r.is_empty() && !refs.iter().any(|x: &String| x == r) {
+                                refs.push(r.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            let (mut found, mut missing) = (Vec::new(), Vec::new());
+            for r in refs.iter().take(8) {
+                match dict.source.resource(r)? {
+                    Some(b) => found.push(format!("{r} ({} B)", b.len())),
+                    None => missing.push(r.clone()),
+                }
+            }
+            if !refs.is_empty() {
+                println!("    资源 命中 {:?} | 未找到 {:?}", found, missing);
+            }
+        }
+        if !failed.is_empty() {
+            println!("失败 {} 部：{failed:?}", failed.len());
+        }
+        Ok(())
+    }
+
+    fn html(s: &str) -> EntryBody {
+        EntryBody::Html(s.into())
+    }
+
+    #[test]
+    fn mdx_v2_encrypted_info_stylesheet_links_and_mdd() -> Result<()> {
+        let (_dir, db, reg) = setup()?;
+        let meta = import_dict(&db, &reg, &fixture("mdx/basic/basic.mdx"))?;
+        assert_eq!((meta.kind, meta.entry_count), (DictKind::Mdx, 13));
+        assert_eq!(meta.name, "Basic（测试）");
+        let id = &meta.id;
+
+        // StyleSheet 替换
+        assert_eq!(
+            lookup_all(&reg, id, "ubiquitous")?,
+            [("ubiquitous".into(), html("<b>ubiquitous</b><i>adj. 无处不在的</i>"))]
+        );
+        // @@@LINK 跟随，显示目标词头
+        assert_eq!(lookup_all(&reg, id, "ubiquity")?[0].0, "ubiquitous");
+        // Colour → colour → color 两层链接；colour/Colour 同组，最终同一条记录只返回一次
+        let colour = lookup_all(&reg, id, "COLOUR")?;
+        assert_eq!(colour.len(), 1);
+        assert_eq!(colour[0].0, "color");
+        // 环形链接不死循环、不返回内容
+        assert!(lookup_all(&reg, id, "loop1")?.is_empty());
+        // 同形异义两条；大小写不同的词头各自保留
+        assert_eq!(lookup_all(&reg, id, "bank")?.len(), 2);
+        let polish: Vec<_> = lookup_all(&reg, id, "polish")?.into_iter().map(|e| e.0).collect();
+        assert_eq!(polish, ["Polish", "polish"]);
+        assert_eq!(lookup_all(&reg, id, "cafe\u{301}")?[0].0, "café");
+        // 跨多个记录块的长词条
+        let long = format!(
+            "<p>{}</p>",
+            (1..=8).map(|i| format!("义项 {i}：在很多场合都会出现的")).collect::<Vec<_>>().join("；")
+        );
+        assert_eq!(lookup_all(&reg, id, "omnipresent")?[0].1, html(&long));
+
+        // mdd 资源：分隔符、大小写、多个 mdd 文件
+        let dict = reg.get(id)?.ok_or_else(|| Error::Other("未加载".into()))?;
+        assert_eq!(dict.source.resource("img/dot.png")?.as_deref(), Some(&b"\x89PNG\r\n\x1a\nfake"[..]));
+        // 同目录散装文件优先于 mdd 里的同名资源；带查询串也能找到
+        assert_eq!(dict.source.resource("\\STYLE.CSS")?.as_deref(), Some(&b"/* loose overrides mdd */"[..]));
+        assert_eq!(dict.source.resource("basic.css?v=2")?.as_deref(), Some(&b".hw { font-weight: bold }"[..]));
+        // 不允许越出词典目录
+        for evil in ["../legacy/legacy.mdx", "..\\utf16\\utf16.mdx", "C:/Windows/win.ini", "", "/"] {
+            assert_eq!(dict.source.resource(evil)?, None, "{evil}");
+        }
+        assert_eq!(dict.source.resource("/ubiquitous.mp3")?.as_deref(), Some(&b"ID3fake-audio"[..]));
+        assert_eq!(dict.source.resource("missing.png")?, None);
+
+        // 重启后加载
+        let fresh = DictRegistry::new(reg.index_dir().to_path_buf());
+        assert_eq!(fresh.load_all(&db)?, 1);
+        assert_eq!(lookup_all(&fresh, id, "bank")?.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn mdx_v1_gbk_lzo() -> Result<()> {
+        let (_dir, db, reg) = setup()?;
+        let meta = import_dict(&db, &reg, &fixture("mdx/legacy/legacy.mdx"))?;
+        assert_eq!(meta.entry_count, 5);
+        assert_eq!(lookup_all(&reg, &meta.id, "中国")?, [("中国".into(), html("<p>China</p>"))]);
+        assert_eq!(lookup_all(&reg, &meta.id, "中文")?[0].0, "汉语");
+        assert_eq!(lookup_all(&reg, &meta.id, "Abandon")?[0].1, html("<p>放弃；抛弃</p>"));
+        Ok(())
+    }
+
+    #[test]
+    fn mdx_utf16_uncompressed_and_title_fallback() -> Result<()> {
+        let (_dir, db, reg) = setup()?;
+        let meta = import_dict(&db, &reg, &fixture("mdx/utf16/utf16.mdx"))?;
+        assert_eq!(meta.name, "utf16");
+        assert_eq!(lookup_all(&reg, &meta.id, "naïve")?[0].1, html("<p>天真的</p>"));
+        assert_eq!(lookup_all(&reg, &meta.id, "world")?[0].1, html("<p>世界</p>"));
+        Ok(())
+    }
+
+    #[test]
+    fn mdx_unsupported_variants_have_clear_errors() -> Result<()> {
+        let (_dir, db, reg) = setup()?;
+        assert!(matches!(
+            import_dict(&db, &reg, &fixture("mdx/regcode.mdx")),
+            Err(Error::InvalidDict(m)) if m.contains("授权")
+        ));
+        assert!(matches!(
+            import_dict(&db, &reg, &fixture("mdx/v3.mdx")),
+            Err(Error::UnsupportedFormat(m)) if m.contains("3.0")
+        ));
         assert!(db.with_conn(dicts::list)?.is_empty());
         Ok(())
     }

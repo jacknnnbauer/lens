@@ -2,23 +2,25 @@
 //!
 //! - `<id>.fst`：`fst::Map`，启动时 mmap 加载，不把整部词典读进内存。
 //! - `<id>.dup`：冲突表。同一个归一化键对应多条记录时，FST 里存 `DUP_FLAG | 冲突表下标`。
+//!   格式 `LENSDUP2` + 组数 n + (n+1) 个累计偏移 + 值数组（均为 u64 LE），同样 mmap，按需读取。
 //!
-//! 记录位置的含义由各词典格式自己定义（JSON：条目下标；mdx：块序号 + 块内偏移；StarDict：offset/size）。
+//! 值的含义由各词典格式自己定义（JSON：条目下标；StarDict：.idx 内位置；mdx：词条表序号）。
 
+use std::collections::HashSet;
 use std::fs::{self, File};
-use std::io::{BufWriter, Read, Write};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use fst::automaton::{Levenshtein, Str};
 use fst::{Automaton, IntoStreamer, Map, MapBuilder, Streamer};
 use memmap2::Mmap;
-use unicode_normalization::UnicodeNormalization;
+use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
 
 use crate::error::{Error, Result};
 
 /// 最高位置 1 表示值是冲突表下标；记录位置本身不得占用最高位。
 const DUP_FLAG: u64 = 1 << 63;
-const DUP_MAGIC: &[u8; 8] = b"LENSDUP1";
+const DUP_MAGIC: &[u8; 8] = b"LENSDUP2";
 /// 模糊查询只对长度 ≥ 4 的输入启用（SPEC 7.2）。
 pub const MIN_FUZZY_CHARS: usize = 4;
 /// 模糊查询先收集这么多候选再按编辑距离排序，避免短词 + 距离 2 时扫出海量结果。
@@ -26,7 +28,16 @@ const FUZZY_SCAN_CAP: usize = 500;
 
 /// 词头归一化：trim、NFC、小写。查询端必须用同一个函数。
 pub fn normalize_key(s: &str) -> String {
-    s.trim().nfc().collect::<String>().to_lowercase()
+    let s = s.trim();
+    if s.is_ascii() {
+        return s.to_ascii_lowercase();
+    }
+    // 绝大多数非 ASCII 词头本来就是 NFC，快速检查通过就省掉一次重组
+    if is_nfc_quick(s.chars()) == IsNormalized::Yes {
+        s.to_lowercase()
+    } else {
+        s.nfc().collect::<String>().to_lowercase()
+    }
 }
 
 pub fn index_paths(dir: &Path, dict_id: &str) -> (PathBuf, PathBuf) {
@@ -72,13 +83,11 @@ impl IndexBuilder {
             while j < self.pairs.len() && self.pairs[j].0 == *key {
                 j += 1;
             }
-            // 同键下重复的值（如别名归一化后与词头相同）只保留第一次出现
-            let mut values: Vec<u64> = Vec::with_capacity(j - i);
-            for (_, v) in &self.pairs[i..j] {
-                if !values.contains(v) {
-                    values.push(*v);
-                }
-            }
+            // 同键下重复的值（如别名归一化后与词头相同）只保留第一次出现。
+            // 「全索引」类词典一个键可对应上万条，用 HashSet 避免平方复杂度。
+            let mut seen = HashSet::with_capacity(j - i);
+            let values: Vec<u64> =
+                self.pairs[i..j].iter().map(|p| p.1).filter(|v| seen.insert(*v)).collect();
             let value = if let [single] = values[..] {
                 single
             } else {
@@ -106,40 +115,62 @@ fn write_dups(path: &Path, dups: &[Vec<u64>]) -> Result<()> {
     let mut w = BufWriter::new(File::create(path)?);
     w.write_all(DUP_MAGIC)?;
     w.write_all(&(dups.len() as u64).to_le_bytes())?;
+    let mut off = 0u64;
+    w.write_all(&off.to_le_bytes())?;
     for group in dups {
-        w.write_all(&(group.len() as u64).to_le_bytes())?;
-        for v in group {
-            w.write_all(&v.to_le_bytes())?;
-        }
+        off += group.len() as u64;
+        w.write_all(&off.to_le_bytes())?;
+    }
+    for v in dups.iter().flatten() {
+        w.write_all(&v.to_le_bytes())?;
     }
     w.flush()?;
     Ok(())
 }
 
-fn read_dups(path: &Path) -> Result<Vec<Vec<u64>>> {
-    let mut bytes = Vec::new();
-    File::open(path)?.read_to_end(&mut bytes)?;
-    let bad = || Error::InvalidDict(format!("冲突表文件损坏：{}", path.display()));
-    let mut words = bytes.strip_prefix(DUP_MAGIC.as_slice()).ok_or_else(bad)?.chunks_exact(8);
-    if !words.remainder().is_empty() {
-        return Err(bad());
+/// mmap 的冲突表，打开时只校验头部和长度。
+struct Dups {
+    data: Mmap,
+    groups: usize,
+}
+
+impl Dups {
+    fn open(path: &Path) -> Result<Self> {
+        let file = File::open(path)?;
+        // SAFETY: 同 .fst，由本程序生成，只写新文件后改名。
+        let data = unsafe { Mmap::map(&file)? };
+        let bad = || Error::InvalidDict(format!("冲突表文件损坏：{}", path.display()));
+        if data.get(..8) != Some(&DUP_MAGIC[..]) {
+            return Err(bad());
+        }
+        let groups = usize::try_from(Self::u64_at(&data, 8).ok_or_else(bad)?).map_err(|_| bad())?;
+        let values_start = 16 + (groups + 1) * 8;
+        let total = Self::u64_at(&data, values_start - 8).ok_or_else(bad)?;
+        let expected = usize::try_from(total).ok().and_then(|t| t.checked_mul(8)).and_then(|t| t.checked_add(values_start));
+        if expected != Some(data.len()) {
+            return Err(bad());
+        }
+        Ok(Self { data, groups })
     }
-    let mut next = || -> Result<u64> {
-        let w = words.next().ok_or_else(bad)?;
-        Ok(u64::from_le_bytes(w.try_into().map_err(|_| bad())?))
-    };
-    let groups = next()?;
-    let mut dups = Vec::new();
-    for _ in 0..groups {
-        let len = next()?;
-        dups.push((0..len).map(|_| next()).collect::<Result<Vec<_>>>()?);
+
+    fn u64_at(b: &[u8], off: usize) -> Option<u64> {
+        b.get(off..off + 8).and_then(|s| s.try_into().ok()).map(u64::from_le_bytes)
     }
-    Ok(dups)
+
+    fn group(&self, i: usize) -> Option<Vec<u64>> {
+        if i >= self.groups {
+            return None;
+        }
+        let from = usize::try_from(Self::u64_at(&self.data, 16 + i * 8)?).ok()?;
+        let to = usize::try_from(Self::u64_at(&self.data, 16 + (i + 1) * 8)?).ok()?;
+        let base = 16 + (self.groups + 1) * 8;
+        (from..to).map(|k| Self::u64_at(&self.data, base + k * 8)).collect()
+    }
 }
 
 pub struct DictIndex {
     map: Map<Mmap>,
-    dups: Vec<Vec<u64>>,
+    dups: Dups,
 }
 
 impl DictIndex {
@@ -148,7 +179,7 @@ impl DictIndex {
         // SAFETY: 索引文件由本程序独占生成，运行期间不会被截断或改写；
         // 重建索引时写新文件后改名，不原地修改已映射的文件。
         let mmap = unsafe { Mmap::map(&file)? };
-        Ok(Self { map: Map::new(mmap)?, dups: read_dups(dup_path)? })
+        Ok(Self { map: Map::new(mmap)?, dups: Dups::open(dup_path)? })
     }
 
     pub fn len(&self) -> usize {
@@ -204,11 +235,7 @@ impl DictIndex {
             return vec![v];
         }
         // 下标越界说明 .dup 与 .fst 不匹配；返回空而不是 panic，由上层当作未命中
-        usize::try_from(v & !DUP_FLAG)
-            .ok()
-            .and_then(|i| self.dups.get(i))
-            .cloned()
-            .unwrap_or_default()
+        usize::try_from(v & !DUP_FLAG).ok().and_then(|i| self.dups.group(i)).unwrap_or_default()
     }
 }
 
@@ -309,8 +336,10 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let (fst, dup) = index_paths(dir.path(), "t");
         IndexBuilder::new().write(&fst, &dup)?;
-        fs::write(&dup, b"LENSDUP1\x05")?;
-        assert!(DictIndex::open(&fst, &dup).is_err());
+        for bad in [&b"LENSDUP1"[..], b"LENSDUP2\x05", b"LENSDUP2\x01\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"] {
+            fs::write(&dup, bad)?;
+            assert!(DictIndex::open(&fst, &dup).is_err());
+        }
         Ok(())
     }
 

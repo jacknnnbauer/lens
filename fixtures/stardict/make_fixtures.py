@@ -49,7 +49,8 @@ def write_dict(name, entries, *, version="2.4.2", sts=None, offset_bits=32, syn=
     out = HERE / name
     out.mkdir(exist_ok=True)
     for f in out.iterdir():
-        f.unlink()
+        if f.is_file():
+            f.unlink()
 
     entries = sorted(entries, key=lambda e: sort_key(e[0]))
     data = b""
@@ -122,6 +123,9 @@ write_dict(
     sts="tm",
     syn=[("ubiquity", "ubiquitous"), ("ran", "run"), ("running", "run")],
 )
+# StarDict 约定的资源目录 res/
+(HERE / "roots-tm" / "res" / "img").mkdir(parents=True, exist_ok=True)
+(HERE / "roots-tm" / "res" / "img" / "root.gif").write_bytes(b"GIF89a-fake")
 
 long_html = "<p>" + "；".join(f"义项 {i}：在很多场合都会出现的" for i in range(1, 13)) + "</p>"
 write_dict(

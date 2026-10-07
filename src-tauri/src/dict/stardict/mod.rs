@@ -15,7 +15,7 @@ use std::sync::Arc;
 use memmap2::Mmap;
 
 use super::index::{DictIndex, IndexBuilder};
-use super::{DictMeta, DictSource, EntryBody, RawEntry};
+use super::{read_local_resource, DictMeta, DictSource, EntryBody, RawEntry};
 use crate::error::{Error, Result};
 use dictzip::DictZip;
 use ifo::Ifo;
@@ -195,6 +195,8 @@ fn mmap(path: &Path) -> Result<Mmap> {
 
 pub struct StarDict {
     meta: DictMeta,
+    /// `<词典目录>/res`，StarDict 约定的资源目录
+    res_dir: PathBuf,
     idx: Mmap,
     offset_bits: u8,
     sametypesequence: Option<Vec<u8>>,
@@ -227,6 +229,7 @@ impl StarDict {
         };
 
         Ok(Self {
+            res_dir: ifo_path.parent().map(|d| d.join("res")).unwrap_or_default(),
             sametypesequence: ifo.sametypesequence.map(String::into_bytes),
             offset_bits: ifo.idx_offset_bits,
             meta,
@@ -255,9 +258,8 @@ impl DictSource for StarDict {
         Ok(out)
     }
 
-    fn resource(&self, _path: &str) -> Result<Option<Vec<u8>>> {
-        // StarDict 的 res/ 目录资源在 M2 资源协议里再接
-        Ok(None)
+    fn resource(&self, path: &str) -> Result<Option<Vec<u8>>> {
+        read_local_resource(&self.res_dir, path)
     }
 }
 

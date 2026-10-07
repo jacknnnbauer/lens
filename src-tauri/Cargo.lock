@@ -2010,11 +2010,13 @@ checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 name = "lens"
 version = "0.1.0"
 dependencies = [
+ "cc",
  "encoding_rs",
  "flate2",
  "fst",
  "lzokay-native",
  "memmap2",
+ "ogg",
  "percent-encoding",
  "ripemd",
  "rusqlite",
@@ -2525,6 +2527,15 @@ dependencies = [
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation",
+]
+
+[[package]]
+name = "ogg"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdab8dcd8d4052eaacaf8fb07a3ccd9a6e26efadb42878a413c68fc4af1dee2b"
+dependencies = [
+ "byteorder",
 ]
 
 [[package]]

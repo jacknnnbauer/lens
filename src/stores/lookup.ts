@@ -6,9 +6,8 @@ import { prepareEntry, type PreparedEntry } from "../dict-render/prepare";
 import { cancelLookup, lookup as ipcLookup, onLookupDone, onLookupResult } from "../ipc/lookup";
 import type { LookupDoneEvent, LookupHandle, LookupResultEvent, LookupStatus } from "../ipc/types";
 
-/** 默认展开前几部命中的词典（settings.layout.cardsExpanded = "first2"） */
-export const DEFAULT_EXPANDED = 2;
 const BUFFER_IDS = 4;
+const RECENT_MAX = 12;
 
 export interface CardEntry extends PreparedEntry {
   headword: string;
@@ -31,7 +30,11 @@ interface LookupState {
   /** 用户手动展开/折叠过的卡片 */
   expanded: Record<string, boolean>;
   error: string | null;
+  /** 本次会话查过的词（历史记录页在 M4） */
+  recent: string[];
   search: (query: string) => Promise<void>;
+  /** 用同一个查询再查一次（切换场景配置组后） */
+  rerun: () => Promise<void>;
   clear: () => void;
   setExpanded: (id: string, open: boolean) => void;
 }
@@ -72,6 +75,14 @@ export const useLookup = create<LookupState>((set, get) => ({
   suggestions: [],
   expanded: {},
   error: null,
+  recent: [],
+
+  rerun: async () => {
+    const q = get().handle?.query;
+    if (!q) return;
+    set({ handle: null });
+    await get().search(q);
+  },
 
   search: async (query) => {
     const prev = get().handle;
@@ -100,7 +111,10 @@ export const useLookup = create<LookupState>((set, get) => ({
       const early = buffer.get(handle.requestId);
       buffer.delete(handle.requestId);
       for (const r of early?.results ?? []) cards = applyResult(cards, r);
+      const word = handle.normalized || query.trim();
+      const recent = word ? [word, ...get().recent.filter((w) => w !== word)].slice(0, RECENT_MAX) : get().recent;
       set({
+        recent,
         handle,
         cards,
         done: early?.done != null || handle.dicts.length === 0,
@@ -141,7 +155,10 @@ export async function subscribeLookupEvents(): Promise<() => void> {
   };
 }
 
-/** 卡片是否展开：用户手动设置优先，否则默认展开前 DEFAULT_EXPANDED 部命中的词典。 */
-export function isExpanded(card: Card, hitRank: number, expanded: Record<string, boolean>): boolean {
-  return expanded[card.id] ?? hitRank < DEFAULT_EXPANDED;
+export type ExpandMode = "first2" | "all" | "none";
+
+/** 卡片是否展开：用户手动设置优先，否则按 settings.layout.cardsExpanded。 */
+export function isExpanded(card: Card, hitRank: number, expanded: Record<string, boolean>, mode: ExpandMode = "first2"): boolean {
+  const byDefault = mode === "all" ? true : mode === "none" ? false : hitRank < 2;
+  return expanded[card.id] ?? byDefault;
 }

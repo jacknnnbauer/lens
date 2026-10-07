@@ -10,6 +10,7 @@ use tauri::http::{header, Response, StatusCode};
 use tauri::{AppHandle, Manager};
 
 use crate::app_state::AppState;
+use crate::audio;
 use crate::error::{Error, Result};
 
 pub const SCHEME: &str = "lens";
@@ -70,7 +71,15 @@ impl ResourceCache {
     }
 }
 
+fn is_spx(path: &str) -> bool {
+    path.rsplit('.').next().is_some_and(|e| e.eq_ignore_ascii_case("spx"))
+}
+
+/// 响应的 MIME；.spx 已转码为 WAV。
 pub fn mime_for(path: &str) -> &'static str {
+    if is_spx(path) {
+        return "audio/wav";
+    }
     let ext = path.rsplit('.').next().unwrap_or_default().to_ascii_lowercase();
     match ext.as_str() {
         "css" => "text/css; charset=utf-8",
@@ -115,6 +124,8 @@ fn load(app: &AppHandle, dict_id: &str, path: &str) -> Result<Option<Arc<Vec<u8>
     }
     let Some(dict) = state.dicts.get(dict_id)? else { return Ok(None) };
     let Some(bytes) = dict.source.resource(path)? else { return Ok(None) };
+    // WebView2 不支持 Speex，转成 WAV（缓存的是转码结果）
+    let bytes = if is_spx(path) { audio::spx_to_wav(&bytes)? } else { bytes };
     let bytes = Arc::new(bytes);
     state.res_cache.put(key, bytes.clone());
     Ok(Some(bytes))
@@ -185,6 +196,7 @@ mod tests {
     #[test]
     fn mime_types() {
         assert_eq!(mime_for("a/B.CSS"), "text/css; charset=utf-8");
-        assert_eq!(mime_for("x.spx"), "application/octet-stream");
+        assert_eq!(mime_for("uk/x.SPX"), "audio/wav");
+        assert_eq!(mime_for("x.bin"), "application/octet-stream");
     }
 }

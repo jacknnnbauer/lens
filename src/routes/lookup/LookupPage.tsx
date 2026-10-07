@@ -1,23 +1,35 @@
 // 查词页 · 简洁单栏（画板 05）：搜索行 → 词典跳转条 → 词典卡片。
 
-import { useCallback, useEffect, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { DictCard } from "../../components/DictCard";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { useDicts } from "../../stores/dicts";
-import { isExpanded, useLookup } from "../../stores/lookup";
+import { isExpanded, useLookup, type ExpandMode } from "../../stores/lookup";
 import styles from "./LookupPage.module.css";
+
+export interface LookupPageHandle {
+  lookupWord: (word: string) => void;
+  focusSearch: () => void;
+}
 
 interface Props {
   /** 搜索行右侧的按钮（词典库、外观…） */
   actions: React.ReactNode;
   onOpenLibrary: () => void;
+  showJumpBar: boolean;
+  /** 双栏/三栏：结果上方显示大号词头（画板 01） */
+  showHeadword: boolean;
+  expandMode: ExpandMode;
 }
 
 function cardToggles(): HTMLButtonElement[] {
   return Array.from(document.querySelectorAll<HTMLButtonElement>("[data-card-toggle]"));
 }
 
-export function LookupPage({ actions, onOpenLibrary }: Props) {
+export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPage(
+  { actions, onOpenLibrary, showJumpBar, showHeadword, expandMode },
+  ref,
+) {
   const { handle, cards, done, suggestions, expanded, error, search, setExpanded } = useLookup();
   const dictCount = useDicts((s) => s.dicts.filter((d) => d.loaded).length);
   const dictsLoaded = useDicts((s) => s.loaded);
@@ -31,6 +43,8 @@ export function LookupPage({ actions, onOpenLibrary }: Props) {
     },
     [search],
   );
+
+  useImperativeHandle(ref, () => ({ lookupWord, focusSearch: () => searchBox.current?.focus() }), [lookupWord]);
 
   // Ctrl+K 聚焦搜索框
   useEffect(() => {
@@ -49,6 +63,8 @@ export function LookupPage({ actions, onOpenLibrary }: Props) {
   let hitRank = 0;
   const ranks = new Map(visible.map((c) => [c.id, c.status === "hit" ? hitRank++ : Number.POSITIVE_INFINITY]));
   const allMissed = done && handle && visible.length === 0;
+  const hitCount = hitRank;
+  const headword = cards.find((c) => c.status === "hit")?.entries[0]?.headword ?? "";
 
   // Tab / Shift+Tab 在卡片之间跳转（SPEC 9.4），不进入词条内部的链接
   const onToggleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -78,7 +94,16 @@ export function LookupPage({ actions, onOpenLibrary }: Props) {
         {actions}
       </div>
 
-      {visible.length > 0 && (
+      {showHeadword && headword && (
+        <header className={styles.headword}>
+          <h1>{headword}</h1>
+          <span>
+            {hitCount}/{cards.length} 部词典命中
+          </span>
+        </header>
+      )}
+
+      {showJumpBar && visible.length > 0 && (
         <nav aria-label="跳转到词典" className={styles.jump}>
           {visible.map((c) => (
             <a
@@ -108,8 +133,8 @@ export function LookupPage({ actions, onOpenLibrary }: Props) {
         <DictCard
           key={c.id}
           card={c}
-          expanded={c.status === "pending" || isExpanded(c, ranks.get(c.id) ?? Infinity, expanded)}
-          onToggle={() => setExpanded(c.id, !isExpanded(c, ranks.get(c.id) ?? Infinity, expanded))}
+          expanded={c.status === "pending" || isExpanded(c, ranks.get(c.id) ?? Infinity, expanded, expandMode)}
+          onToggle={() => setExpanded(c.id, !isExpanded(c, ranks.get(c.id) ?? Infinity, expanded, expandMode))}
           onEntry={lookupWord}
           onToggleKeyDown={onToggleKeyDown}
         />
@@ -156,4 +181,4 @@ export function LookupPage({ actions, onOpenLibrary }: Props) {
       {visible.length > 0 && <p className={styles.footHint}>标题栏按 Space 展开 / 折叠 · 词条里的链接可直接查词</p>}
     </div>
   );
-}
+});

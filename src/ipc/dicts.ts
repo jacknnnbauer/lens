@@ -2,7 +2,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { DictInfo, IndexProgress } from "./types";
+import type { DictInfo, IndexProgress, ProfileInfo } from "./types";
 
 export function listDicts(): Promise<DictInfo[]> {
   return invoke<DictInfo[]>("list_dicts");
@@ -15,6 +15,10 @@ export function importDicts(paths: string[]): Promise<void> {
 
 export function removeDict(id: string): Promise<boolean> {
   return invoke<boolean>("remove_dict", { id });
+}
+
+export function listProfiles(): Promise<ProfileInfo[]> {
+  return invoke<ProfileInfo[]>("list_profiles");
 }
 
 export function onIndexProgress(cb: (e: IndexProgress) => void): Promise<UnlistenFn> {

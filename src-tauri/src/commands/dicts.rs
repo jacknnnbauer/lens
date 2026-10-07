@@ -100,3 +100,17 @@ pub async fn remove_dict(state: State<'_, AppState>, id: String) -> Result<bool>
     state.res_cache.evict_dict(&id);
     import::remove_dict(&state.db, &state.dicts, &id)
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileInfo {
+    pub id: String,
+    pub name: String,
+    pub dict_count: i64,
+}
+
+#[tauri::command]
+pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ProfileInfo>> {
+    let rows = state.db.with_conn(dicts::profiles)?;
+    Ok(rows.into_iter().map(|(id, name, dict_count)| ProfileInfo { id, name, dict_count }).collect())
+}

@@ -1,6 +1,6 @@
 //! `%APPDATA%/Lens/settings.json`（SPEC 第 14 节）。
 //!
-//! 目前只建模 `appearance`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
+//! 目前只建模 `appearance`、`layout`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
 //! 这样用户手改的内容不会在保存时丢失。
 
 use std::fs;
@@ -38,10 +38,40 @@ impl Default for Appearance {
     }
 }
 
+/// 布局（SPEC 9.2）。preset 决定默认显示哪些区域，各区域开关可单独改。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Layout {
+    /// compact | two-column | three-column
+    pub preset: String,
+    pub show_nav: bool,
+    pub show_sense_atlas: bool,
+    pub show_context: bool,
+    pub show_status_bar: bool,
+    pub show_jump_bar: bool,
+    /// 默认展开哪些卡片：first2 | all | none
+    pub cards_expanded: String,
+}
+
+impl Default for Layout {
+    fn default() -> Self {
+        Self {
+            preset: "compact".into(),
+            show_nav: false,
+            show_sense_atlas: false,
+            show_context: false,
+            show_status_bar: false,
+            show_jump_bar: true,
+            cards_expanded: "first2".into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub appearance: Appearance,
+    pub layout: Layout,
     pub active_profile: String,
     #[serde(flatten)]
     pub rest: Map<String, Value>,
@@ -51,6 +81,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             appearance: Appearance::default(),
+            layout: Layout::default(),
             active_profile: "reading".into(),
             rest: Map::new(),
         }
@@ -143,6 +174,20 @@ mod tests {
         assert_eq!(reloaded.appearance.theme, "dark");
         assert_eq!(reloaded.appearance.accent, "teal");
         assert_eq!(reloaded.rest["capture"]["hotkey"], "Ctrl+Alt+L");
+        Ok(())
+    }
+
+    #[test]
+    fn layout_defaults_follow_spec_and_merge() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("settings.json");
+        fs::write(&path, r#"{"layout":{"preset":"three-column"}}"#)?;
+        let store = SettingsStore::load(path)?;
+        let l = store.get()?.layout;
+        assert_eq!(l.preset, "three-column");
+        assert!(l.show_jump_bar && !l.show_nav, "未写的字段取默认值");
+        let l = store.patch(json!({ "layout": { "showNav": true } }))?.layout;
+        assert_eq!((l.preset.as_str(), l.show_nav), ("three-column", true));
         Ok(())
     }
 

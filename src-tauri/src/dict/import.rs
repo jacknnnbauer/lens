@@ -208,6 +208,8 @@ mod tests {
             Ok(c.query_row("SELECT COUNT(*) FROM profile_dict WHERE dict_id = ?1", [&meta.id], |r| r.get(0))?)
         })?;
         assert_eq!(in_profiles, 3);
+        let profiles = db.with_conn(dicts::profiles)?;
+        assert_eq!(profiles.iter().map(|p| (p.0.as_str(), p.2)).collect::<Vec<_>>(), [("reading", 1), ("translate", 1), ("coding", 1)]);
 
         // 模拟重启：新的注册表从数据库加载
         let fresh = DictRegistry::new(registry.index_dir().to_path_buf());
@@ -463,6 +465,43 @@ mod tests {
             }
             if !refs.is_empty() {
                 println!("    资源 命中 {:?} | 未找到 {:?}", found, missing);
+            }
+            // 发音：.spx 解码为 WAV
+            let mut sounds = Vec::new();
+            for w in probes {
+                for e in dict.source.lookup(w)? {
+                    let EntryBody::Html(h) = e.body else { continue };
+                    for part in h.split("sound://").skip(1) {
+                        let r = part.split(['"', '\'']).next().unwrap_or_default().to_string();
+                        if !sounds.contains(&r) {
+                            sounds.push(r);
+                        }
+                    }
+                }
+            }
+            let spx: Vec<_> = sounds.iter().filter(|s| s.to_ascii_lowercase().ends_with(".spx")).collect();
+            if !spx.is_empty() {
+                let (mut ok, mut bad) = (0, Vec::new());
+                let mut info = String::new();
+                for s in &spx {
+                    let decoded = dict
+                        .source
+                        .resource(s)?
+                        .ok_or_else(|| Error::Other(format!("缺资源 {s}")))
+                        .and_then(|b| crate::audio::decode_ogg_speex(&b));
+                    match decoded {
+                        Ok((rate, pcm)) => {
+                            ok += 1;
+                            if info.is_empty() {
+                                info = format!("{s}: {rate} Hz, {:.2} s", pcm.len() as f64 / f64::from(rate));
+                            }
+                        }
+                        Err(e) => bad.push(format!("{s}: {e}")),
+                    }
+                }
+                println!("    发音 .spx 解码 {ok}/{} 成功（例：{info}）{:?}", spx.len(), &bad[..bad.len().min(3)]);
+            } else if !sounds.is_empty() {
+                println!("    发音 {} 个，格式：{:?}", sounds.len(), sounds.iter().filter_map(|s| s.rsplit('.').next()).collect::<std::collections::BTreeSet<_>>());
             }
         }
         if !failed.is_empty() {

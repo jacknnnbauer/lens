@@ -55,3 +55,9 @@ export interface IndexProgress {
   name: string | null;
   error: string | null;
 }
+
+export interface ProfileInfo {
+  id: string;
+  name: string;
+  dictCount: number;
+}

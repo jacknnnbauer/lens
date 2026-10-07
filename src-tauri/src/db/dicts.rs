@@ -149,3 +149,14 @@ pub fn enabled_for_profile(conn: &Connection, profile_id: &str) -> Result<Vec<St
 pub fn delete(conn: &Connection, id: &str) -> Result<bool> {
     Ok(conn.execute("DELETE FROM dict WHERE id = ?1", params![id])? > 0)
 }
+
+/// 场景配置组及其启用的词典数。
+pub fn profiles(conn: &Connection) -> Result<Vec<(String, String, i64)>> {
+    let mut stmt = conn.prepare(
+        "SELECT p.id, p.name,
+                (SELECT COUNT(*) FROM profile_dict pd WHERE pd.profile_id = p.id AND pd.enabled = 1)
+         FROM profile p ORDER BY p.sort",
+    )?;
+    let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}

@@ -1,11 +1,12 @@
 // 词典库：列表、导入进度、删除。
 
 import { create } from "zustand";
-import { importDicts, listDicts, onIndexProgress, removeDict } from "../ipc/dicts";
-import type { DictInfo, IndexProgress } from "../ipc/types";
+import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict } from "../ipc/dicts";
+import type { DictInfo, IndexProgress, ProfileInfo } from "../ipc/types";
 
 interface DictsState {
   dicts: DictInfo[];
+  profiles: ProfileInfo[];
   loaded: boolean;
   /** 本次会话里的导入记录，按文件路径 */
   imports: Record<string, IndexProgress>;
@@ -17,13 +18,15 @@ interface DictsState {
 
 export const useDicts = create<DictsState>((set, get) => ({
   dicts: [],
+  profiles: [],
   loaded: false,
   imports: {},
   error: null,
 
   refresh: async () => {
     try {
-      set({ dicts: await listDicts(), loaded: true, error: null });
+      const [dicts, profiles] = await Promise.all([listDicts(), listProfiles()]);
+      set({ dicts, profiles, loaded: true, error: null });
     } catch (e) {
       set({ error: String(e), loaded: true });
     }

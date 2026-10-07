@@ -1,5 +1,79 @@
+/* 网格：[左侧导航] 主区 [右侧栏]，状态栏横跨底部。页面整体随窗口滚动，两侧栏吸顶。 */
 .shell {
-  min-height: 100%;
+  --nav-w: 220px;
+  --context-w: 280px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  min-height: 100vh;
+}
+
+.shell[data-nav] {
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+}
+
+.shell[data-context] {
+  grid-template-columns: minmax(0, 1fr) var(--context-w);
+}
+
+.shell[data-nav][data-context] {
+  grid-template-columns: var(--nav-w) minmax(0, 1fr) var(--context-w);
+}
+
+.side {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  min-height: 100vh;
+}
+
+.context {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.main {
+  min-width: 0;
+}
+
+.status {
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+}
+
+/* 默认窗口 1100px 宽时三栏都要放得下：先收窄两侧栏，更窄时先收起右侧栏，再收起左侧导航 */
+@media (max-width: 1279px) {
+  .shell {
+    --nav-w: 200px;
+    --context-w: 250px;
+  }
+}
+
+@media (max-width: 959px) {
+  .context {
+    display: none;
+  }
+  .shell[data-context] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shell[data-nav][data-context] {
+    grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 719px) {
+  .side {
+    display: none;
+  }
+  .shell[data-nav],
+  .shell[data-nav][data-context] {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .iconBtn {

@@ -1,4 +1,5 @@
 mod app_state;
+mod audio;
 mod capture;
 mod clipboard;
 mod commands;
@@ -49,6 +50,7 @@ pub fn run() {
             commands::dicts::list_dicts,
             commands::dicts::import_dicts,
             commands::dicts::remove_dict,
+            commands::dicts::list_profiles,
             commands::lookup::lookup,
             commands::lookup::cancel_lookup,
             commands::lookup::suggest,

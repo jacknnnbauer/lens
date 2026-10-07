@@ -3,6 +3,9 @@
 
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLayoutEffect, useRef } from "react";
+import { THEMES } from "../theme/themes";
+import { useAppliedTheme } from "../theme/useApplyTheme";
+import { adjustContrast, parseColor, type RGB } from "./contrast";
 
 // 主题变量穿透 Shadow 边界继承；词典自带 CSS 写在后面，可以覆盖这里的默认值
 const BASE_CSS = `
@@ -20,6 +23,28 @@ interface Props {
   onEntry: (word: string) => void;
 }
 
+/** 词典样式表最多等这么久，超时也照常显示 */
+const STYLESHEET_WAIT_MS = 1500;
+
+function waitForStylesheets(root: ShadowRoot): Promise<void> {
+  const links = Array.from(root.querySelectorAll("link"));
+  return Promise.all(
+    links.map(
+      (l) =>
+        new Promise<void>((resolve) => {
+          if (l.sheet) return resolve();
+          l.addEventListener("load", () => resolve(), { once: true });
+          l.addEventListener("error", () => resolve(), { once: true });
+          setTimeout(resolve, STYLESHEET_WAIT_MS);
+        }),
+    ),
+  ).then(() => undefined);
+}
+
+function cssVarColor(el: Element, name: string): RGB | null {
+  return parseColor(getComputedStyle(el).getPropertyValue(name))?.rgb ?? null;
+}
+
 function play(url: string) {
   new Audio(url).play().catch((e) => console.warn("发音播放失败", url, e));
 }
@@ -28,12 +53,27 @@ export function DictBody({ html, onEntry }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const onEntryRef = useRef(onEntry);
   onEntryRef.current = onEntry;
+  const theme = useAppliedTheme((s) => s.theme);
 
   useLayoutEffect(() => {
     const el = host.current;
     if (!el) return;
     const root = el.shadowRoot ?? el.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${BASE_CSS}</style>${html}`;
+
+    // 词典 CSS 加载完后修正对比度；修正前先隐藏，避免闪一下看不清的原始配色
+    let cancelled = false;
+    el.style.visibility = "hidden";
+    void waitForStylesheets(root).then(() => {
+      if (cancelled) return;
+      const panel = cssVarColor(el, "--panel");
+      const raised = cssVarColor(el, "--raised");
+      if (panel && raised) {
+        const dark = THEMES.find((t) => t.id === theme)?.dark ?? false;
+        adjustContrast(root, { panel, raised, dark });
+      }
+      el.style.visibility = "";
+    });
 
     const onClick = (ev: Event) => {
       const a = (ev.target as Element | null)?.closest?.("a");
@@ -60,8 +100,11 @@ export function DictBody({ html, onEntry }: Props) {
       }
     };
     root.addEventListener("click", onClick);
-    return () => root.removeEventListener("click", onClick);
-  }, [html]);
+    return () => {
+      cancelled = true;
+      root.removeEventListener("click", onClick);
+    };
+  }, [html, theme]);
 
   return <div ref={host} />;
 }

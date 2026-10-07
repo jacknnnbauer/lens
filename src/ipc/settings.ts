@@ -12,9 +12,22 @@ export interface Appearance {
   glossFont: "serif" | "sans";
 }
 
-/** 目前只建模到 appearance；其他分组由 Rust 原样保留，接入时再补类型。 */
+export type LayoutPreset = "compact" | "two-column" | "three-column";
+
+export interface Layout {
+  preset: LayoutPreset;
+  showNav: boolean;
+  showSenseAtlas: boolean;
+  showContext: boolean;
+  showStatusBar: boolean;
+  showJumpBar: boolean;
+  cardsExpanded: "first2" | "all" | "none";
+}
+
+/** 目前建模到 appearance、layout；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   appearance: Appearance;
+  layout: Layout;
   activeProfile: string;
   [section: string]: unknown;
 }

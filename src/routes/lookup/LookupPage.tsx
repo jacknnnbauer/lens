@@ -2,9 +2,11 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { DictCard } from "../../components/DictCard";
+import { StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { useDicts } from "../../stores/dicts";
 import { isExpanded, useLookup, type ExpandMode } from "../../stores/lookup";
+import { useSaveWord } from "../../stores/save";
 import styles from "./LookupPage.module.css";
 
 const IDLE_COMMIT_MS = 1500;
@@ -36,6 +38,9 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const dictCount = useDicts((s) => s.dicts.filter((d) => d.loaded).length);
   const dictsLoaded = useDicts((s) => s.loaded);
   const searchBox = useRef<SearchBoxHandle>(null);
+  const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards);
+  const saveRef = useRef(save);
+  saveRef.current = save;
 
   const lookupWord = useCallback(
     (word: string) => {
@@ -56,12 +61,17 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     return () => clearTimeout(t);
   }, [handle, done, anyHit, commit]);
 
-  // Ctrl+K 聚焦搜索框
+  // Ctrl+K 聚焦搜索框，Ctrl+S 收藏（SPEC 9.4）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "k") {
+      if (!e.ctrlKey || e.shiftKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "k") {
         e.preventDefault();
         searchBox.current?.focus();
+      } else if (k === "s") {
+        e.preventDefault();
+        void saveRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -101,6 +111,17 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     <div className={styles.column}>
       <div className={styles.searchRow}>
         <SearchBox ref={searchBox} onSearch={(q, c) => void search(q, { commit: c })} onTabOut={() => cardToggles()[0]?.focus()} />
+        <button
+          type="button"
+          className={styles.star}
+          aria-pressed={saved}
+          aria-label={saved ? "已收藏（Ctrl+S 追加语境）" : "收藏到生词本（Ctrl+S）"}
+          title={saved ? "已收藏 · Ctrl+S 追加语境" : "收藏到生词本 · Ctrl+S"}
+          disabled={!anyHit}
+          onClick={() => void save()}
+        >
+          <StarIcon filled={saved} />
+        </button>
         {actions}
       </div>
 

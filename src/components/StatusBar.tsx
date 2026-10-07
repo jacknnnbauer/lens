@@ -26,7 +26,7 @@ export function StatusBar({ capture }: { capture: CaptureStatus | null }) {
           划词：{[capture.hotkeyRegistered && capture.hotkey, capture.doubleCopy && "Ctrl+C+C"].filter(Boolean).join(" / ") || "未启用"}
         </span>
       )}
-      <span className={styles.keys}>Ctrl+K 搜索　Tab 切典　Space 展开　Ctrl+1/2/3 配置组　Ctrl+L 词典库</span>
+      <span className={styles.keys}>Ctrl+K 搜索　Ctrl+S 收藏　Tab 切典　Space 展开　Ctrl+B 生词本　Ctrl+H 历史　Ctrl+1/2/3 配置组</span>
     </footer>
   );
 }

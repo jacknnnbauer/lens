@@ -59,3 +59,15 @@ export const ClockIcon = ({ size = 18 }) => (
     <path d="M12 8v4l3 2" />
   </svg>
 );
+
+export const StarIcon = ({ size = 18, filled = false }) => (
+  <svg {...base(size)} fill={filled ? "currentColor" : "none"}>
+    <path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z" />
+  </svg>
+);
+
+export const BookmarkIcon = ({ size = 18 }) => (
+  <svg {...base(size)}>
+    <path d="M6 4h12v16l-6-4-6 4z" />
+  </svg>
+);

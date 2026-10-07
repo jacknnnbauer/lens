@@ -138,3 +138,33 @@
   font-size: 13px;
   color: var(--sub);
 }
+
+.star {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sub);
+  cursor: pointer;
+}
+
+.star:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.star[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--hl);
+  color: var(--accent);
+}
+
+.star:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

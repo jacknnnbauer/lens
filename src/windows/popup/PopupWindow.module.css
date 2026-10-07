@@ -50,6 +50,11 @@
   cursor: pointer;
 }
 
+.pin:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .pin[aria-pressed="true"] {
   border-color: var(--accent);
   background: var(--hl);

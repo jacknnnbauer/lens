@@ -2,13 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppearanceMenu } from "../../components/AppearanceMenu";
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ContextPanel } from "../../components/ContextPanel";
-import { ClockIcon, LibraryIcon } from "../../components/icons";
+import { BookmarkIcon, ClockIcon, LibraryIcon } from "../../components/icons";
 import { LibraryDialog } from "../../components/LibraryDialog";
 import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
+import { Toast } from "../../components/Toast";
 import { onMainLookup } from "../../ipc/capture";
 import { HistoryPage } from "../../routes/history/HistoryPage";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
+import { WordbookPage } from "../../routes/wordbook/WordbookPage";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
 import { useRoute } from "../../stores/route";
@@ -77,7 +79,7 @@ export function MainWindow() {
     [updateNow],
   );
 
-  // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+K 回到查词（SPEC 9.4）
+  // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+B 生词本，Ctrl+K 回到查词（SPEC 9.4）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey) return;
@@ -91,6 +93,9 @@ export function MainWindow() {
       } else if (e.key.toLowerCase() === "h") {
         e.preventDefault();
         go("history");
+      } else if (e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        go("wordbook");
       } else if (e.key.toLowerCase() === "k" && useRoute.getState().page !== "lookup") {
         e.preventDefault();
         focusSearch();
@@ -110,6 +115,7 @@ export function MainWindow() {
           <SideNav
             onFocusSearch={focusSearch}
             onOpenHistory={() => go("history")}
+            onOpenWordbook={() => go("wordbook")}
             onOpenLibrary={() => setLibraryOpen(true)}
             onSwitchProfile={(id) => void switchProfile(id)}
             onLookup={lookupWord}
@@ -133,6 +139,9 @@ export function MainWindow() {
             expandMode={layout?.cardsExpanded ?? "first2"}
             actions={
               <>
+                <button type="button" className={styles.iconBtn} aria-label="生词本" title="生词本（Ctrl+B）" onClick={() => go("wordbook")}>
+                  <BookmarkIcon />
+                </button>
                 <button type="button" className={styles.iconBtn} aria-label="历史" title="历史（Ctrl+H）" onClick={() => go("history")}>
                   <ClockIcon />
                 </button>
@@ -145,6 +154,7 @@ export function MainWindow() {
           />
         </div>
         {page === "history" && <HistoryPage active onLookup={lookupWord} />}
+        {page === "wordbook" && <WordbookPage active onLookup={lookupWord} />}
       </main>
 
       {showContext && (
@@ -160,6 +170,7 @@ export function MainWindow() {
       )}
 
       <LibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
+      <Toast />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 pub mod dicts;
 pub mod history;
 pub mod migrations;
+pub mod words;
 
 use std::path::Path;
 use std::sync::Mutex;

@@ -8,7 +8,9 @@ import { ContextSentence } from "../../components/ContextSentence";
 import { SearchIcon } from "../../components/icons";
 import { DictBody } from "../../dict-render/DictBody";
 import { hidePopup, onCapture, onCaptureUrl, openInMain, type CaptureEvent } from "../../ipc/capture";
+import { Toast } from "../../components/Toast";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
+import { useSaveWord } from "../../stores/save";
 import { useSettings } from "../../stores/settings";
 import { useApplyTheme } from "../../theme/useApplyTheme";
 import styles from "./PopupWindow.module.css";
@@ -29,6 +31,9 @@ export function PopupWindow() {
   const pinnedRef = useRef(false);
   pinnedRef.current = pinned;
   const input = useRef<HTMLInputElement>(null);
+  // 收藏时带上本次划词的语境句；改词重查后就不再是那句的语境了
+  const captureMatches = capture != null && handle != null && handle.query === capture.text;
+  const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards, captureMatches ? capture.contextId : null);
 
   const lookupWord = useCallback(
     (q: string) => {
@@ -100,6 +105,9 @@ export function PopupWindow() {
     } else if (e.ctrlKey && e.key.toLowerCase() === "p") {
       e.preventDefault();
       setPinned((p) => !p);
+    } else if (e.ctrlKey && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      void save();
     } else if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && ctx) {
       e.preventDefault();
       setExtra((x) =>
@@ -139,6 +147,16 @@ export function PopupWindow() {
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onInputKeyDown}
         />
+        <button
+          type="button"
+          className={styles.pin}
+          aria-pressed={saved}
+          aria-label={saved ? "已收藏（Ctrl+S 追加语境）" : "收藏（Ctrl+S）"}
+          disabled={!hits.length}
+          onClick={() => void save()}
+        >
+          {saved ? "已收藏" : "收藏"}
+        </button>
         <button
           type="button"
           className={styles.pin}
@@ -240,6 +258,9 @@ export function PopupWindow() {
           <kbd>↵</kbd> 主窗口
         </span>
         <span>
+          <kbd>Ctrl+S</kbd> 收藏
+        </span>
+        <span>
           <kbd>Ctrl+P</kbd> 钉住
         </span>
         {ctx && (
@@ -251,6 +272,7 @@ export function PopupWindow() {
           <kbd>Esc</kbd>
         </span>
       </footer>
+      <Toast />
     </div>
   );
 }

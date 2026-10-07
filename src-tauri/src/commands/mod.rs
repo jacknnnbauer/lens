@@ -5,3 +5,4 @@ pub mod history;
 pub mod lookup;
 pub mod popup;
 pub mod settings;
+pub mod words;

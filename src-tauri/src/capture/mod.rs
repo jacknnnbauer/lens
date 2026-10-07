@@ -250,7 +250,15 @@ fn save_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &str
         url: None,
         method,
     };
-    match app.state::<AppState>().db.with_conn(|c| insert_context(c, &row)) {
+    // 已收藏的词再次遇到：语境句自动追加到生词本（「同一个词，N 个语境」）
+    let saved = app.state::<AppState>().db.with_conn(|c| {
+        let id = insert_context(c, &row)?;
+        if let Some(word) = crate::db::words::id_by_lemma(c, &lemma)? {
+            crate::db::words::link_context(c, word, id)?;
+        }
+        Ok(id)
+    });
+    match saved {
         Ok(id) => Some(id),
         Err(e) => {
             tracing::warn!(error = %e, "保存语境句失败");

@@ -1,4 +1,4 @@
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, State, Window};
 
 use crate::app_state::AppState;
 use crate::db::dicts;
@@ -20,9 +20,9 @@ fn profile_dicts(state: &AppState) -> Result<Vec<LoadedDict>> {
 }
 
 /// 立即返回 requestId 和参与查询的词典；结果通过 `lookup:result` 逐部推送，最后推送 `lookup:done`。
-/// 新查询会取消同一来源之前未完成的查询。
+/// 新查询会取消同一窗口之前未完成的查询；事件只推送给发起的窗口。
 #[tauri::command]
-pub async fn lookup(app: AppHandle, state: State<'_, AppState>, query: String) -> Result<LookupHandle> {
+pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, query: String) -> Result<LookupHandle> {
     let keys = query::candidates(&query);
     let normalized = keys.last().cloned().unwrap_or_default();
     let request_id = uuid::Uuid::new_v4().to_string();
@@ -38,10 +38,11 @@ pub async fn lookup(app: AppHandle, state: State<'_, AppState>, query: String) -
             .collect(),
     };
 
+    let label = window.label().to_string();
     let cancels = state.lookups.clone();
-    let flag = cancels.register(&request_id)?;
-    cancels.cancel_all_except(&request_id)?;
-    tauri::async_runtime::spawn(query::run(app, cancels, request_id, keys, dicts, flag));
+    let flag = cancels.register(&request_id, &label)?;
+    cancels.cancel_others(&request_id, &label)?;
+    tauri::async_runtime::spawn(query::run(app, label, cancels, request_id, keys, dicts, flag));
     Ok(handle)
 }
 

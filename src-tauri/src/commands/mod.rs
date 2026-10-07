@@ -2,4 +2,5 @@
 
 pub mod dicts;
 pub mod lookup;
+pub mod popup;
 pub mod settings;

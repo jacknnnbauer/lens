@@ -1,6 +1,6 @@
 //! `%APPDATA%/Lens/settings.json`（SPEC 第 14 节）。
 //!
-//! 目前只建模 `appearance`、`layout`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
+//! 目前只建模 `appearance`、`layout`、`capture`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
 //! 这样用户手改的内容不会在保存时丢失。
 
 use std::fs;
@@ -67,11 +67,31 @@ impl Default for Layout {
     }
 }
 
+/// 取词（SPEC 8.1、14）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Capture {
+    /// 全局快捷键，避开 Alt+Space（系统菜单）与 Ctrl+Space（输入法）
+    pub hotkey: String,
+    /// 是否启用 Ctrl+C+C
+    pub double_copy: bool,
+    pub ocr_fallback: bool,
+    /// 取词超时，超时先弹窗
+    pub timeout_ms: u64,
+}
+
+impl Default for Capture {
+    fn default() -> Self {
+        Self { hotkey: "Ctrl+Alt+Space".into(), double_copy: true, ocr_fallback: false, timeout_ms: 150 }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub appearance: Appearance,
     pub layout: Layout,
+    pub capture: Capture,
     pub active_profile: String,
     #[serde(flatten)]
     pub rest: Map<String, Value>,
@@ -82,6 +102,7 @@ impl Default for Settings {
         Self {
             appearance: Appearance::default(),
             layout: Layout::default(),
+            capture: Capture::default(),
             active_profile: "reading".into(),
             rest: Map::new(),
         }
@@ -163,7 +184,7 @@ mod tests {
     fn patch_persists_and_keeps_unknown_sections() -> Result<()> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("settings.json");
-        fs::write(&path, r#"{"appearance":{"theme":"light"},"capture":{"hotkey":"Ctrl+Alt+L"}}"#)?;
+        fs::write(&path, r#"{"appearance":{"theme":"light"},"export":{"paper":"letter"}}"#)?;
 
         let store = SettingsStore::load(path.clone())?;
         assert_eq!(store.get()?.appearance.theme, "light");
@@ -173,7 +194,7 @@ mod tests {
         let reloaded = SettingsStore::load(path)?.get()?;
         assert_eq!(reloaded.appearance.theme, "dark");
         assert_eq!(reloaded.appearance.accent, "teal");
-        assert_eq!(reloaded.rest["capture"]["hotkey"], "Ctrl+Alt+L");
+        assert_eq!(reloaded.rest["export"]["paper"], "letter");
         Ok(())
     }
 

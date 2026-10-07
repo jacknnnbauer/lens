@@ -77,28 +77,31 @@ pub struct LookupDoneEvent {
     pub suggestions: Vec<String>,
 }
 
-/// 进行中的查询的取消标记。
+/// 进行中的查询的取消标记，按发起窗口区分（主窗口和弹窗的查询互不取消）。
 #[derive(Default)]
-pub struct Cancels(Mutex<HashMap<String, Arc<AtomicBool>>>);
+pub struct Cancels(Mutex<HashMap<String, (String, Arc<AtomicBool>)>>);
 
 impl Cancels {
-    pub fn register(&self, id: &str) -> Result<Arc<AtomicBool>> {
+    pub fn register(&self, id: &str, window: &str) -> Result<Arc<AtomicBool>> {
         let flag = Arc::new(AtomicBool::new(false));
-        self.0.lock().map_err(|_| Error::LockPoisoned)?.insert(id.to_string(), flag.clone());
+        self.0
+            .lock()
+            .map_err(|_| Error::LockPoisoned)?
+            .insert(id.to_string(), (window.to_string(), flag.clone()));
         Ok(flag)
     }
 
     pub fn cancel(&self, id: &str) -> Result<()> {
-        if let Some(f) = self.0.lock().map_err(|_| Error::LockPoisoned)?.get(id) {
+        if let Some((_, f)) = self.0.lock().map_err(|_| Error::LockPoisoned)?.get(id) {
             f.store(true, Ordering::Relaxed);
         }
         Ok(())
     }
 
-    /// 取消除 `keep` 以外的全部查询（新查询发出时调用）。
-    pub fn cancel_all_except(&self, keep: &str) -> Result<()> {
-        for (id, f) in self.0.lock().map_err(|_| Error::LockPoisoned)?.iter() {
-            if id != keep {
+    /// 取消同一窗口里除 `keep` 以外的查询（新查询发出时调用）。
+    pub fn cancel_others(&self, keep: &str, window: &str) -> Result<()> {
+        for (id, (w, f)) in self.0.lock().map_err(|_| Error::LockPoisoned)?.iter() {
+            if id != keep && w == window {
                 f.store(true, Ordering::Relaxed);
             }
         }
@@ -117,8 +120,10 @@ fn concurrency() -> usize {
 }
 
 /// 后台执行一次查询：每部词典一个阻塞任务，完成一个推送一个；全部结束后推送 done。
+/// 事件只发给发起查询的窗口 `target`。
 pub async fn run(
     app: AppHandle,
+    target: String,
     cancels: Arc<Cancels>,
     request_id: String,
     keys: Vec<String>,
@@ -173,7 +178,7 @@ pub async fn run(
             tracing::warn!(dict = %dict_id, error = %e, "查词失败");
         }
         let event = LookupResultEvent { request_id: request_id.clone(), dict_id, status, entries, error, ms };
-        if let Err(e) = app.emit(EVENT_RESULT, event) {
+        if let Err(e) = app.emit_to(target.as_str(), EVENT_RESULT, event) {
             tracing::warn!(error = %e, "推送查词结果失败");
         }
     }
@@ -181,7 +186,8 @@ pub async fn run(
     if !cancelled.load(Ordering::Relaxed) {
         let last = keys.last().map(String::as_str).unwrap_or_default();
         let suggestions = if any_hit { Vec::new() } else { fuzzy_suggestions(&dicts, last) };
-        if let Err(e) = app.emit(EVENT_DONE, LookupDoneEvent { request_id: request_id.clone(), suggestions }) {
+        let done = LookupDoneEvent { request_id: request_id.clone(), suggestions };
+        if let Err(e) = app.emit_to(target.as_str(), EVENT_DONE, done) {
             tracing::warn!(error = %e, "推送查词完成事件失败");
         }
     }

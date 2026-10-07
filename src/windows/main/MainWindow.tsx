@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppearanceMenu } from "../../components/AppearanceMenu";
+import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ContextPanel } from "../../components/ContextPanel";
 import { LibraryIcon } from "../../components/icons";
 import { LibraryDialog } from "../../components/LibraryDialog";
 import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
+import { onMainLookup } from "../../ipc/capture";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
@@ -27,11 +29,17 @@ export function MainWindow() {
   const resolved = useApplyTheme();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const page = useRef<LookupPageHandle>(null);
+  const capture = useCaptureStatus();
 
   useEffect(() => {
     void loadSettings();
     void refreshDicts();
-    const subs = [subscribeLookupEvents(), subscribeDictEvents()];
+    const subs = [
+      subscribeLookupEvents(),
+      subscribeDictEvents(),
+      // 弹窗里按 Enter：在主窗口查同一个词
+      onMainLookup((q) => page.current?.lookupWord(q)),
+    ];
     return () => {
       for (const s of subs) void s.then((off) => off());
     };
@@ -84,6 +92,7 @@ export function MainWindow() {
       )}
 
       <main className={styles.main}>
+        <HotkeyNotice status={capture} />
         {settingsError && (
           <p role="alert" className={styles.error}>
             设置读取失败：{settingsError}
@@ -114,7 +123,7 @@ export function MainWindow() {
 
       {layout?.showStatusBar && (
         <div className={styles.status}>
-          <StatusBar />
+          <StatusBar capture={capture} />
         </div>
       )}
 

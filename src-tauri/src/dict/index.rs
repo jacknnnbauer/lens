@@ -182,6 +182,7 @@ impl DictIndex {
         Ok(Self { map: Map::new(mmap)?, dups: Dups::open(dup_path)? })
     }
 
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.map.len()
     }

@@ -135,3 +135,17 @@ pub fn set_index_state(
     )?;
     Ok(())
 }
+
+/// 场景配置组里启用的词典，按顺序。
+pub fn enabled_for_profile(conn: &Connection, profile_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT dict_id FROM profile_dict WHERE profile_id = ?1 AND enabled = 1 ORDER BY sort, dict_id",
+    )?;
+    let ids = stmt.query_map(params![profile_id], |r| r.get(0))?;
+    Ok(ids.collect::<rusqlite::Result<Vec<String>>>()?)
+}
+
+/// 删除词典（profile_dict 级联删除）。返回是否真的删掉了一行。
+pub fn delete(conn: &Connection, id: &str) -> Result<bool> {
+    Ok(conn.execute("DELETE FROM dict WHERE id = ?1", params![id])? > 0)
+}

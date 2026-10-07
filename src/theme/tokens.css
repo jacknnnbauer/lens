@@ -6,7 +6,8 @@
 
 :root {
   --font-ui: "IBM Plex Sans", "Microsoft YaHei UI", "Noto Sans SC", sans-serif;
-  --font-gloss: "Source Serif 4", "Noto Serif SC", "SimSun", serif;
+  /* Georgia 在宋体之前：字体未随包分发前，西文不至于落到宋体的等宽字形；中文仍由后面的中文字体接管 */
+  --font-gloss: "Source Serif 4", Georgia, "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
   --font-mono: "JetBrains Mono", Consolas, monospace;
 }
 

@@ -170,6 +170,10 @@ impl DictRegistry {
         Ok(self.dicts.read().map_err(|_| Error::LockPoisoned)?.get(id).cloned())
     }
 
+    pub fn remove(&self, id: &str) -> Result<Option<LoadedDict>> {
+        Ok(self.dicts.write().map_err(|_| Error::LockPoisoned)?.remove(id))
+    }
+
     pub fn len(&self) -> Result<usize> {
         Ok(self.dicts.read().map_err(|_| Error::LockPoisoned)?.len())
     }

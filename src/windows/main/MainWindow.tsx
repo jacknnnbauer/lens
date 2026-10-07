@@ -1,74 +1,55 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { AppearanceMenu } from "../../components/AppearanceMenu";
+import { LibraryIcon } from "../../components/icons";
+import { LibraryDialog } from "../../components/LibraryDialog";
+import { LookupPage } from "../../routes/lookup/LookupPage";
+import { subscribeDictEvents, useDicts } from "../../stores/dicts";
+import { subscribeLookupEvents } from "../../stores/lookup";
 import { useSettings } from "../../stores/settings";
-import { ACCENTS, THEMES } from "../../theme/themes";
 import { useApplyTheme } from "../../theme/useApplyTheme";
 import styles from "./MainWindow.module.css";
 
-/** M0 空主窗口：只有标题栏和临时的主题切换（M5 设置页做好后移走）。 */
+/** 主窗口：目前只有查词页（简洁单栏）；其他路由随后续里程碑加入。 */
 export function MainWindow() {
-  const settings = useSettings((s) => s.settings);
-  const error = useSettings((s) => s.error);
-  const load = useSettings((s) => s.load);
-  const updateAppearance = useSettings((s) => s.updateAppearance);
+  const loadSettings = useSettings((s) => s.load);
+  const settingsError = useSettings((s) => s.error);
+  const glossFontSize = useSettings((s) => s.settings?.appearance.glossFontSize);
+  const refreshDicts = useDicts((s) => s.refresh);
   const resolved = useApplyTheme();
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadSettings();
+    void refreshDicts();
+    const subs = [subscribeLookupEvents(), subscribeDictEvents()];
+    return () => {
+      for (const s of subs) void s.then((off) => off());
+    };
+  }, [loadSettings, refreshDicts]);
 
-  const appearance = settings?.appearance;
+  useEffect(() => {
+    if (glossFontSize) document.documentElement.style.setProperty("--gloss-size", `${glossFontSize}px`);
+  }, [glossFontSize]);
 
   return (
     <div className={styles.shell}>
-      <header className={styles.bar}>
-        <span className={styles.brand}>
-          词镜 <span className={styles.brandLatin}>Lens</span>
-        </span>
-
-        {appearance && (
-          <div className={styles.controls}>
-            <div role="group" aria-label="主题" className={styles.segmented}>
-              {THEMES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  aria-pressed={appearance.theme === t.id}
-                  className={styles.segment}
-                  onClick={() => updateAppearance({ theme: t.id, followSystem: false })}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-
-            <div role="group" aria-label="强调色" className={styles.swatches}>
-              {ACCENTS.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  aria-label={a.name}
-                  title={a.name}
-                  aria-pressed={appearance.accent === a.id}
-                  data-accent={a.id}
-                  data-theme={resolved?.theme}
-                  className={styles.swatch}
-                  onClick={() => updateAppearance({ accent: a.id })}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </header>
-
-      <main className={styles.empty}>
-        <p className={styles.emptyTitle}>还没有词典</p>
-        <p className={styles.emptySub}>词典导入在 M1 完成后可用。</p>
-        {error && (
-          <p role="alert" className={styles.error}>
-            {error}
-          </p>
-        )}
-      </main>
+      {settingsError && (
+        <p role="alert" className={styles.error}>
+          设置读取失败：{settingsError}
+        </p>
+      )}
+      <LookupPage
+        onOpenLibrary={() => setLibraryOpen(true)}
+        actions={
+          <>
+            <button type="button" className={styles.iconBtn} aria-label="词典库" title="词典库" onClick={() => setLibraryOpen(true)}>
+              <LibraryIcon />
+            </button>
+            <AppearanceMenu resolvedTheme={resolved?.theme} />
+          </>
+        }
+      />
+      <LibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
     </div>
   );
 }

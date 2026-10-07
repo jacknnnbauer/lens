@@ -3,8 +3,6 @@ mod capture;
 mod clipboard;
 mod commands;
 mod db;
-// 词典引擎在第 17 节第 4 步接入 IPC 之前只有测试和启动加载在用；接入后删掉这个 allow
-#[allow(dead_code)]
 mod dict;
 mod error;
 mod export;
@@ -25,6 +23,12 @@ struct LogGuard(#[allow(dead_code)] tracing_appender::non_blocking::WorkerGuard)
 pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .register_asynchronous_uri_scheme_protocol(protocol::SCHEME, |ctx, request, responder| {
+            let app = ctx.app_handle().clone();
+            let path = request.uri().path().to_string();
+            tauri::async_runtime::spawn_blocking(move || responder.respond(protocol::handle(&app, &path)));
+        })
         .setup(|app| {
             let root = app.path().data_dir()?.join("Lens");
             std::fs::create_dir_all(&root)?;
@@ -42,6 +46,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_settings,
             commands::settings::set_settings,
+            commands::dicts::list_dicts,
+            commands::dicts::import_dicts,
+            commands::dicts::remove_dict,
+            commands::lookup::lookup,
+            commands::lookup::cancel_lookup,
+            commands::lookup::suggest,
         ])
         .run(tauri::generate_context!());
 

@@ -117,6 +117,42 @@ pub fn import_dict(db: &Db, registry: &DictRegistry, path: &Path) -> Result<Dict
     }
 }
 
+/// 删除词典：数据库记录、注册表、索引目录下的 `<id>.*` 文件。
+/// 文件删除失败（例如仍被映射）只记日志，下次启动时由 `sweep_orphans` 清理。
+pub fn remove_dict(db: &Db, registry: &DictRegistry, id: &str) -> Result<bool> {
+    let existed = db.with_conn(|c| dicts::delete(c, id))?;
+    drop(registry.remove(id)?);
+    delete_index_files(registry.index_dir(), id);
+    Ok(existed)
+}
+
+fn delete_index_files(dir: &Path, id: &str) {
+    let prefix = format!("{id}.");
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for e in entries.flatten() {
+        if e.file_name().to_string_lossy().starts_with(&prefix) {
+            if let Err(err) = std::fs::remove_file(e.path()) {
+                tracing::warn!(file = %e.path().display(), error = %err, "删除索引文件失败");
+            }
+        }
+    }
+}
+
+/// 启动时清理索引目录里不属于任何词典的文件（删除词典时没删掉的残留）。
+pub fn sweep_orphans(db: &Db, index_dir: &Path) -> Result<usize> {
+    let ids: std::collections::HashSet<String> =
+        db.with_conn(dicts::list)?.into_iter().map(|r| r.id).collect();
+    let mut removed = 0;
+    for e in std::fs::read_dir(index_dir)?.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let id = name.split('.').next().unwrap_or_default();
+        if !ids.contains(id) && std::fs::remove_file(e.path()).is_ok() {
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,6 +214,29 @@ mod tests {
         assert_eq!(fresh.load_all(&db)?, 1);
         let dict = fresh.get(&meta.id)?.ok_or_else(|| Error::Other("未加载".into()))?;
         assert_eq!(dict.source.lookup("ubiquitous")?.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn remove_deletes_row_registry_and_files() -> Result<()> {
+        let (_dir, db, reg) = setup()?;
+        let id = import_dict(&db, &reg, &fixture("mdx/basic/basic.mdx"))?.id;
+        let count = || -> Result<usize> {
+            Ok(std::fs::read_dir(reg.index_dir())?
+                .flatten()
+                .filter(|e| e.file_name().to_string_lossy().starts_with(&id))
+                .count())
+        };
+        assert!(count()? >= 9, "主词典 + 两个 mdd 各 3 个文件");
+        assert!(remove_dict(&db, &reg, &id)?);
+        assert!(reg.get(&id)?.is_none());
+        assert!(db.with_conn(dicts::list)?.is_empty());
+        assert_eq!(count()?, 0);
+        assert!(!remove_dict(&db, &reg, &id)?);
+
+        // 残留文件在启动清理时被删掉
+        std::fs::write(reg.index_dir().join("dead-beef.fst"), b"x")?;
+        assert_eq!(sweep_orphans(&db, reg.index_dir())?, 1);
         Ok(())
     }
 

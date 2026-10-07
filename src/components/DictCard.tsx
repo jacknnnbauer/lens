@@ -1,8 +1,10 @@
 // 词典卡片（SPEC 9.3、画板 05）：标题行是一个按钮，Space/Enter 展开折叠；折叠时显示一行摘要。
 
+import type { CopyFormat } from "../copy/convert";
 import { DictBody } from "../dict-render/DictBody";
 import type { Card } from "../stores/lookup";
 import styles from "./DictCard.module.css";
+import { CopyMenu } from "./CopyMenu";
 import { ChevronIcon } from "./icons";
 
 interface Props {
@@ -11,34 +13,46 @@ interface Props {
   onToggle: () => void;
   onEntry: (word: string) => void;
   onToggleKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  copyFormat: CopyFormat;
+  onCopy: (format: CopyFormat) => void;
+  onSetDefaultFormat: (format: CopyFormat) => void;
 }
 
-export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown }: Props) {
+export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, copyFormat, onCopy, onSetDefaultFormat }: Props) {
   const bodyId = `dict-body-${card.id}`;
   const summary = card.entries[0]?.summary ?? "";
   const pending = card.status === "pending";
 
   return (
     <article id={`dict-${card.id}`} className={styles.card} aria-busy={pending}>
-      <h2 className={styles.heading}>
-        <button
-          type="button"
-          className={styles.toggle}
-          aria-expanded={expanded}
-          aria-controls={bodyId}
-          data-card-toggle={card.id}
-          onClick={onToggle}
-          onKeyDown={onToggleKeyDown}
-        >
-          <strong className={styles.name}>{card.name}</strong>
-          <span className={styles.tag}>离线</span>
-          {!expanded && summary && <span className={styles.summary}>{summary}</span>}
-          {card.entries.length > 1 && <span className={styles.count}>{card.entries.length} 条</span>}
-          <span className={styles.chevron}>
-            <ChevronIcon open={expanded} />
-          </span>
-        </button>
-      </h2>
+      <div className={styles.header}>
+        <h2 className={styles.heading}>
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-expanded={expanded}
+            aria-controls={bodyId}
+            data-card-toggle={card.id}
+            onClick={onToggle}
+            onKeyDown={onToggleKeyDown}
+          >
+            <strong className={styles.name}>{card.name}</strong>
+            <span className={styles.tag}>离线</span>
+            {!expanded && summary && <span className={styles.summary}>{summary}</span>}
+            {card.entries.length > 1 && <span className={styles.count}>{card.entries.length} 条</span>}
+            <span className={styles.chevron}>
+              <ChevronIcon open={expanded} />
+            </span>
+          </button>
+        </h2>
+        <CopyMenu
+          label={`「${card.name}」`}
+          defaultFormat={copyFormat}
+          disabled={card.status !== "hit"}
+          onCopy={onCopy}
+          onSetDefault={onSetDefaultFormat}
+        />
+      </div>
 
       <div id={bodyId} hidden={!expanded}>
         {pending && (
@@ -56,7 +70,7 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown }:
         {expanded &&
           card.entries.map((e, i) => (
             <div key={i} className={styles.entry}>
-              <DictBody html={e.html} onEntry={onEntry} />
+              <DictBody html={e.html} onEntry={onEntry} dictId={card.id} />
             </div>
           ))}
       </div>

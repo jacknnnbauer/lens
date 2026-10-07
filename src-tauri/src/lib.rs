@@ -100,6 +100,7 @@ pub fn run() {
             commands::words::wordbook_stats,
             commands::popup::hide_popup,
             commands::popup::capture_status,
+            commands::popup::write_clipboard,
             commands::popup::open_in_main,
         ])
         .run(tauri::generate_context!());

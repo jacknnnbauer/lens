@@ -31,11 +31,20 @@ export interface Capture {
   timeoutMs: number;
 }
 
-/** 目前建模到 appearance、layout、capture；其他分组由 Rust 原样保留，接入时再补类型。 */
+export interface Copy {
+  defaultFormat: "md" | "html" | "text";
+  appendSource: boolean;
+  includeExamples: boolean;
+  inlineHtmlStyles: boolean;
+  mdImagesAsLinks: boolean;
+}
+
+/** 目前建模到 appearance、layout、capture、copy；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   appearance: Appearance;
   layout: Layout;
   capture: Capture;
+  copy: Copy;
   activeProfile: string;
   [section: string]: unknown;
 }

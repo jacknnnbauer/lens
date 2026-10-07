@@ -1,0 +1,98 @@
+.wrap {
+  position: relative;
+  flex: none;
+}
+
+.split {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.main,
+.more {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--sub);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.main {
+  padding: 4px 10px;
+}
+
+.more {
+  padding: 4px 6px;
+  border-left: 1px solid var(--line);
+}
+
+.main:hover:not(:disabled),
+.more:hover:not(:disabled),
+.more[aria-expanded="true"] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.main:disabled,
+.more:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  width: 220px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--hl);
+  box-shadow: none;
+}
+
+.item kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--sub);
+}
+
+.sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--line);
+}
+
+.groupLabel {
+  padding: 2px 10px;
+  font-size: 11px;
+  color: var(--faint);
+}

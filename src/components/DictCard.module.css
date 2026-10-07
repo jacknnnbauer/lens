@@ -5,7 +5,16 @@
   scroll-margin-top: 16px;
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 14px;
+}
+
 .heading {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   font: inherit;
 }
@@ -15,9 +24,9 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 14px 14px 14px 20px;
+  padding: 14px 4px 14px 20px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 14px 0 0 14px;
   background: transparent;
   text-align: left;
   cursor: pointer;

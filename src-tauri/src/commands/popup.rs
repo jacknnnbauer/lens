@@ -32,3 +32,11 @@ pub async fn open_in_main(app: AppHandle, query: String) -> Result<()> {
 pub async fn capture_status(service: State<'_, CaptureService>) -> Result<CaptureStatus> {
     Ok(service.status.lock().map_err(|_| Error::LockPoisoned)?.clone())
 }
+
+/// 写剪贴板（SPEC 10）：纯文本必写；给出 html 时同时写 CF_HTML（Word 等粘贴保留格式）。
+#[tauri::command]
+pub async fn write_clipboard(text: String, html: Option<String>) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || crate::clipboard::write(&text, html.as_deref()))
+        .await
+        .map_err(|e| Error::Other(format!("写剪贴板任务失败：{e}")))?
+}

@@ -7,6 +7,10 @@ import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { useDicts } from "../../stores/dicts";
 import { isExpanded, useLookup, type ExpandMode } from "../../stores/lookup";
 import { useSaveWord } from "../../stores/save";
+import { useSettings } from "../../stores/settings";
+import { toast } from "../../stores/toast";
+import type { CopyFormat } from "../../copy/convert";
+import { copyCard, copyMerged, DEFAULT_COPY, FORMAT_NAME } from "../../copy/copy";
 import styles from "./LookupPage.module.css";
 
 const IDLE_COMMIT_MS = 1500;
@@ -41,6 +45,12 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards);
   const saveRef = useRef(save);
   saveRef.current = save;
+  const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
+  const updateSettings = useSettings((s) => s.update);
+  const setDefaultFormat = (f: CopyFormat) => {
+    updateSettings({ copy: { defaultFormat: f } });
+    toast(`默认复制格式：${FORMAT_NAME[f]}`);
+  };
 
   const lookupWord = useCallback(
     (word: string) => {
@@ -74,8 +84,20 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         void saveRef.current();
       }
     };
+    // Ctrl+Shift+C 复制当前词典（焦点所在卡片，否则第一部展开的），Ctrl+Shift+A 合并复制所有展开的
+    const onCopyKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || !e.shiftKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k !== "c" && k !== "a") return;
+      e.preventDefault();
+      copyKeyRef.current(k);
+    };
+    window.addEventListener("keydown", onCopyKey);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onCopyKey);
+    };
   }, []);
 
   const visible = cards.filter((c) => c.status !== "miss");
@@ -98,6 +120,18 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
       toggles[next].focus();
       toggles[next].closest("article")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
+  };
+
+  const expandedHits = visible.filter((c) => c.status === "hit" && isExpanded(c, ranks.get(c.id) ?? Infinity, expanded, expandMode));
+  const copyKeyRef = useRef<(k: string) => void>(() => undefined);
+  copyKeyRef.current = (k) => {
+    if (k === "a") {
+      void copyMerged(expandedHits, copyCfg.defaultFormat, copyCfg);
+      return;
+    }
+    const focusedId = (document.activeElement?.closest("article")?.id ?? "").replace(/^dict-/, "");
+    const card = cards.find((c) => c.id === focusedId && c.status === "hit") ?? expandedHits[0];
+    if (card) void copyCard(card, copyCfg.defaultFormat, copyCfg);
   };
 
   const jumpTo = (id: string) => {
@@ -168,6 +202,9 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           onToggle={() => setExpanded(c.id, !isExpanded(c, ranks.get(c.id) ?? Infinity, expanded, expandMode))}
           onEntry={lookupWord}
           onToggleKeyDown={onToggleKeyDown}
+          copyFormat={copyCfg.defaultFormat}
+          onCopy={(f) => void copyCard(c, f, copyCfg)}
+          onSetDefaultFormat={setDefaultFormat}
         />
       ))}
 
@@ -209,7 +246,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         </section>
       )}
 
-      {visible.length > 0 && <p className={styles.footHint}>标题栏按 Space 展开 / 折叠 · 词条里的链接可直接查词</p>}
+      {visible.length > 0 && <p className={styles.footHint}>标题栏按 Space 展开 / 折叠 · Ctrl+Shift+C 复制当前词典 · Ctrl+Shift+A 合并复制全部展开的词典</p>}
     </div>
   );
 });

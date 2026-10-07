@@ -21,6 +21,8 @@ a[data-sound], a[data-entry] { cursor: pointer; }
 interface Props {
   html: string;
   onEntry: (word: string) => void;
+  /** 标在宿主元素上（data-dict-body），复制 HTML 时据此找到已渲染的正文 */
+  dictId?: string;
 }
 
 /** 词典样式表最多等这么久，超时也照常显示 */
@@ -49,7 +51,7 @@ function play(url: string) {
   new Audio(url).play().catch((e) => console.warn("发音播放失败", url, e));
 }
 
-export function DictBody({ html, onEntry }: Props) {
+export function DictBody({ html, onEntry, dictId }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const onEntryRef = useRef(onEntry);
   onEntryRef.current = onEntry;
@@ -106,5 +108,5 @@ export function DictBody({ html, onEntry }: Props) {
     };
   }, [html, theme]);
 
-  return <div ref={host} />;
+  return <div ref={host} data-dict-body={dictId} />;
 }

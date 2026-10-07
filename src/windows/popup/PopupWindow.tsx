@@ -4,7 +4,8 @@
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ContextSentence } from "../../components/ContextSentence";
+import { ContextSentence, extend } from "../../components/ContextSentence";
+import { copyCard, DEFAULT_COPY } from "../../copy/copy";
 import { SearchIcon } from "../../components/icons";
 import { DictBody } from "../../dict-render/DictBody";
 import { hidePopup, onCapture, onCaptureUrl, openInMain, type CaptureEvent } from "../../ipc/capture";
@@ -33,6 +34,7 @@ export function PopupWindow() {
   const input = useRef<HTMLInputElement>(null);
   // 收藏时带上本次划词的语境句；改词重查后就不再是那句的语境了
   const captureMatches = capture != null && handle != null && handle.query === capture.text;
+  const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
   const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards, captureMatches ? capture.contextId : null);
 
   const lookupWord = useCallback(
@@ -105,9 +107,29 @@ export function PopupWindow() {
     } else if (e.ctrlKey && e.key.toLowerCase() === "p") {
       e.preventDefault();
       setPinned((p) => !p);
-    } else if (e.ctrlKey && e.key.toLowerCase() === "s") {
+    } else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "s") {
       e.preventDefault();
       void save();
+    } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c" && active) {
+      // 复制当前词典；Markdown 末尾附上语境句（SPEC 10）
+      e.preventDefault();
+      const ext = ctx && captureMatches ? extend(ctx, extra.before, extra.after) : null;
+      void copyCard(
+        active,
+        copyCfg.defaultFormat,
+        copyCfg,
+        ext && capture
+          ? {
+              sentence: ext.text,
+              hlStart: ext.hlStart,
+              hlEnd: ext.hlEnd,
+              title: capture.source.windowTitle,
+              url: capture.source.url,
+              app: capture.source.app,
+              date: new Date(),
+            }
+          : null,
+      );
     } else if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && ctx) {
       e.preventDefault();
       setExtra((x) =>
@@ -194,7 +216,7 @@ export function PopupWindow() {
         {active ? (
           active.entries.map((e, i) => (
             <div key={`${active.id}-${i}`} className={styles.entry}>
-              <DictBody html={e.html} onEntry={lookupWord} />
+              <DictBody html={e.html} onEntry={lookupWord} dictId={active.id} />
             </div>
           ))
         ) : !handle ? (
@@ -259,6 +281,9 @@ export function PopupWindow() {
         </span>
         <span>
           <kbd>Ctrl+S</kbd> 收藏
+        </span>
+        <span>
+          <kbd>Ctrl+Shift+C</kbd> 复制
         </span>
         <span>
           <kbd>Ctrl+P</kbd> 钉住

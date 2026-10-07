@@ -1,6 +1,6 @@
 //! `%APPDATA%/Lens/settings.json`（SPEC 第 14 节）。
 //!
-//! 目前只建模 `appearance`、`layout`、`capture`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
+//! 目前只建模 `appearance`、`layout`、`capture`、`copy`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
 //! 这样用户手改的内容不会在保存时丢失。
 
 use std::fs;
@@ -86,12 +86,37 @@ impl Default for Capture {
     }
 }
 
+/// 复制（SPEC 10、14）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Copy {
+    /// md | html | text
+    pub default_format: String,
+    pub append_source: bool,
+    pub include_examples: bool,
+    pub inline_html_styles: bool,
+    pub md_images_as_links: bool,
+}
+
+impl Default for Copy {
+    fn default() -> Self {
+        Self {
+            default_format: "md".into(),
+            append_source: true,
+            include_examples: true,
+            inline_html_styles: true,
+            md_images_as_links: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub appearance: Appearance,
     pub layout: Layout,
     pub capture: Capture,
+    pub copy: Copy,
     pub active_profile: String,
     #[serde(flatten)]
     pub rest: Map<String, Value>,
@@ -103,6 +128,7 @@ impl Default for Settings {
             appearance: Appearance::default(),
             layout: Layout::default(),
             capture: Capture::default(),
+            copy: Copy::default(),
             active_profile: "reading".into(),
             rest: Map::new(),
         }

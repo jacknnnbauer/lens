@@ -3,6 +3,8 @@ mod capture;
 mod clipboard;
 mod commands;
 mod db;
+// 词典引擎在第 17 节第 4 步接入 IPC 之前只有测试和启动加载在用；接入后删掉这个 allow
+#[allow(dead_code)]
 mod dict;
 mod error;
 mod export;
@@ -32,7 +34,8 @@ pub fn run() {
 
             let state = AppState::init(&root)?;
             let schema = state.db.with_conn(db::migrations::current_version)?;
-            tracing::info!(root = %state.root.display(), version = env!("CARGO_PKG_VERSION"), schema, "Lens 启动");
+            let dicts = state.dicts.len()?;
+            tracing::info!(root = %state.root.display(), version = env!("CARGO_PKG_VERSION"), schema, dicts, "Lens 启动");
             app.manage(state);
             Ok(())
         })

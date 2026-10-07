@@ -9,6 +9,14 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("JSON 解析错误：{0}")]
     Json(#[from] serde_json::Error),
+    #[error("索引错误：{0}")]
+    Index(#[from] fst::Error),
+    #[error("词典格式错误：{0}")]
+    InvalidDict(String),
+    #[error("暂不支持的词典格式：{0}")]
+    UnsupportedFormat(String),
+    #[error("该词典已导入：{0}")]
+    AlreadyImported(String),
     #[error("数据库版本 {found} 高于本程序支持的 {supported}，请升级 Lens")]
     DbTooNew { found: i32, supported: i32 },
     #[error("内部状态锁已损坏")]

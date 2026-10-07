@@ -1,0 +1,16 @@
+{
+  "name": "词根词缀（测试）",
+  "category": "词源",
+  "version": 1,
+  "entries": [
+    { "headword": "ubiquitous", "html": "<p><b>ubique</b> 处处 ← <i>ubi</i> 哪里 + <i>-ous</i> 形容词后缀</p>", "aliases": ["ubiquity", "ubiquitously"] },
+    { "headword": "benevolent", "html": "<p><b>bene-</b> 好 + <b>vol</b> 意愿 + <i>-ent</i>：心怀善意的</p>", "aliases": ["benevolence"] },
+    { "headword": "bank", "html": "<p>① 河岸 ← 古诺尔斯语 <i>bakki</i></p>" },
+    { "headword": "bank", "html": "<p>② 银行 ← 意大利语 <i>banca</i> 长凳（钱商的柜台）</p>" },
+    { "headword": "café", "html": "<p>法语 <i>café</i> 咖啡（馆）← 土耳其语 <i>kahve</i></p>" },
+    { "headword": "Polish", "html": "<p>波兰的 ← <i>Pole</i> 波兰人 + <i>-ish</i></p>" },
+    { "headword": "polish", "html": "<p>擦亮 ← 拉丁语 <i>polire</i> 磨光</p>" },
+    { "headword": "receive", "html": "<p><b>re-</b> 回 + <b>cip/ceive</b> 拿：拿回来 → 收到</p>", "aliases": ["reception"] },
+    { "headword": "deceive", "html": "<p><b>de-</b> 离开 + <b>ceive</b> 拿：拿走 → 欺骗</p>" }
+  ]
+}

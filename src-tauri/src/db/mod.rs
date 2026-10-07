@@ -1,5 +1,6 @@
 //! SQLite 存储：连接、迁移、仓储（history、words、contexts、tags…）。
 
+pub mod dicts;
 pub mod migrations;
 
 use std::path::Path;
@@ -8,6 +9,13 @@ use std::sync::Mutex;
 use rusqlite::Connection;
 
 use crate::error::{Error, Result};
+
+/// 数据库里所有 `*_at` 字段统一用 Unix 毫秒。
+pub fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as i64)
+}
 
 pub struct Db {
     conn: Mutex<Connection>,

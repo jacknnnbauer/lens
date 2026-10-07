@@ -23,6 +23,10 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
+fst = { version = "0.4.7", features = ["levenshtein"] }
+memmap2 = "0.9.11"
+unicode-normalization = "0.1.25"
+uuid = { version = "1.27.0", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3"

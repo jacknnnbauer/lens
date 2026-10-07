@@ -1,0 +1,35 @@
+[package]
+name = "lens"
+version = "0.1.0"
+description = "词镜 Lens：本地优先、键盘优先的桌面查词工具"
+edition = "2021"
+
+[lib]
+# The `_lib` suffix avoids a name clash between the lib and the bin on Windows
+# (https://github.com/rust-lang/cargo/issues/8519).
+name = "lens_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.40", features = ["bundled"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

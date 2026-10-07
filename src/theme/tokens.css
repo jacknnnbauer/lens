@@ -1,0 +1,76 @@
+/*
+ * 主题变量（SPEC 9.5）。前端所有颜色只能引用这里的变量。
+ * <html data-theme="paper|light|dark" data-accent="blue|teal|amber|violet|rose">
+ * v0.1 只有纸本 / 冷白 / 石墨；其余 8 套在 M8 加入。
+ */
+
+:root {
+  --font-ui: "IBM Plex Sans", "Microsoft YaHei UI", "Noto Sans SC", sans-serif;
+  --font-gloss: "Source Serif 4", "Noto Serif SC", "SimSun", serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+}
+
+/* 纸本（默认） */
+:root,
+[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #F7F6F3;
+  --panel: #FFFFFF;
+  --raised: #F0EFEB;
+  --line: #E2E0DA;
+  --text: #1A1B1E;
+  --sub: #4E5258;
+  --faint: #666A71;
+  --accent: #2F5FD0;
+  --accent-ink: #FFFFFF;
+  --warn: #A64F0C;
+}
+
+/* 冷白 */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F3F4F6;
+  --panel: #FFFFFF;
+  --raised: #ECEEF1;
+  --line: #DDE0E5;
+  --text: #15171B;
+  --sub: #4A4F57;
+  --faint: #626872;
+  --accent: #2F5FD0;
+  --accent-ink: #FFFFFF;
+  --warn: #A64F0C;
+}
+
+/* 石墨 */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #141518;
+  --panel: #1B1D21;
+  --raised: #23262B;
+  --line: #2C3036;
+  --text: #ECEAE4;
+  --sub: #A3A7AF;
+  --faint: #8A8F98;
+  --accent: #8AB4F8;
+  --accent-ink: #0E1A2E;
+  --warn: #F2A65A;
+}
+
+/* 强调色：只覆盖 --accent，且只对纸本 / 冷白 / 石墨生效 */
+:is([data-theme="paper"], [data-theme="light"])[data-accent="blue"]   { --accent: #2F5FD0; }
+:is([data-theme="paper"], [data-theme="light"])[data-accent="teal"]   { --accent: #0F7A6E; }
+:is([data-theme="paper"], [data-theme="light"])[data-accent="amber"]  { --accent: #9A5B00; }
+:is([data-theme="paper"], [data-theme="light"])[data-accent="violet"] { --accent: #6B4FD0; }
+:is([data-theme="paper"], [data-theme="light"])[data-accent="rose"]   { --accent: #B4325C; }
+
+[data-theme="dark"][data-accent="blue"]   { --accent: #8AB4F8; }
+[data-theme="dark"][data-accent="teal"]   { --accent: #5FD3C4; }
+[data-theme="dark"][data-accent="amber"]  { --accent: #F2B661; }
+[data-theme="dark"][data-accent="violet"] { --accent: #B9A3F8; }
+[data-theme="dark"][data-accent="rose"]   { --accent: #F28FAD; }
+
+/* 派生变量放在最后，跟随当前 --accent */
+:root {
+  --hl: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}

@@ -2,3 +2,11 @@
 *.png binary
 *.ico binary
 *.icns binary
+# 词典二进制文件，禁止换行转换
+*.idx binary
+*.dict binary
+*.dz binary
+*.gz binary
+*.syn binary
+*.mdx binary
+*.mdd binary

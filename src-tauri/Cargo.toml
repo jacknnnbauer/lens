@@ -27,6 +27,7 @@ fst = { version = "0.4.7", features = ["levenshtein"] }
 memmap2 = "0.9.11"
 unicode-normalization = "0.1.25"
 uuid = { version = "1.27.0", features = ["v4"] }
+flate2 = "1.1.10"
 
 [dev-dependencies]
 tempfile = "3"

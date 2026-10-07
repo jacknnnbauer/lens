@@ -96,6 +96,9 @@ pub fn open_dict(row: &dicts::DictRow, index_dir: &Path) -> Result<LoadedDict> {
     let meta = row.meta()?;
     let source: Arc<dyn DictSource> = match meta.kind {
         DictKind::Json => Arc::new(json::JsonDict::open(meta, &path, index.clone())?),
+        DictKind::Stardict => {
+            Arc::new(stardict::StarDict::open(meta, &path, index_dir, index.clone())?)
+        }
         other => return Err(Error::UnsupportedFormat(other.as_str().to_string())),
     };
     Ok(LoadedDict { source, index })

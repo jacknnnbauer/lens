@@ -58,6 +58,8 @@ pub struct CaptureSource {
 pub struct CaptureEvent {
     pub id: u64,
     pub text: String,
+    /// 已存入 context 表的语境句 id（有句子时）；收藏、历史引用它
+    pub context_id: Option<i64>,
     pub sentence: Option<ContextSentence>,
     pub source: CaptureSource,
     /// 从触发到弹窗显示前的耗时
@@ -203,9 +205,11 @@ fn worker(app: AppHandle, rx: mpsc::Receiver<Job>) {
             (None, None) => (String::new(), None, "manual", None),
         };
         let is_browser = fg.app.as_deref().is_some_and(|a| BROWSERS.contains(&a.to_ascii_lowercase().as_str()));
+        let context_id = sentence.as_ref().and_then(|ctx| save_context(&app, &text, ctx, method, &fg));
         let event = CaptureEvent {
             id: job.id,
             text,
+            context_id,
             sentence,
             source: CaptureSource { method, app: fg.app.clone(), window_title: fg.title.clone(), url: None },
             ms: 0.0,
@@ -215,8 +219,42 @@ fn worker(app: AppHandle, rx: mpsc::Receiver<Job>) {
         // 地址栏 URL 查找可能较慢，弹窗显示后再补发
         if is_browser && method != "manual" {
             if let Some(url) = uia.as_ref().and_then(|u| u.browser_url(fg.hwnd)) {
+                if let Some(cid) = context_id {
+                    let state = app.state::<AppState>();
+                    if let Err(e) = state.db.with_conn(|c| crate::db::history::set_context_url(c, cid, &url)) {
+                        tracing::warn!(error = %e, "补写语境 URL 失败");
+                    }
+                }
                 let _ = app.emit_to(POPUP, EVENT_URL, serde_json::json!({ "id": job.id, "url": url }));
             }
+        }
+    }
+}
+
+/// 把捕获到的语境句存进 context 表（SPEC 6：每次划词捕获一条）。失败只记日志。
+#[cfg(windows)]
+fn save_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &str, fg: &win::Foreground) -> Option<i64> {
+    use crate::db::history::{insert_context, NewContext};
+    let lemma = crate::dict::index::normalize_key(&crate::query::normalize_query(text));
+    if lemma.is_empty() {
+        return None;
+    }
+    let row = NewContext {
+        lemma: &lemma,
+        surface: text,
+        sentence: &ctx.sentence,
+        hl_start: ctx.hl_start as i64,
+        hl_end: ctx.hl_end as i64,
+        app: fg.app.as_deref(),
+        window_title: fg.title.as_deref(),
+        url: None,
+        method,
+    };
+    match app.state::<AppState>().db.with_conn(|c| insert_context(c, &row)) {
+        Ok(id) => Some(id),
+        Err(e) => {
+            tracing::warn!(error = %e, "保存语境句失败");
+            None
         }
     }
 }
@@ -224,7 +262,14 @@ fn worker(app: AppHandle, rx: mpsc::Receiver<Job>) {
 #[cfg(not(windows))]
 fn worker(_app: AppHandle, rx: mpsc::Receiver<Job>) {
     while let Ok(job) = rx.recv() {
-        let event = CaptureEvent { id: job.id, text: String::new(), sentence: None, source: CaptureSource::default(), ms: 0.0 };
+        let event = CaptureEvent {
+            id: job.id,
+            text: String::new(),
+            context_id: None,
+            sentence: None,
+            source: CaptureSource::default(),
+            ms: 0.0,
+        };
         let _ = job.reply.send((event, None));
     }
 }
@@ -254,6 +299,7 @@ pub fn on_trigger(app: &AppHandle, trigger: Trigger) {
                 let event = CaptureEvent {
                     id,
                     text: text.unwrap_or_default(),
+                    context_id: None,
                     sentence: None,
                     source: CaptureSource { method, ..Default::default() },
                     ms: 0.0,

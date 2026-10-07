@@ -34,7 +34,7 @@ export function PopupWindow() {
     (q: string) => {
       setValue(q);
       setTab(null);
-      void search(q);
+      void search(q, { commit: true });
     },
     [search],
   );
@@ -55,7 +55,8 @@ export function PopupWindow() {
         setExtra({ before: 0, after: 0 });
         setTab(null);
         setValue(e.text);
-        if (e.text) void useLookup.getState().search(e.text);
+        // 划词是明确的查询：有命中就连同语境句记入历史
+        if (e.text) void useLookup.getState().search(e.text, { commit: true, contextId: e.contextId });
         else useLookup.getState().clear();
         requestAnimationFrame(() => {
           input.current?.focus();

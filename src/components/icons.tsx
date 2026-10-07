@@ -52,3 +52,10 @@ export const CloseIcon = ({ size = 16 }) => (
     <path d="M6 6l12 12M18 6L6 18" />
   </svg>
 );
+
+export const ClockIcon = ({ size = 18 }) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 8v4l3 2" />
+  </svg>
+);

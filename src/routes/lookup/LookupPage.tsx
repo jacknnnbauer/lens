@@ -7,6 +7,8 @@ import { useDicts } from "../../stores/dicts";
 import { isExpanded, useLookup, type ExpandMode } from "../../stores/lookup";
 import styles from "./LookupPage.module.css";
 
+const IDLE_COMMIT_MS = 1500;
+
 export interface LookupPageHandle {
   lookupWord: (word: string) => void;
   focusSearch: () => void;
@@ -30,7 +32,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   { actions, onOpenLibrary, showJumpBar, showHeadword, expandMode },
   ref,
 ) {
-  const { handle, cards, done, suggestions, expanded, error, search, setExpanded } = useLookup();
+  const { handle, cards, done, suggestions, expanded, error, search, setExpanded, commit } = useLookup();
   const dictCount = useDicts((s) => s.dicts.filter((d) => d.loaded).length);
   const dictsLoaded = useDicts((s) => s.loaded);
   const searchBox = useRef<SearchBoxHandle>(null);
@@ -38,13 +40,21 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const lookupWord = useCallback(
     (word: string) => {
       searchBox.current?.setValue(word);
-      void search(word);
+      void search(word, { commit: true });
       window.scrollTo({ top: 0 });
     },
     [search],
   );
 
   useImperativeHandle(ref, () => ({ lookupWord, focusSearch: () => searchBox.current?.focus() }), [lookupWord]);
+
+  // 只是打字时：结果有命中、且停留 1.5 秒没再改，才记入历史
+  const anyHit = cards.some((c) => c.status === "hit");
+  useEffect(() => {
+    if (!handle || !done || !anyHit) return;
+    const t = setTimeout(commit, IDLE_COMMIT_MS);
+    return () => clearTimeout(t);
+  }, [handle, done, anyHit, commit]);
 
   // Ctrl+K 聚焦搜索框
   useEffect(() => {
@@ -90,7 +100,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   return (
     <div className={styles.column}>
       <div className={styles.searchRow}>
-        <SearchBox ref={searchBox} onSearch={(q) => void search(q)} onTabOut={() => cardToggles()[0]?.focus()} />
+        <SearchBox ref={searchBox} onSearch={(q, c) => void search(q, { commit: c })} onTabOut={() => cardToggles()[0]?.focus()} />
         {actions}
       </div>
 

@@ -14,7 +14,8 @@ export interface SearchBoxHandle {
 }
 
 interface Props {
-  onSearch: (q: string) => void;
+  /** commit = 用户明确发起（Enter / 选候选），否则是输入防抖触发 */
+  onSearch: (q: string, commit: boolean) => void;
   /** Tab（下拉未打开时）：跳到结果区 */
   onTabOut: () => void;
 }
@@ -47,7 +48,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     clearTimeout(timer.current);
     setOpen(false);
     setActive(-1);
-    onSearch(q);
+    onSearch(q, true);
   };
 
   const onChange = (q: string) => {
@@ -55,7 +56,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     setActive(-1);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      onSearch(q);
+      onSearch(q, false);
       const seq = ++suggestSeq.current;
       suggest(q, 8)
         .then((list) => {

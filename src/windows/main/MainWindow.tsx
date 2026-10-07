@@ -2,14 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppearanceMenu } from "../../components/AppearanceMenu";
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ContextPanel } from "../../components/ContextPanel";
-import { LibraryIcon } from "../../components/icons";
+import { ClockIcon, LibraryIcon } from "../../components/icons";
 import { LibraryDialog } from "../../components/LibraryDialog";
 import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
 import { onMainLookup } from "../../ipc/capture";
+import { HistoryPage } from "../../routes/history/HistoryPage";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
+import { useRoute } from "../../stores/route";
 import { useSettings } from "../../stores/settings";
 import { useApplyTheme } from "../../theme/useApplyTheme";
 import styles from "./MainWindow.module.css";
@@ -28,8 +30,22 @@ export function MainWindow() {
   const profiles = useDicts((s) => s.profiles);
   const resolved = useApplyTheme();
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const page = useRef<LookupPageHandle>(null);
+  const lookupPage = useRef<LookupPageHandle>(null);
   const capture = useCaptureStatus();
+  const page = useRoute((s) => s.page);
+  const go = useRoute((s) => s.go);
+  // 从其他页面查一个词：切回查词页（查词页一直挂载，只是隐藏）
+  const lookupWord = useCallback(
+    (w: string) => {
+      go("lookup");
+      lookupPage.current?.lookupWord(w);
+    },
+    [go],
+  );
+  const focusSearch = useCallback(() => {
+    go("lookup");
+    requestAnimationFrame(() => lookupPage.current?.focusSearch());
+  }, [go]);
 
   useEffect(() => {
     void loadSettings();
@@ -38,7 +54,10 @@ export function MainWindow() {
       subscribeLookupEvents(),
       subscribeDictEvents(),
       // 弹窗里按 Enter：在主窗口查同一个词
-      onMainLookup((q) => page.current?.lookupWord(q)),
+      onMainLookup((q) => {
+        useRoute.getState().go("lookup");
+        lookupPage.current?.lookupWord(q);
+      }),
     ];
     return () => {
       for (const s of subs) void s.then((off) => off());
@@ -58,7 +77,7 @@ export function MainWindow() {
     [updateNow],
   );
 
-  // Ctrl+1…9 切换配置组，Ctrl+L 打开词典库（SPEC 9.4）
+  // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+K 回到查词（SPEC 9.4）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey) return;
@@ -69,11 +88,17 @@ export function MainWindow() {
       } else if (e.key.toLowerCase() === "l") {
         e.preventDefault();
         setLibraryOpen(true);
+      } else if (e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        go("history");
+      } else if (e.key.toLowerCase() === "k" && useRoute.getState().page !== "lookup") {
+        e.preventDefault();
+        focusSearch();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [profiles, switchProfile]);
+  }, [profiles, switchProfile, go, focusSearch]);
 
   const showNav = layout?.showNav ?? false;
   const showContext = layout?.showContext ?? false;
@@ -83,10 +108,11 @@ export function MainWindow() {
       {showNav && (
         <div className={styles.side}>
           <SideNav
-            onFocusSearch={() => page.current?.focusSearch()}
+            onFocusSearch={focusSearch}
+            onOpenHistory={() => go("history")}
             onOpenLibrary={() => setLibraryOpen(true)}
             onSwitchProfile={(id) => void switchProfile(id)}
-            onLookup={(w) => page.current?.lookupWord(w)}
+            onLookup={lookupWord}
           />
         </div>
       )}
@@ -98,21 +124,27 @@ export function MainWindow() {
             设置读取失败：{settingsError}
           </p>
         )}
-        <LookupPage
-          ref={page}
-          onOpenLibrary={() => setLibraryOpen(true)}
-          showJumpBar={layout?.showJumpBar ?? true}
-          showHeadword={showNav}
-          expandMode={layout?.cardsExpanded ?? "first2"}
-          actions={
-            <>
-              <button type="button" className={styles.iconBtn} aria-label="词典库" title="词典库（Ctrl+L）" onClick={() => setLibraryOpen(true)}>
-                <LibraryIcon />
-              </button>
-              <AppearanceMenu resolvedTheme={resolved?.theme} />
-            </>
-          }
-        />
+        <div hidden={page !== "lookup"}>
+          <LookupPage
+            ref={lookupPage}
+            onOpenLibrary={() => setLibraryOpen(true)}
+            showJumpBar={layout?.showJumpBar ?? true}
+            showHeadword={showNav}
+            expandMode={layout?.cardsExpanded ?? "first2"}
+            actions={
+              <>
+                <button type="button" className={styles.iconBtn} aria-label="历史" title="历史（Ctrl+H）" onClick={() => go("history")}>
+                  <ClockIcon />
+                </button>
+                <button type="button" className={styles.iconBtn} aria-label="词典库" title="词典库（Ctrl+L）" onClick={() => setLibraryOpen(true)}>
+                  <LibraryIcon />
+                </button>
+                <AppearanceMenu resolvedTheme={resolved?.theme} />
+              </>
+            }
+          />
+        </div>
+        {page === "history" && <HistoryPage active onLookup={lookupWord} />}
       </main>
 
       {showContext && (

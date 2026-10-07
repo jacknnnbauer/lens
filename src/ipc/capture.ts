@@ -23,6 +23,8 @@ export interface CaptureSource {
 export interface CaptureEvent {
   id: number;
   text: string;
+  /** 已存入数据库的语境句 id */
+  contextId: number | null;
   sentence: ContextSentence | null;
   source: CaptureSource;
   ms: number;

@@ -3,10 +3,32 @@
 
 import { create } from "zustand";
 import { prepareEntry, type PreparedEntry } from "../dict-render/prepare";
+import { recordHistory } from "../ipc/history";
 import { cancelLookup, lookup as ipcLookup, onLookupDone, onLookupResult } from "../ipc/lookup";
 import type { LookupDoneEvent, LookupHandle, LookupResultEvent, LookupStatus } from "../ipc/types";
 
 const BUFFER_IDS = 4;
+
+export interface SearchOptions {
+  commit?: boolean;
+  /** 划词捕获的语境句 id，随历史一起保存 */
+  contextId?: number | null;
+}
+
+/** 请求了提交、但结果还没回来的查询 */
+let pendingCommit: string | null = null;
+/** 已写入历史的查询，避免同一次查询重复写 */
+const committed = new Set<string>();
+let currentContextId: number | null = null;
+
+function flushCommit(state: { handle: LookupHandle | null; cards: Card[] }) {
+  const h = state.handle;
+  if (!h || pendingCommit !== h.requestId || committed.has(h.requestId)) return;
+  if (!state.cards.some((c) => c.status === "hit")) return;
+  pendingCommit = null;
+  committed.add(h.requestId);
+  recordHistory(h.query, currentContextId).catch((e) => console.warn("记录历史失败", e));
+}
 const RECENT_MAX = 12;
 
 export interface CardEntry extends PreparedEntry {
@@ -32,7 +54,10 @@ interface LookupState {
   error: string | null;
   /** 本次会话查过的词（历史记录页在 M4） */
   recent: string[];
-  search: (query: string) => Promise<void>;
+  /** commit：这是一次「确定的」查询（Enter、点链接、划词…），有命中就记入历史 */
+  search: (query: string, opts?: SearchOptions) => Promise<void>;
+  /** 把当前查询记入历史（命中后才真正写入；同一次查询只写一次） */
+  commit: () => void;
   /** 用同一个查询再查一次（切换场景配置组后） */
   rerun: () => Promise<void>;
   clear: () => void;
@@ -77,6 +102,13 @@ export const useLookup = create<LookupState>((set, get) => ({
   error: null,
   recent: [],
 
+  commit: () => {
+    const h = get().handle;
+    if (!h) return;
+    pendingCommit = h.requestId;
+    flushCommit(get());
+  },
+
   rerun: async () => {
     const q = get().handle?.query;
     if (!q) return;
@@ -84,7 +116,7 @@ export const useLookup = create<LookupState>((set, get) => ({
     await get().search(q);
   },
 
-  search: async (query) => {
+  search: async (query, opts = {}) => {
     const prev = get().handle;
     if (!query.trim()) {
       searchSeq++;
@@ -92,8 +124,12 @@ export const useLookup = create<LookupState>((set, get) => ({
       get().clear();
       return;
     }
-    if (prev && prev.query === query) return;
+    if (prev && prev.query === query) {
+      if (opts.commit) get().commit();
+      return;
+    }
     const seq = ++searchSeq;
+    currentContextId = opts.contextId ?? null;
     try {
       const handle = await ipcLookup(query);
       if (seq !== searchSeq) {
@@ -122,6 +158,7 @@ export const useLookup = create<LookupState>((set, get) => ({
         expanded: {},
         error: null,
       });
+      if (opts.commit) get().commit();
     } catch (e) {
       set({ error: String(e) });
     }
@@ -138,6 +175,7 @@ export async function subscribeLookupEvents(): Promise<() => void> {
     const { handle, cards } = useLookup.getState();
     if (handle?.requestId === e.requestId) {
       useLookup.setState({ cards: applyResult(cards, e) });
+      flushCommit(useLookup.getState());
     } else {
       buffered(e.requestId).results.push(e);
     }

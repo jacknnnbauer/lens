@@ -1,19 +1,22 @@
 // 左侧导航（画板 01）：页面入口、场景配置组（Ctrl+1/2/3）、本次会话最近查询。
-// 生词本、历史、设置页随 M4/M5 加入。
+// 生词本、设置页随 M4/M5 加入。
 
 import { useDicts } from "../stores/dicts";
 import { useLookup } from "../stores/lookup";
+import { useRoute } from "../stores/route";
 import { useSettings } from "../stores/settings";
 import styles from "./SideNav.module.css";
 
 interface Props {
   onFocusSearch: () => void;
+  onOpenHistory: () => void;
   onOpenLibrary: () => void;
   onSwitchProfile: (id: string) => void;
   onLookup: (word: string) => void;
 }
 
-export function SideNav({ onFocusSearch, onOpenLibrary, onSwitchProfile, onLookup }: Props) {
+export function SideNav({ onFocusSearch, onOpenHistory, onOpenLibrary, onSwitchProfile, onLookup }: Props) {
+  const page = useRoute((s) => s.page);
   const profiles = useDicts((s) => s.profiles);
   const active = useSettings((s) => s.settings?.activeProfile);
   const recent = useLookup((s) => s.recent);
@@ -21,8 +24,11 @@ export function SideNav({ onFocusSearch, onOpenLibrary, onSwitchProfile, onLooku
   return (
     <nav aria-label="主导航" className={styles.nav}>
       <div className={styles.group}>
-        <button type="button" className={styles.item} aria-current="page" onClick={onFocusSearch}>
+        <button type="button" className={styles.item} aria-current={page === "lookup" ? "page" : undefined} onClick={onFocusSearch}>
           查词<kbd>Ctrl+K</kbd>
+        </button>
+        <button type="button" className={styles.item} aria-current={page === "history" ? "page" : undefined} onClick={onOpenHistory}>
+          历史<kbd>Ctrl+H</kbd>
         </button>
         <button type="button" className={styles.item} onClick={onOpenLibrary}>
           词典库<kbd>Ctrl+L</kbd>

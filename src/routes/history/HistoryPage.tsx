@@ -3,6 +3,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clearHistory, deleteHistory, listHistory, type HistoryItem } from "../../ipc/history";
+import { useBatch } from "../../stores/batch";
 import styles from "./HistoryPage.module.css";
 
 const PAGE = 200;
@@ -109,6 +110,11 @@ export function HistoryPage({ onLookup, active }: Props) {
           <span className="sr-only">搜索历史</span>
           <input type="search" placeholder="搜索查过的词" value={search} onChange={(e) => setSearch(e.target.value)} spellCheck={false} />
         </label>
+        {items.length > 0 && (
+          <button type="button" className={styles.ghost} onClick={() => useBatch.getState().openDialog("history")}>
+            批量导出…
+          </button>
+        )}
         {items.length > 0 &&
           (confirmClear ? (
             <span className={styles.confirm}>

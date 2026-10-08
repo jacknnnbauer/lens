@@ -47,6 +47,13 @@ impl AppState {
                 Err(e) => tracing::warn!(error = %e, "清理在线缓存失败"),
             }
         }
+        // 上次退出时还在跑的批量导出：标记为暂停，由用户决定是否继续
+        if let Err(e) = db.with_conn(|c| {
+            c.execute("UPDATE batch SET state = 'paused' WHERE state = 'running'", [])?;
+            Ok(())
+        }) {
+            tracing::warn!(error = %e, "整理未完成的批量导出失败");
+        }
         Ok(Self {
             root: root.to_path_buf(),
             db,

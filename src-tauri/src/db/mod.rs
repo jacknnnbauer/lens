@@ -1,5 +1,6 @@
 //! SQLite 存储：连接、迁移、仓储（history、words、contexts、tags…）。
 
+pub mod batch;
 pub mod dicts;
 pub mod history;
 pub mod migrations;

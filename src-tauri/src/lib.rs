@@ -1,5 +1,6 @@
 mod app_state;
 mod audio;
+mod batch;
 mod capture;
 mod clipboard;
 mod commands;
@@ -73,6 +74,7 @@ pub fn run() {
                 *s = capture::CaptureStatus { double_copy: s.double_copy, ..status };
             }
             app.manage(service);
+            app.manage(batch::BatchManager::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -109,6 +111,20 @@ pub fn run() {
             commands::online::set_online_key,
             commands::online::lookup_online,
             commands::online::open_web_dict,
+            commands::batch::batch_parse,
+            commands::batch::batch_preflight,
+            commands::batch::start_batch,
+            commands::batch::pause_batch,
+            commands::batch::resume_batch,
+            commands::batch::cancel_batch,
+            commands::batch::retry_failed_batch,
+            commands::batch::list_unfinished_batches,
+            commands::batch::batch_status,
+            commands::batch::batch_items,
+            commands::batch::discard_batch,
+            commands::batch::batch_render_done,
+            commands::batch::batch_window_ready,
+            commands::batch::export_print_pdf_outline,
             commands::popup::hide_popup,
             commands::popup::capture_status,
             commands::popup::write_clipboard,

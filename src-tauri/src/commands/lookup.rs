@@ -9,7 +9,12 @@ use crate::query::{self, LookupHandle, Source};
 /// 当前场景配置组里启用且已加载的词典（本地 + 在线），按顺序。
 fn profile_sources(state: &AppState) -> Result<Vec<Source>> {
     let profile = state.settings.get()?.active_profile;
-    let ids = state.db.with_conn(|c| dicts::enabled_for_profile(c, &profile))?;
+    sources_for_profile(state, &profile)
+}
+
+/// 指定场景配置组里启用且已加载的词典（批量导出按开始时的配置组查）。
+pub fn sources_for_profile(state: &AppState, profile: &str) -> Result<Vec<Source>> {
+    let ids = state.db.with_conn(|c| dicts::enabled_for_profile(c, profile))?;
     let mut out = Vec::with_capacity(ids.len());
     for id in ids {
         if let Some(d) = state.dicts.get(&id)? {

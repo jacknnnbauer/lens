@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BatchChip, BatchDialog, BatchResumeNotice } from "../../components/batch/BatchDialog";
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ImmersiveBar, useImmersiveMode } from "../../components/ImmersiveBar";
 import { ContextPanel } from "../../components/ContextPanel";
@@ -12,6 +13,7 @@ import { HistoryPage } from "../../routes/history/HistoryPage";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
 import { SettingsPage } from "../../routes/settings/SettingsPage";
 import { WordbookPage } from "../../routes/wordbook/WordbookPage";
+import { subscribeBatchEvents, useBatch } from "../../stores/batch";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
 import { useRoute } from "../../stores/route";
@@ -53,10 +55,12 @@ export function MainWindow() {
 
   useEffect(() => {
     void loadSettings();
+    void useBatch.getState().refreshUnfinished();
     void refreshDicts();
     const subs = [
       subscribeLookupEvents(),
       subscribeDictEvents(),
+      subscribeBatchEvents(),
       // 弹窗里按 Enter：在主窗口查同一个词
       onMainLookup((q) => {
         useRoute.getState().go("lookup");
@@ -131,6 +135,7 @@ export function MainWindow() {
             onOpenWordbook={() => go("wordbook")}
             onOpenLibrary={() => setLibraryOpen(true)}
             onOpenSettings={() => go("settings")}
+            onOpenBatch={() => useBatch.getState().openDialog()}
             onSwitchProfile={(id) => void switchProfile(id)}
             onLookup={lookupWord}
           />
@@ -139,6 +144,7 @@ export function MainWindow() {
 
       <main className={styles.main}>
         {!immersive && <HotkeyNotice status={capture} />}
+        {!immersive && <BatchResumeNotice />}
         {settingsError && (
           <p role="alert" className={styles.error}>
             设置读取失败：{settingsError}
@@ -188,6 +194,8 @@ export function MainWindow() {
 
       <LibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
       <Toast />
+      <BatchDialog />
+      {!immersive && <BatchChip />}
       {immersive && (
         <ImmersiveBar
           revealOnHover={immersivePrefs?.revealOnHover ?? true}

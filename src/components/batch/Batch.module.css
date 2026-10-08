@@ -1,0 +1,708 @@
+/* 批量导出（画板 10/11） */
+
+.dialog {
+  width: min(980px, calc(100vw - 32px));
+  height: min(780px, calc(100vh - 48px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px 14px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.headMeta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.head > :last-child {
+  margin-left: auto;
+}
+
+.tabs {
+  display: flex;
+  margin-left: 12px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.tabs button {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sub);
+  cursor: pointer;
+}
+
+.tabs button[aria-selected="true"] {
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--raised);
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+
+.right {
+  flex: 0 0 340px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.filters,
+.selectBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.selectBar {
+  padding: 8px 20px;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.selectBar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selectBar strong {
+  color: var(--text);
+}
+
+.hintRight {
+  margin-left: auto;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.chips button {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chips button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--hl);
+  color: var(--text);
+}
+
+.inlineField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+select,
+.dirRow input {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.list,
+.itemList {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.groupHead {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  padding: 0 20px 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.wordRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 0 20px;
+  cursor: pointer;
+}
+
+.wordRow:hover {
+  background: var(--raised);
+}
+
+.wordRow[data-off] {
+  color: var(--sub);
+}
+
+.word {
+  flex: 0 0 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-gloss);
+  font-size: 16px;
+}
+
+.brief,
+.itemText {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.count {
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 48px 20px;
+  text-align: center;
+  color: var(--faint);
+}
+
+.paste {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.pasteLabel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pasteLabel textarea {
+  flex: 1 1 auto;
+  min-height: 120px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.7;
+  resize: none;
+}
+
+.parse,
+.preflight {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  font-size: 12px;
+}
+
+.parse > span,
+.preflight > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.parse > span > span:first-child,
+.preflight > span > span:first-child {
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+.parse small {
+  color: var(--faint);
+}
+
+.preflight strong {
+  font-size: 13px;
+}
+
+.warn,
+[data-warn] {
+  color: var(--warn);
+}
+
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldset legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.formats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.formats label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.formats label[data-checked] {
+  border-color: var(--accent);
+  background: var(--hl);
+}
+
+.radio {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.radio input {
+  margin-top: 4px;
+}
+
+.radio small {
+  display: block;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.field > span:first-child {
+  font-weight: 600;
+}
+
+.dirRow {
+  display: flex;
+  gap: 6px;
+}
+
+.dirRow input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.footHint,
+.error {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.error {
+  color: var(--warn);
+}
+
+.ghost,
+.ghostBtn,
+.danger,
+.primary,
+.primarySmall {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ghost {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--sub);
+}
+
+.ghostBtn {
+  border: 1px solid var(--line);
+  background: transparent;
+}
+
+.ghost:hover,
+.ghostBtn:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.danger {
+  border: 1px solid var(--warn);
+  background: transparent;
+  color: var(--warn);
+}
+
+.primary,
+.primarySmall {
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+
+.primarySmall {
+  padding: 5px 12px;
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── 进度页 ── */
+.progressBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 24px;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bigRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.big {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+.bar > div[data-state="paused"],
+.bar > div[data-state="cancelled"] {
+  background: var(--faint);
+}
+
+.stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stages > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.stages span {
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.stages strong {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.stages small {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.memLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.link {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.itemsBox {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.itemsBox > .chips {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.itemRow[data-state="pending"] {
+  color: var(--faint);
+}
+
+.itemRow[data-state="querying"],
+.itemRow[data-state="rendering"] {
+  background: var(--hl);
+}
+
+.icon {
+  flex: 0 0 16px;
+  display: flex;
+  justify-content: center;
+  color: var(--sub);
+}
+
+.itemRow[data-state="done"] .icon {
+  color: var(--accent);
+}
+
+.itemRow[data-noted] .icon,
+.itemRow[data-noted] .itemText,
+.itemRow[data-state="failed"] .icon,
+.itemRow[data-state="failed"] .itemText {
+  color: var(--warn);
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner[data-paused] {
+  animation: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+  .bar > div {
+    transition: none;
+  }
+}
+
+/* ── 提示条与后台进度标签 ── */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 24px;
+  background: var(--raised);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.notice > span {
+  margin-right: auto;
+}
+
+.chip {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .body {
+    flex-direction: column;
+  }
+  .left {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .right {
+    flex-basis: auto;
+  }
+  .stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

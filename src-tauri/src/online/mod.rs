@@ -293,6 +293,16 @@ fn cache_fresh(fetched_at: i64, now: i64, cache_days: i64) -> bool {
     cache_days < 0 || now - fetched_at < cache_days * 86_400_000
 }
 
+/// 只看新鲜缓存（批量导出用：命中缓存的词不占在线限速名额）。
+pub fn fresh_cached(db: &Db, dict: &OnlineDict, word: &str, cfg: &settings::Online) -> Option<Outcome> {
+    if cfg.cache_days == 0 {
+        return None;
+    }
+    let lemma = word.trim().to_lowercase();
+    let (entries, at) = db.with_conn(|c| cache::get(c, dict.id(), &lemma)).ok().flatten()?;
+    cache_fresh(at, now_ms(), cfg.cache_days).then(|| Outcome::from_entries(entries, Some(at), false, None))
+}
+
 /// 查一部 API 模式的在线词典：新鲜缓存 → 联网（带超时）→ 失败时回退过期缓存。
 pub async fn fetch(db: &Db, client: &reqwest::Client, dict: &OnlineDict, word: &str, cfg: &settings::Online) -> Outcome {
     let lemma = word.trim().to_lowercase();

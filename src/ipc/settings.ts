@@ -54,6 +54,14 @@ export interface Online {
   cacheDays: number;
 }
 
+export interface BatchPrefs {
+  maxWords: number;
+  lookupConcurrency: number;
+  renderRecycleEvery: number;
+  memLimitMb: number;
+  mergeVolumeSize: number;
+}
+
 export interface Copy {
   defaultFormat: "md" | "html" | "text";
   appendSource: boolean;
@@ -69,7 +77,7 @@ export interface ExportPrefs {
   dir: string | null;
 }
 
-/** 目前建模到 appearance、layout、immersive、capture、online、copy、export；其他分组由 Rust 原样保留，接入时再补类型。 */
+/** 目前建模到 appearance、layout、immersive、capture、online、copy、export、batch；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   appearance: Appearance;
   layout: Layout;
@@ -78,6 +86,7 @@ export interface Settings {
   online: Online;
   copy: Copy;
   export: ExportPrefs;
+  batch: BatchPrefs;
   activeProfile: string;
   [section: string]: unknown;
 }

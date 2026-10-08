@@ -37,7 +37,6 @@ export interface ExportInput {
   context: ContextRow | null;
 }
 
-/** 省墨样式：词典自带的底色、阴影一律去掉 */
 // 黑白省墨：词典自带的彩色文字、底色、边框一律压成主题文字色（eink 主题下为纯黑），图片转灰度
 const INK_CSS = `*, *::before, *::after, ::marker { color: var(--text) !important; background: transparent !important; border-color: var(--line) !important;
   box-shadow: none !important; text-shadow: none !important; }
@@ -109,11 +108,41 @@ function documentLayout(input: ExportInput): string {
   return `<header class="doc-head">${row}<h1>${escapeHtml(input.word)}</h1>${dicts}</header>${sections}${contextHtml(input, "我的语境")}`;
 }
 
+function wordInner(input: ExportInput): string {
+  return input.layout === "document" ? documentLayout(input) : cardsLayout(input);
+}
+
+function styleAttr(style: ExportStyle): string {
+  return style === "inkSaving" ? "ink" : style;
+}
+
 /** 导出文档的 <body> 内容。 */
 export function buildExportBody(input: ExportInput): string {
-  const inner = input.layout === "document" ? documentLayout(input) : cardsLayout(input);
-  const style = input.style === "inkSaving" ? "ink" : input.style;
-  return `<main class="lens-export" data-layout="${input.layout}" data-style="${style}">${inner}<footer class="copyright">${COPYRIGHT}</footer></main>`;
+  return `<main class="lens-export" data-layout="${input.layout}" data-style="${styleAttr(input.style)}">${wordInner(input)}<footer class="copyright">${COPYRIGHT}</footer></main>`;
+}
+
+export interface VolumeWord {
+  word: string;
+  cards: ExportCard[];
+  context: ContextRow | null;
+}
+
+export interface VolumeInput extends Omit<ExportInput, "word" | "cards" | "context"> {
+  title: string;
+  words: VolumeWord[];
+}
+
+/**
+ * 批量导出合并模式的一卷（SPEC 12.3）：卷首标题 + 目录（页内链接）+ 每个词一节（另起一页）。
+ * PDF 书签由打印时按标题层级生成：卷标题、目录、每个词的词头。
+ */
+export function buildVolumeBody(input: VolumeInput): string {
+  const toc = input.words.map((w, i) => `<li><a href="#w-${i + 1}">${escapeHtml(w.word)}</a></li>`).join("");
+  const sections = input.words
+    .map((w, i) => `<section class="vol-word" id="w-${i + 1}">${wordInner({ ...input, word: w.word, cards: w.cards, context: w.context })}</section>`)
+    .join("");
+  const meta = input.options.sourceDate ? ` · ${isoDate(input.date)}` : "";
+  return `<main class="lens-export lens-volume" data-layout="${input.layout}" data-style="${styleAttr(input.style)}"><header class="vol-head"><h1>${escapeHtml(input.title)}</h1><p>${input.words.length} 个词${meta} · Lens 词镜</p></header><nav class="toc" aria-label="目录"><h2>目录</h2><ol>${toc}</ol></nav>${sections}<footer class="copyright">${COPYRIGHT}</footer></main>`;
 }
 
 /** 文件名：去掉 Windows 不允许的字符、保留名、首尾空格和点，限长（SPEC 12 的规则子集）。 */

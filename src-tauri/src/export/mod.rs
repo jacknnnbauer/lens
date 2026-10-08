@@ -1,4 +1,4 @@
-//! 单词导出（SPEC 11、M5）。批量导出流水线在 M7。
+//! 单词导出（SPEC 11）与批量导出的渲染（SPEC 12，流水线见 batch 模块）。
 //!
 //! 流程：主窗口组装导出文档 → 隐藏的 `export` 窗口渲染（等样式、图片、字体就绪并修正对比度）→
 //! - PDF：该窗口调用 `print_pdf`，用 WebView2 的 `ICoreWebView2_7::PrintToPdf` 生成（文字可选可搜）
@@ -6,14 +6,14 @@
 
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::error::{Error, Result};
 
 pub const EXPORT: &str = "export";
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Paper {
     A4,
@@ -119,6 +119,80 @@ pub async fn print_pdf(window: &WebviewWindow, path: &Path, paper: Paper) -> Res
 
 #[cfg(not(windows))]
 pub async fn print_pdf(_window: &WebviewWindow, _path: &Path, _paper: Paper) -> Result<()> {
+    Err(Error::Other("当前平台不支持".into()))
+}
+
+/// 带书签目录的 PDF（批量导出合并模式）：WebView2 的 PrintToPdf 不生成大纲，
+/// 改用 DevTools 协议 `Page.printToPDF { generateDocumentOutline }`，按 h1–h6 生成书签。
+#[cfg(windows)]
+pub async fn print_pdf_with_outline(window: &WebviewWindow, path: &Path, paper: Paper) -> Result<()> {
+    use base64::Engine;
+    use webview2_com::CallDevToolsProtocolMethodCompletedHandler;
+    use windows::core::HSTRING;
+
+    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    if ext.as_deref() != Some("pdf") {
+        return Err(Error::Other("导出文件必须是 .pdf".into()));
+    }
+    let (w, h) = paper.inches();
+    let params = serde_json::json!({
+        "printBackground": true,
+        "paperWidth": w,
+        "paperHeight": h,
+        "marginTop": MARGIN_IN,
+        "marginBottom": MARGIN_IN,
+        "marginLeft": MARGIN_IN,
+        "marginRight": MARGIN_IN,
+        "displayHeaderFooter": false,
+        "generateDocumentOutline": true,
+        "generateTaggedPDF": true,
+    })
+    .to_string();
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<String>>();
+
+    window.with_webview(move |pw| {
+        // SAFETY: with_webview 在 UI 线程上执行；COM 对象由 windows-rs 管理引用计数。
+        let started = unsafe {
+            (|| -> windows::core::Result<()> {
+                let core = pw.controller().CoreWebView2()?;
+                let mut tx = Some(tx);
+                let handler = CallDevToolsProtocolMethodCompletedHandler::create(Box::new(move |hr, json| {
+                    let result = match hr {
+                        Ok(()) => Ok(json),
+                        Err(e) => Err(Error::Other(format!("生成 PDF 失败：{e}"))),
+                    };
+                    if let Some(tx) = tx.take() {
+                        let _ = tx.send(result);
+                    }
+                    Ok(())
+                }));
+                core.CallDevToolsProtocolMethod(&HSTRING::from("Page.printToPDF"), &HSTRING::from(params.as_str()), &handler)
+            })()
+        };
+        if let Err(e) = started {
+            tracing::warn!(error = %e, "无法开始打印 PDF");
+        }
+    })?;
+
+    let json = match tokio::time::timeout(std::time::Duration::from_secs(600), rx).await {
+        Ok(Ok(r)) => r?,
+        Ok(Err(_)) => return Err(Error::Other("无法开始生成 PDF".into())),
+        Err(_) => return Err(Error::Other("生成 PDF 超时".into())),
+    };
+    let v: serde_json::Value = serde_json::from_str(&json)?;
+    let data = v.get("data").and_then(|d| d.as_str()).ok_or_else(|| Error::Other("生成 PDF 失败：没有返回数据".into()))?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|e| Error::Other(format!("生成 PDF 失败：{e}")))?;
+    let target = path.to_path_buf();
+    tauri::async_runtime::spawn_blocking(move || std::fs::write(&target, bytes))
+        .await
+        .map_err(|e| Error::Other(format!("写文件任务失败：{e}")))??;
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub async fn print_pdf_with_outline(_window: &WebviewWindow, _path: &Path, _paper: Paper) -> Result<()> {
     Err(Error::Other("当前平台不支持".into()))
 }
 

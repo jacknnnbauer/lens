@@ -202,6 +202,45 @@ body {
   border-top: 1px solid var(--line);
 }
 
+/* ── 批量导出合并模式：卷首、目录、每个词另起一页 ── */
+.vol-head h1 {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: 34px;
+  font-weight: 600;
+}
+
+.vol-head p {
+  margin: 6px 0 0;
+  color: var(--sub);
+}
+
+.toc h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.toc ol {
+  margin: 0;
+  padding-left: 1.6em;
+  columns: 3;
+  column-gap: 24px;
+  font-family: var(--font-gloss);
+  font-size: 14px;
+}
+
+.toc a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.vol-word {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  break-before: page;
+}
+
 /* 黑白省墨：图片灰度 */
 .lens-export[data-style="ink"] img {
   filter: grayscale(1);

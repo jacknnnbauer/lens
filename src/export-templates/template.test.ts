@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { buildExportBody, COPYRIGHT, safeFileName, trimEntry, type ExportInput } from "./template";
+import { buildExportBody, buildVolumeBody, COPYRIGHT, safeFileName, trimEntry, type ExportInput } from "./template";
 
 const base: ExportInput = {
   word: "colour <x>",
@@ -47,6 +47,24 @@ describe("buildExportBody", () => {
     const body = buildExportBody({ ...base, options: { phonetics: false, examples: false, context: false, sourceDate: false } });
     expect(body).not.toMatch(/ˈkʌlə|>ex<|<mark>|2026-10-07/);
     expect(buildExportBody({ ...base, style: "inkSaving" })).toContain('data-style="ink"');
+  });
+});
+
+describe("buildVolumeBody", () => {
+  it("adds a title, a linked table of contents and one page per word", () => {
+    const body = buildVolumeBody({
+      ...base,
+      title: "2026-10-08_粘贴_2词",
+      words: [
+        { word: "colour", cards: base.cards, context: null },
+        { word: "hue & tint", cards: [base.cards[1]], context: base.context },
+      ],
+    });
+    expect(body).toContain('<h1>2026-10-08_粘贴_2词</h1>');
+    expect(body).toContain('<li><a href="#w-2">hue &amp; tint</a></li>');
+    expect(body.match(/<section class="vol-word" id="w-\d">/g)).toHaveLength(2);
+    expect(body.match(/<h1>/g)).toHaveLength(3);
+    expect(body.endsWith(`<footer class="copyright">${COPYRIGHT}</footer></main>`)).toBe(true);
   });
 });
 

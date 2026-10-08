@@ -18,6 +18,7 @@ import {
   type WordQuery,
   type WordStatus,
 } from "../../ipc/words";
+import { useBatch } from "../../stores/batch";
 import { toast } from "../../stores/toast";
 import styles from "./WordbookPage.module.css";
 
@@ -255,6 +256,9 @@ export function WordbookPage({ onLookup, active }: Props) {
           <span className="sr-only">搜索生词</span>
           <input type="search" placeholder="搜索词或释义" value={search} onChange={(e) => setSearch(e.target.value)} spellCheck={false} />
         </label>
+        <button type="button" className={styles.ghost} onClick={() => useBatch.getState().openDialog("wordbook")}>
+          批量导出…
+        </button>
       </header>
 
       {stats && (

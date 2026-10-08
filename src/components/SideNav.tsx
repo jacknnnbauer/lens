@@ -12,11 +12,12 @@ interface Props {
   onOpenWordbook: () => void;
   onOpenLibrary: () => void;
   onOpenSettings: () => void;
+  onOpenBatch: () => void;
   onSwitchProfile: (id: string) => void;
   onLookup: (word: string) => void;
 }
 
-export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLibrary, onOpenSettings, onSwitchProfile, onLookup }: Props) {
+export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLibrary, onOpenSettings, onOpenBatch, onSwitchProfile, onLookup }: Props) {
   const page = useRoute((s) => s.page);
   const profiles = useDicts((s) => s.profiles);
   const active = useSettings((s) => s.settings?.activeProfile);
@@ -36,6 +37,9 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLi
         </button>
         <button type="button" className={styles.item} onClick={onOpenLibrary}>
           词典库<kbd>Ctrl+L</kbd>
+        </button>
+        <button type="button" className={styles.item} onClick={onOpenBatch}>
+          批量导出
         </button>
         <button type="button" className={styles.item} onClick={onOpenSettings}>
           设置<kbd>Ctrl+,</kbd>

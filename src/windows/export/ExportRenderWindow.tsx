@@ -1,13 +1,21 @@
 // 隐藏的导出窗口（SPEC 9.1 export-render）：渲染导出文档 → 等资源就绪 → 修正对比度 →
-// 打印 PDF 或序列化为单文件 HTML → 把结果告诉主窗口。窗口不可见，所以不依赖 requestAnimationFrame。
+// 打印 PDF 或序列化为单文件 HTML → 回报结果。窗口不可见，所以不依赖 requestAnimationFrame。
+//
+// 两种任务：
+// - export:render：单词导出（主窗口已组装好文档），结果发回主窗口
+// - batch:render：批量导出（Rust 流水线发来原始词条），在这里清洗、组装，结果回报给 Rust
 
 import { invoke } from "@tauri-apps/api/core";
 import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useEffect } from "react";
 import { adjustContrast, parseColor } from "../../dict-render/contrast";
+import { prepareEntry } from "../../dict-render/prepare";
+import { inlineEntry } from "../../export/resources";
 import type { ExportJob } from "../../export/run";
 import exportCss from "../../export-templates/export.css?raw";
+import { buildExportBody, buildVolumeBody, type ExportCard } from "../../export-templates/template";
+import type { RenderJob } from "../../ipc/batch";
 import tokensCss from "../../theme/tokens.css?raw";
 import { THEMES } from "../../theme/themes";
 
@@ -36,10 +44,11 @@ async function waitResources(container: HTMLElement) {
   return roots;
 }
 
-async function render(job: ExportJob) {
+/** 把文档放进页面并等它渲染就绪（含对比度修正）。 */
+async function mount(body: string, theme: string, accent: string): Promise<HTMLElement> {
   const html = document.documentElement;
-  html.dataset.theme = job.theme;
-  html.dataset.accent = job.accent;
+  html.dataset.theme = theme;
+  html.dataset.accent = accent;
 
   let style = document.getElementById("lens-export-css");
   if (!style) {
@@ -56,53 +65,119 @@ async function render(job: ExportJob) {
     document.body.append(container);
   }
   // setHTMLUnsafe 会解析声明式 Shadow DOM（<template shadowrootmode>），innerHTML 不会
-  (container as HTMLElement & { setHTMLUnsafe(h: string): void }).setHTMLUnsafe(job.body);
+  (container as HTMLElement & { setHTMLUnsafe(h: string): void }).setHTMLUnsafe(body);
 
   const roots = await waitResources(container);
   const cs = getComputedStyle(html);
   const panel = parseColor(cs.getPropertyValue("--panel"))?.rgb;
   const raised = parseColor(cs.getPropertyValue("--raised"))?.rgb;
   if (panel && raised) {
-    const dark = THEMES.find((t) => t.id === job.theme)?.dark ?? false;
+    const dark = THEMES.find((t) => t.id === theme)?.dark ?? false;
     for (const r of roots) adjustContrast(r, { panel, raised, dark });
   }
+  return container;
+}
 
-  if (job.format === "pdf") {
-    await invoke("export_print_pdf", { path: job.path, paper: job.paper });
-  } else {
-    // 序列化渲染结果（含对比度修正后的内联颜色）；主题变量与模板样式一并内嵌
-    const body = (container as HTMLElement & { getHTML(o: object): string }).getHTML({ serializableShadowRoots: true });
-    const doc = `<!doctype html>
-<html lang="zh-CN" data-theme="${job.theme}" data-accent="${job.accent}">
+/** 序列化渲染结果（含对比度修正后的内联颜色）；主题变量与模板样式一并内嵌。 */
+function serialize(container: HTMLElement, title: string, theme: string, accent: string): string {
+  const body = (container as HTMLElement & { getHTML(o: object): string }).getHTML({ serializableShadowRoots: true });
+  return `<!doctype html>
+<html lang="zh-CN" data-theme="${theme}" data-accent="${accent}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${job.title.replace(/</g, "&lt;")}</title>
+<title>${title.replace(/</g, "&lt;")}</title>
 <style>${tokensCss}
 ${exportCss}</style>
 </head>
 <body>${body}</body>
 </html>
 `;
-    await invoke("export_save_html", { path: job.path, html: doc });
+}
+
+/** 渲染完释放 DOM：批量导出时窗口一直复用，不留上一词的内容。 */
+function unmount() {
+  document.getElementById("lens-export-root")?.replaceChildren();
+}
+
+async function renderSingle(job: ExportJob) {
+  const container = await mount(job.body, job.theme, job.accent);
+  if (job.format === "pdf") {
+    await invoke("export_print_pdf", { path: job.path, paper: job.paper });
+  } else {
+    await invoke("export_save_html", { path: job.path, html: serialize(container, job.title, job.theme, job.accent) });
   }
+}
+
+/** 批量导出：原始词条 → 清洗（与查词页同一套）→（HTML 需要时）内联资源 → 组装文档 → 打印 / 序列化。 */
+async function renderBatch(job: RenderJob): Promise<string | null> {
+  const words = await Promise.all(
+    job.words.map(async (w) => ({
+      word: w.word,
+      context: w.context,
+      cards: await Promise.all(
+        w.cards.map(
+          async (c): Promise<ExportCard> => ({
+            id: c.id,
+            name: c.name,
+            online: c.online,
+            entries: await Promise.all(
+              c.entries.map(async (e) => {
+                const html = prepareEntry(e.body, c.id).html;
+                // HTML 要单文件可用；内联后的文档打印 PDF 也一样
+                return job.wantHtml ? inlineEntry(html) : html;
+              }),
+            ),
+          }),
+        ),
+      ),
+    })),
+  );
+  const common = { date: new Date(), layout: job.layout, style: job.style, options: job.options };
+  const body =
+    job.mode === "volume"
+      ? buildVolumeBody({ ...common, title: job.title, words })
+      : buildExportBody({ ...common, word: words[0]?.word ?? job.title, cards: words[0]?.cards ?? [], context: words[0]?.context ?? null });
+  const theme = job.style === "inkSaving" ? "eink" : job.style === "followTheme" ? job.theme : "paper";
+  const container = await mount(body, theme, job.accent);
+  if (job.pdfPath) {
+    await invoke(job.mode === "volume" ? "export_print_pdf_outline" : "export_print_pdf", { path: job.pdfPath, paper: job.paper });
+  }
+  return job.wantHtml ? serialize(container, `${job.title} · Lens 词镜`, theme, job.accent) : null;
 }
 
 export function ExportRenderWindow() {
   useEffect(() => {
     const win = getCurrentWebviewWindow();
-    const sub = win.listen<ExportJob>("export:render", async (e) => {
+    const single = win.listen<ExportJob>("export:render", async (e) => {
       const job = e.payload;
       try {
-        await render(job);
+        await renderSingle(job);
         await emitTo("main", "export:done", { jobId: job.jobId, ok: true, error: null });
       } catch (err) {
         await emitTo("main", "export:done", { jobId: job.jobId, ok: false, error: String(err) });
       }
     });
-    // 告诉主窗口：已就绪，可以接任务（首次创建窗口时主窗口在等这个）
-    void sub.then(() => emitTo("main", "export:ready", null));
-    return () => void sub.then((off) => off());
+    const batch = win.listen<RenderJob>("batch:render", async (e) => {
+      const job = e.payload;
+      try {
+        const html = await renderBatch(job);
+        unmount();
+        await invoke("batch_render_done", { jobId: job.jobId, ok: true, error: null, html });
+      } catch (err) {
+        unmount();
+        await invoke("batch_render_done", { jobId: job.jobId, ok: false, error: String(err), html: null });
+      }
+    });
+    // 告诉主窗口与批量导出流水线：已就绪，可以接任务
+    void Promise.all([single, batch]).then(() => {
+      void emitTo("main", "export:ready", null);
+      void invoke("batch_window_ready");
+    });
+    return () => {
+      void single.then((off) => off());
+      void batch.then((off) => off());
+    };
   }, []);
   return null;
 }

@@ -1,6 +1,6 @@
 //! `%APPDATA%/Lens/settings.json`（SPEC 第 14 节）。
 //!
-//! 目前只建模 `appearance`、`layout`、`immersive`、`capture`、`online`、`copy`、`export`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
+//! 目前只建模 `appearance`、`layout`、`immersive`、`capture`、`online`、`copy`、`export`、`batch`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
 //! 这样用户手改的内容不会在保存时丢失。
 
 use std::fs;
@@ -103,6 +103,27 @@ impl Default for Online {
     }
 }
 
+/// 批量导出（SPEC 12、14）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Batch {
+    /// 单批上限
+    pub max_words: usize,
+    pub lookup_concurrency: usize,
+    /// 渲染窗口每处理这么多个词就重建一次
+    pub render_recycle_every: usize,
+    /// 进程（含 WebView2 子进程）内存超过这个值也重建渲染窗口
+    pub mem_limit_mb: u64,
+    /// 合并模式每卷词数
+    pub merge_volume_size: usize,
+}
+
+impl Default for Batch {
+    fn default() -> Self {
+        Self { max_words: 2000, lookup_concurrency: 4, render_recycle_every: 150, mem_limit_mb: 800, merge_volume_size: 300 }
+    }
+}
+
 /// 复制（SPEC 10、14）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -194,6 +215,7 @@ pub struct Settings {
     pub online: Online,
     pub copy: Copy,
     pub export: Export,
+    pub batch: Batch,
     pub active_profile: String,
     #[serde(flatten)]
     pub rest: Map<String, Value>,
@@ -209,6 +231,7 @@ impl Default for Settings {
             online: Online::default(),
             copy: Copy::default(),
             export: Export::default(),
+            batch: Batch::default(),
             active_profile: "reading".into(),
             rest: Map::new(),
         }
@@ -290,7 +313,7 @@ mod tests {
     fn patch_persists_and_keeps_unknown_sections() -> Result<()> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("settings.json");
-        fs::write(&path, r#"{"appearance":{"theme":"light"},"batch":{"maxWords":500}}"#)?;
+        fs::write(&path, r#"{"appearance":{"theme":"light"},"future":{"x":500}}"#)?;
 
         let store = SettingsStore::load(path.clone())?;
         assert_eq!(store.get()?.appearance.theme, "light");
@@ -300,7 +323,7 @@ mod tests {
         let reloaded = SettingsStore::load(path)?.get()?;
         assert_eq!(reloaded.appearance.theme, "dark");
         assert_eq!(reloaded.appearance.accent, "teal");
-        assert_eq!(reloaded.rest["batch"]["maxWords"], 500);
+        assert_eq!(reloaded.rest["future"]["x"], 500);
         Ok(())
     }
 

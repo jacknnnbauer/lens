@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
+import { ImmersiveBar, useImmersiveMode } from "../../components/ImmersiveBar";
 import { ContextPanel } from "../../components/ContextPanel";
 import { BookmarkIcon, ClockIcon, GearIcon, LibraryIcon } from "../../components/icons";
 import { LibraryDialog } from "../../components/LibraryDialog";
@@ -30,6 +31,8 @@ export function MainWindow() {
   const refreshDicts = useDicts((s) => s.refresh);
   const profiles = useDicts((s) => s.profiles);
   useApplyTheme();
+  const immersive = useImmersiveMode();
+  const immersivePrefs = useSettings((s) => s.settings?.immersive);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const lookupPage = useRef<LookupPageHandle>(null);
   const capture = useCaptureStatus();
@@ -106,10 +109,17 @@ export function MainWindow() {
     return () => window.removeEventListener("keydown", onKey);
   }, [profiles, switchProfile, go, focusSearch]);
 
-  // 设置页有自己的分类导航，不显示两侧栏
+  // 进入沉浸模式时回到查词页
+  useEffect(() => {
+    if (immersive) go("lookup");
+  }, [immersive, go]);
+
+  // 设置页有自己的分类导航，不显示两侧栏；沉浸模式按设置隐藏
   const inSettings = page === "settings";
-  const showNav = (layout?.showNav ?? false) && !inSettings;
-  const showContext = (layout?.showContext ?? false) && !inSettings;
+  const hideSides = inSettings || (immersive && (immersivePrefs?.hideSidebars ?? true));
+  const showNav = (layout?.showNav ?? false) && !hideSides;
+  const showContext = (layout?.showContext ?? false) && !hideSides;
+  const showStatus = (layout?.showStatusBar ?? false) && !(immersive && (immersivePrefs?.hideStatusBar ?? true));
 
   return (
     <div className={styles.shell} data-nav={showNav || undefined} data-context={showContext || undefined}>
@@ -128,7 +138,7 @@ export function MainWindow() {
       )}
 
       <main className={styles.main}>
-        <HotkeyNotice status={capture} />
+        {!immersive && <HotkeyNotice status={capture} />}
         {settingsError && (
           <p role="alert" className={styles.error}>
             设置读取失败：{settingsError}
@@ -139,7 +149,7 @@ export function MainWindow() {
             ref={lookupPage}
             onOpenLibrary={() => setLibraryOpen(true)}
             showJumpBar={layout?.showJumpBar ?? true}
-            showHeadword={showNav}
+            showHeadword={showNav || immersive}
             expandMode={layout?.cardsExpanded ?? "first2"}
             actions={
               <>
@@ -170,7 +180,7 @@ export function MainWindow() {
         </div>
       )}
 
-      {layout?.showStatusBar && (
+      {showStatus && (
         <div className={styles.status}>
           <StatusBar capture={capture} />
         </div>
@@ -178,6 +188,17 @@ export function MainWindow() {
 
       <LibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
       <Toast />
+      {immersive && (
+        <ImmersiveBar
+          revealOnHover={immersivePrefs?.revealOnHover ?? true}
+          onWordbook={() => go("wordbook")}
+          onExport={() => lookupPage.current?.openExport()}
+          onSettings={() => {
+            go("settings");
+            window.scrollTo(0, 0);
+          }}
+        />
+      )}
     </div>
   );
 }

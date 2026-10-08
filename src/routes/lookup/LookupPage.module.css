@@ -168,3 +168,25 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* 沉浸模式（SPEC 9.2）：正文宽度取设置值，顶部留出浮现工具栏的位置，只留搜索框 */
+:global(html[data-immersive]) .column {
+  max-width: calc(var(--immersive-width, 720px) + 48px);
+  padding-top: 64px;
+  /* 留够底部空间，J 翻到最后几本词典时标题也能停在顶部 */
+  padding-bottom: 60vh;
+  gap: 28px;
+}
+
+:global(html[data-immersive]) .searchRow > :not(:first-child) {
+  display: none;
+}
+
+:global(html[data-immersive]) .headword h1 {
+  font-size: 56px;
+}
+
+:global(html[data-immersive-cards]) .jump,
+:global(html[data-immersive-cards]) .footHint {
+  display: none;
+}

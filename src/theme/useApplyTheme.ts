@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
+import { useImmersive } from "../stores/immersive";
 import { useSettings } from "../stores/settings";
-import { applyTheme, resolveTheme, type AccentId, type ThemeId } from "./themes";
+import { applyTheme, isThemeId, resolveTheme, type AccentId, type ThemeId } from "./themes";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
@@ -20,7 +21,12 @@ export function useApplyTheme(): { theme: ThemeId; accent: AccentId } | null {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const resolved = appearance ? resolveTheme(appearance, systemDark) : null;
+  // 沉浸模式可单独指定主题（设置 › 沉浸模式）；只有主窗口会打开沉浸模式
+  const immersiveTheme = useSettings((s) => s.settings?.immersive?.theme ?? null);
+  const immersiveOn = useImmersive((s) => s.on);
+  const override = immersiveOn && immersiveTheme && isThemeId(immersiveTheme) ? immersiveTheme : null;
+  const base = appearance ? resolveTheme(appearance, systemDark) : null;
+  const resolved = base && override ? { ...base, theme: override } : base;
   const theme = resolved?.theme;
   const accent = resolved?.accent;
 

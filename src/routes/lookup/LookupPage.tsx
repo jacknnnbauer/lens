@@ -19,6 +19,8 @@ const IDLE_COMMIT_MS = 1500;
 export interface LookupPageHandle {
   lookupWord: (word: string) => void;
   focusSearch: () => void;
+  /** 打开导出对话框（沉浸模式工具栏用）；没有命中时不打开 */
+  openExport: () => void;
 }
 
 interface Props {
@@ -64,7 +66,17 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     [search],
   );
 
-  useImperativeHandle(ref, () => ({ lookupWord, focusSearch: () => searchBox.current?.focus() }), [lookupWord]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      lookupWord,
+      focusSearch: () => searchBox.current?.focus(),
+      openExport: () => {
+        if (canExportRef.current) setExportOpen(true);
+      },
+    }),
+    [lookupWord],
+  );
 
   // 只是打字时：结果有命中、且停留 1.5 秒没再改，才记入历史
   const anyHit = cards.some((c) => c.status === "hit");

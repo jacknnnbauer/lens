@@ -30,9 +30,9 @@ impl OnlineProvider for MerriamWebster {
     }
 
     async fn lookup(&self, ctx: &Ctx<'_>, word: &str) -> Result<Vec<RawEntry>> {
-        let key = ctx.cred.map(|c| c.key.as_str()).ok_or_else(|| Error::Online("缺少 API Key".into()))?;
+        let key = ctx.cred.map(|c| c.key.as_str()).ok_or_else(|| Error::Online(crate::i18n::t("缺少 API Key", "Missing API key").into()))?;
         let mut url = Url::parse(BASE).map_err(|e| Error::Online(e.to_string()))?;
-        url.path_segments_mut().map_err(|_| Error::Online("地址无效".into()))?.pop_if_empty().push(word.trim());
+        url.path_segments_mut().map_err(|_| Error::Online(crate::i18n::t("地址无效", "Invalid address").into()))?.pop_if_empty().push(word.trim());
         url.query_pairs_mut().append_pair("key", key);
         let json = get_json(ctx.client.get(url)).await?;
         // Key 无效时接口返回 200 + 纯文本「Invalid API key」，get_json 会报解析失败

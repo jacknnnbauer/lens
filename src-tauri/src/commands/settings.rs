@@ -20,6 +20,7 @@ pub const EVENT_CAPTURE_STATUS: &str = "capture:status";
 pub async fn set_settings(app: AppHandle, state: State<'_, AppState>, patch: serde_json::Value) -> Result<Settings> {
     let before = state.settings.get()?;
     let after = state.settings.patch(patch)?;
+    crate::i18n::set_language(&after.appearance.language);
     let Some(service) = app.try_state::<CaptureService>() else { return Ok(after) };
     // 快捷键改了就立即重新注册；Ctrl+C+C 开关立即生效。结果推给各窗口
     let hotkey_changed = before.capture.hotkey != after.capture.hotkey;

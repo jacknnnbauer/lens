@@ -29,6 +29,7 @@ impl AppState {
         fs::create_dir_all(&index_dir)?;
         let db = Db::open(&root.join("lens.db"))?;
         let settings = SettingsStore::load(root.join("settings.json"))?;
+        crate::i18n::set_language(&settings.get()?.appearance.language);
         match import::sweep_orphans(&db, &index_dir) {
             Ok(0) => {}
             Ok(n) => tracing::info!(n, "已清理残留索引文件"),

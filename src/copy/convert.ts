@@ -8,6 +8,7 @@
 // - 发音按钮、页内锚点、站内查词链接只保留文字
 
 import TurndownService from "turndown";
+import { tr } from "../i18n";
 
 export type CopyFormat = "md" | "html" | "text";
 
@@ -90,7 +91,7 @@ function service(opts: CopyOptions): TurndownService {
       const src = el.getAttribute("src") ?? "";
       const alt = (el.getAttribute("alt") ?? "").trim();
       if (opts.imagesAsLinks && /^(https?:|data:image\/)/i.test(src) && !src.includes(".localhost/")) {
-        return `[${alt || "图片"}](${src})`;
+        return `[${alt || tr("图片")}](${src})`;
       }
       return alt;
     },
@@ -147,7 +148,7 @@ export function htmlToText(html: string, opts: CopyOptions): string {
 }
 
 export function sourceLine(format: CopyFormat, src: CopySource): string {
-  const text = `来源：${src.dict} · ${src.headword}`;
+  const text = tr("来源：{dict} · {word}", { dict: src.dict, word: src.headword });
   if (format === "md") return `> ${text}`;
   if (format === "html") return `<p style="color:#666;font-size:12px">${escapeHtml(text)}</p>`;
   return text;

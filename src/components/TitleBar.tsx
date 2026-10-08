@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import { MaximizeIcon, MinimizeIcon, SidebarIcon, WindowCloseIcon } from "./icons";
 import styles from "./TitleBar.module.css";
+import { tr } from "../i18n";
 
 interface Props {
   navShown: boolean;
@@ -28,24 +29,24 @@ export function TitleBar({ navShown, onToggleNav }: Props) {
       <button
         type="button"
         className={styles.navBtn}
-        aria-label={navShown ? "隐藏左侧导航" : "显示左侧导航"}
+        aria-label={tr(navShown ? "隐藏左侧导航" : "显示左侧导航")}
         aria-pressed={navShown}
-        title={`${navShown ? "隐藏" : "显示"}左侧导航（Ctrl+\\）`}
+        title={`${tr(navShown ? "隐藏左侧导航" : "显示左侧导航")}（Ctrl+\\）`}
         onClick={onToggleNav}
       >
         <SidebarIcon />
       </button>
       <span className={styles.title} data-tauri-drag-region>
-        词镜 Lens
+        {tr("词镜 Lens")}
       </span>
       <span className={styles.controls}>
-        <button type="button" className={styles.ctrl} aria-label="最小化" onClick={() => void w.minimize()}>
+        <button type="button" className={styles.ctrl} aria-label={tr("最小化")} onClick={() => void w.minimize()}>
           <MinimizeIcon />
         </button>
-        <button type="button" className={styles.ctrl} aria-label={maximized ? "还原" : "最大化"} onClick={() => void w.toggleMaximize()}>
+        <button type="button" className={styles.ctrl} aria-label={tr(maximized ? "还原" : "最大化")} onClick={() => void w.toggleMaximize()}>
           <MaximizeIcon restore={maximized} />
         </button>
-        <button type="button" className={`${styles.ctrl} ${styles.close}`} aria-label="关闭" onClick={() => void w.close()}>
+        <button type="button" className={`${styles.ctrl} ${styles.close}`} aria-label={tr("关闭")} onClick={() => void w.close()}>
           <WindowCloseIcon />
         </button>
       </span>

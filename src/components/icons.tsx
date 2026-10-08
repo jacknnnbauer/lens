@@ -121,3 +121,15 @@ export const WindowCloseIcon = () => (
     <path d="M0 0l10 10M10 0L0 10" />
   </svg>
 );
+
+/** 拖动把手：两列三行的点 */
+export const GripIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <circle cx="5.5" cy="3.5" r="1.4" />
+    <circle cx="10.5" cy="3.5" r="1.4" />
+    <circle cx="5.5" cy="8" r="1.4" />
+    <circle cx="10.5" cy="8" r="1.4" />
+    <circle cx="5.5" cy="12.5" r="1.4" />
+    <circle cx="10.5" cy="12.5" r="1.4" />
+  </svg>
+);

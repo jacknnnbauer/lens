@@ -15,6 +15,7 @@ import { useSaveWord } from "../../stores/save";
 import { useSettings } from "../../stores/settings";
 import { useApplyTheme } from "../../theme/useApplyTheme";
 import styles from "./PopupWindow.module.css";
+import { tr } from "../../i18n";
 
 const BLUR_HIDE_MS = 300;
 
@@ -152,17 +153,17 @@ export function PopupWindow() {
   const sourceLine = source ? [source.app, source.windowTitle, source.url].filter(Boolean).join(" · ") : "";
 
   return (
-    <div className={styles.popup} role="dialog" aria-label="查词弹窗" onKeyDown={onKeyDown}>
+    <div className={styles.popup} role="dialog" aria-label={tr("查词弹窗")} onKeyDown={onKeyDown}>
       <label className={styles.searchRow}>
         <span className={styles.icon}>
           <SearchIcon size={16} />
         </span>
-        <span className="sr-only">查词</span>
+        <span className="sr-only">{tr("查词")}</span>
         <input
           ref={input}
           className={styles.input}
           value={value}
-          placeholder="输入单词"
+          placeholder={tr("输入单词")}
           spellCheck={false}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onInputKeyDown}
@@ -171,21 +172,21 @@ export function PopupWindow() {
           type="button"
           className={styles.pin}
           aria-pressed={saved}
-          aria-label={saved ? "已收藏（Ctrl+S 追加语境）" : "收藏（Ctrl+S）"}
+          aria-label={tr(saved ? "已收藏（Ctrl+S 追加语境）" : "收藏（Ctrl+S）")}
           disabled={!hits.length}
           onClick={() => void save()}
         >
-          {saved ? "已收藏" : "收藏"}
+          {tr(saved ? "已收藏" : "收藏")}
         </button>
         <button
           type="button"
           className={styles.pin}
           aria-pressed={pinned}
-          aria-label={pinned ? "取消钉住（Ctrl+P）" : "钉住（Ctrl+P）"}
-          title="钉住后失焦不自动关闭"
+          aria-label={tr(pinned ? "取消钉住（Ctrl+P）" : "钉住（Ctrl+P）")}
+          title={tr("钉住后失焦不自动关闭")}
           onClick={() => setPinned((p) => !p)}
         >
-          {pinned ? "已钉住" : "钉住"}
+          {tr(pinned ? "已钉住" : "钉住")}
         </button>
       </label>
 
@@ -196,7 +197,7 @@ export function PopupWindow() {
             <article key={c.id} id={`pcard-${c.id}`} className={styles.card} data-active={(c.id === active?.id && hits.length > 1) || undefined}>
               <h2 className={styles.cardHead}>
                 {c.name}
-                {c.source !== "local" && <span className={styles.cardTag}>{c.source === "api" ? "在线" : "网页"}</span>}
+                {c.source !== "local" && <span className={styles.cardTag}>{tr(c.source === "api" ? "在线" : "网页")}</span>}
               </h2>
               {c.entries.map((e, i) => (
                 <div key={`${c.id}-${i}`} className={styles.entry}>
@@ -206,15 +207,15 @@ export function PopupWindow() {
             </article>
           ))
         ) : !handle ? (
-          <p className={styles.note}>输入单词后按 Enter 查询。</p>
+          <p className={styles.note}>{tr("输入单词后按 Enter 查询。")}</p>
         ) : pending || !done ? (
-          <p className={styles.note}>查询中…</p>
+          <p className={styles.note}>{tr("查询中…")}</p>
         ) : (
           <div className={styles.note}>
-            <p>没有找到「{handle.normalized || handle.query}」</p>
+            <p>{tr("没有找到「{q}」", { q: handle.normalized || handle.query })}</p>
             {suggestions.length > 0 && (
               <p className={styles.suggest}>
-                你是不是要找：
+                {tr("你是不是要找：")}
                 {suggestions.map((s) => (
                   <button key={s} type="button" className={styles.suggestBtn} onClick={() => lookupWord(s)}>
                     {s}
@@ -227,29 +228,29 @@ export function PopupWindow() {
       </div>
 
       {ctx && (
-        <section className={styles.context} aria-label="语境句">
+        <section className={styles.context} aria-label={tr("语境句")}>
           <div className={styles.contextHead}>
             <span className={styles.captured}>
               <span className={styles.dot} aria-hidden="true" />
-              已捕获语境句
+              {tr("已捕获语境句")}
             </span>
             <button
               type="button"
               className={styles.small}
               disabled={extra.before >= ctx.before.length}
-              aria-label="向前多带一句（Alt+←）"
+              aria-label={tr("向前多带一句（Alt+←）")}
               onClick={() => setExtra((x) => ({ ...x, before: x.before + 1 }))}
             >
-              + 前句
+              {tr("+ 前句")}
             </button>
             <button
               type="button"
               className={styles.small}
               disabled={extra.after >= ctx.after.length}
-              aria-label="向后多带一句（Alt+→）"
+              aria-label={tr("向后多带一句（Alt+→）")}
               onClick={() => setExtra((x) => ({ ...x, after: x.after + 1 }))}
             >
-              后句 +
+              {tr("后句 +")}
             </button>
           </div>
           <ContextSentence ctx={ctx} extraBefore={extra.before} extraAfter={extra.after} />
@@ -263,20 +264,20 @@ export function PopupWindow() {
 
       <footer className={styles.footer} data-tauri-drag-region>
         <span>
-          <kbd>↵</kbd> 主窗口
+          <kbd>↵</kbd> {tr("主窗口")}
         </span>
         <span>
-          <kbd>Ctrl+S</kbd> 收藏
+          <kbd>Ctrl+S</kbd> {tr("收藏")}
         </span>
         <span>
-          <kbd>Ctrl+Shift+C</kbd> 复制
+          <kbd>Ctrl+Shift+C</kbd> {tr("复制")}
         </span>
         <span>
-          <kbd>Ctrl+P</kbd> 钉住
+          <kbd>Ctrl+P</kbd> {tr("钉住")}
         </span>
         {ctx && (
           <span>
-            <kbd>Alt+←/→</kbd> 语境
+            <kbd>Alt+←/→</kbd> {tr("语境")}
           </span>
         )}
         <span className={styles.esc}>

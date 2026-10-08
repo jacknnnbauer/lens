@@ -6,6 +6,7 @@ import type { CopyFormat } from "../copy/convert";
 import { FORMAT_NAME } from "../copy/copy";
 import styles from "./CopyMenu.module.css";
 import { ChevronIcon } from "./icons";
+import { tr } from "../i18n";
 
 const FORMATS: Array<{ id: CopyFormat; key: string }> = [
   { id: "md", key: "M" },
@@ -80,19 +81,19 @@ export function CopyMenu({ label, defaultFormat, disabled, onCopy, onSetDefault 
           type="button"
           className={styles.main}
           disabled={disabled}
-          aria-label={`复制${label}（${FORMAT_NAME[defaultFormat]}）`}
-          title={`复制为 ${FORMAT_NAME[defaultFormat]}`}
+          aria-label={tr("复制{label}（{format}）", { label, format: tr(FORMAT_NAME[defaultFormat]) })}
+          title={tr("复制为 {format}", { format: tr(FORMAT_NAME[defaultFormat]) })}
           onClick={() => onCopy(defaultFormat)}
         >
           <CopyIcon />
-          复制
+          {tr("复制")}
         </button>
         <button
           ref={trigger}
           type="button"
           className={styles.more}
           disabled={disabled}
-          aria-label={`选择${label}的复制格式`}
+          aria-label={tr("选择{label}的复制格式", { label })}
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
@@ -102,7 +103,7 @@ export function CopyMenu({ label, defaultFormat, disabled, onCopy, onSetDefault 
         </button>
       </div>
       {open && (
-        <div id={menuId} role="menu" aria-label="复制格式" className={styles.menu} onKeyDown={onMenuKey}>
+        <div id={menuId} role="menu" aria-label={tr("复制格式")} className={styles.menu} onKeyDown={onMenuKey}>
           {FORMATS.map((f) => (
             <button
               key={f.id}
@@ -115,12 +116,12 @@ export function CopyMenu({ label, defaultFormat, disabled, onCopy, onSetDefault 
                 onCopy(f.id);
               }}
             >
-              复制为 {FORMAT_NAME[f.id]}
+              {tr("复制为 {format}", { format: tr(FORMAT_NAME[f.id]) })}
               <kbd>{f.key}</kbd>
             </button>
           ))}
           <div className={styles.sep} role="separator" />
-          <div className={styles.groupLabel}>默认格式</div>
+          <div className={styles.groupLabel}>{tr("默认格式")}</div>
           {FORMATS.map((f) => (
             <button
               key={`d-${f.id}`}

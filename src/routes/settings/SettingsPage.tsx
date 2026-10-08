@@ -13,6 +13,7 @@ import { useAppliedTheme } from "../../theme/useApplyTheme";
 import { formatHotkey } from "./hotkey";
 import { scrollRoot } from "../../windows/main/scroll";
 import styles from "./SettingsPage.module.css";
+import { tr } from "../../i18n";
 
 const SECTIONS = [
   { id: "look", name: "外观" },
@@ -40,7 +41,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ["Tab / Shift+Tab", "下一本 / 上一本词典"],
   ["Ctrl+S", "收藏（带语境句）"],
   ["Ctrl+Shift+C", "复制当前词典（默认格式）"],
-  ["Ctrl+Shift+A", "合并复制所有展开的词典"],
+  ["Ctrl+Shift+A", "合并复制所有词典"],
   ["Ctrl+E", "导出当前词"],
   ["Ctrl+1 / 2 / 3", "切换场景配置组"],
   ["Ctrl+B / Ctrl+H / Ctrl+L", "生词本 / 历史 / 词典库"],
@@ -60,8 +61,8 @@ function Toggle({ label, hint, checked, disabled, onChange }: { label: ReactNode
   return (
     <label className={styles.row}>
       <span>
-        {label}
-        {hint && <small>{hint}</small>}
+        {typeof label === "string" ? tr(label) : label}
+        {hint && <small>{tr(hint)}</small>}
       </span>
       <input type="checkbox" role="switch" className={styles.switch} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     </label>
@@ -71,7 +72,7 @@ function Toggle({ label, hint, checked, disabled, onChange }: { label: ReactNode
 function Select<T extends string | number>({ label, value, options, onChange }: { label: string; value: T; options: Array<[T, string]>; onChange: (v: T) => void }) {
   return (
     <label className={styles.row}>
-      <span>{label}</span>
+      <span>{tr(label)}</span>
       <select
         value={String(value)}
         onChange={(e) => {
@@ -81,7 +82,7 @@ function Select<T extends string | number>({ label, value, options, onChange }: 
       >
         {options.map(([v, name]) => (
           <option key={String(v)} value={String(v)}>
-            {name}
+            {tr(name)}
           </option>
         ))}
       </select>
@@ -93,7 +94,7 @@ function Select<T extends string | number>({ label, value, options, onChange }: 
 function ThemeThumb({ theme, accent }: { theme: ThemeId; accent: string }) {
   return (
     <span className={styles.thumb} data-theme={theme} data-accent={accent} aria-hidden="true">
-      <span className={styles.thumbWord}>词镜 Aa</span>
+      <span className={styles.thumbWord}>{tr("词镜 Aa")}</span>
       <span className={styles.thumbSearch} />
       <span className={styles.thumbCards}>
         <i />
@@ -141,14 +142,14 @@ function HotkeyField({ value, onSave }: { value: string; onSave: (v: string) => 
           if (r.value !== value) onSave(r.value);
         }}
       >
-        {recording ? "请按下新的组合键…（Esc 取消）" : <kbd>{value}</kbd>}
+        {recording ? tr("请按下新的组合键…（Esc 取消）") : <kbd>{value}</kbd>}
       </button>
       <span id="hotkey-status" className={styles.hint} role="status">
         {message ??
           (status?.hotkey === value
             ? status.hotkeyRegistered
-              ? "已生效"
-              : `未生效：${status.hotkeyError ?? "注册失败"}`
+              ? tr("已生效")
+              : tr("未生效：{reason}", { reason: status.hotkeyError ?? tr("注册失败") })
             : "")}
       </span>
     </div>
@@ -190,7 +191,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
   const mdPreview = useMemo(() => {
     if (!copy) return "";
     const md = htmlToMarkdown(COPY_SAMPLE, { includeExamples: copy.includeExamples, imagesAsLinks: copy.mdImagesAsLinks });
-    return `## ubiquitous\n${md}${copy.appendSource ? `\n\n${sourceLine("md", { dict: "牛津高阶", headword: "ubiquitous" })}` : ""}`;
+    return `## ubiquitous\n${md}${copy.appendSource ? `\n\n${sourceLine("md", { dict: tr("牛津高阶"), headword: "ubiquitous" })}` : ""}`;
   }, [copy]);
 
   if (!settings) return null;
@@ -206,9 +207,9 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
 
   return (
     <div className={styles.page}>
-      <nav className={styles.nav} aria-label="设置分类">
+      <nav className={styles.nav} aria-label={tr("设置分类")}>
         <button type="button" className={styles.back} onClick={onBack}>
-          ← 返回查词
+          {tr("← 返回查词")}
         </button>
         {SECTIONS.map((s) => (
           <a
@@ -221,24 +222,24 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               document.getElementById(`set-${s.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
           >
-            {s.name}
+            {tr(s.name)}
           </a>
         ))}
       </nav>
 
       <div ref={body} className={styles.body}>
         <section id="set-look" className={styles.section} aria-labelledby="h-look">
-          <h2 id="h-look">外观</h2>
+          <h2 id="h-look">{tr("外观")}</h2>
           <fieldset className={styles.fieldset}>
-            <legend>主题</legend>
+            <legend>{tr("主题")}</legend>
             <div className={styles.cards4}>
               {THEMES.map((t) => (
                 <label key={t.id} className={styles.choice} data-checked={(!a.followSystem && a.theme === t.id) || undefined}>
                   <ThemeThumb theme={t.id} accent={thumbAccent} />
                   <span className={styles.choiceLabel}>
                     <input type="radio" name="theme" checked={!a.followSystem && a.theme === t.id} onChange={() => setA({ theme: t.id, followSystem: false })} />
-                    {t.dark ? "暗色" : "亮色"} · {t.name}
-                    {t.id === "paper" && <small>适合长读</small>}
+                    {t.dark ? tr("暗色") : tr("亮色")} · {tr(t.name)}
+                    {t.id === "paper" && <small>{tr("适合长读")}</small>}
                   </span>
                 </label>
               ))}
@@ -249,68 +250,76 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
                 </span>
                 <span className={styles.choiceLabel}>
                   <input type="radio" name="theme" checked={a.followSystem} onChange={() => setA({ followSystem: true })} />
-                  跟随系统
+                  {tr("跟随系统")}
                 </span>
               </label>
             </div>
             {a.followSystem && (
               <p className={styles.inline}>
-                跟随系统时：亮色用
-                <select aria-label="亮色时使用" value={a.lightTheme} onChange={(e) => setA({ lightTheme: e.target.value })}>
+                {tr("跟随系统时：亮色用")}
+                <select aria-label={tr("亮色时使用")} value={a.lightTheme} onChange={(e) => setA({ lightTheme: e.target.value })}>
                   {lightThemes.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name}
+                      {tr(t.name)}
                     </option>
                   ))}
                 </select>
-                ，暗色用
-                <select aria-label="暗色时使用" value={a.darkTheme} onChange={(e) => setA({ darkTheme: e.target.value })}>
+                {tr("，暗色用")}
+                <select aria-label={tr("暗色时使用")} value={a.darkTheme} onChange={(e) => setA({ darkTheme: e.target.value })}>
                   {darkThemes.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name}
+                      {tr(t.name)}
                     </option>
                   ))}
                 </select>
-                。
+                {tr("。")}
               </p>
             )}
           </fieldset>
 
           <fieldset className={styles.fieldset}>
-            <legend>强调色</legend>
+            <legend>{tr("强调色")}</legend>
             <div className={styles.accents}>
               {ACCENTS.map((ac) => (
                 <label key={ac.id} className={styles.accent}>
                   <input type="radio" name="accent" className="sr-only" checked={a.accent === ac.id} onChange={() => setA({ accent: ac.id })} />
                   <span className={styles.dot} data-theme={appliedTheme} data-accent={ac.id} aria-hidden="true" />
-                  {ac.name}
+                  {tr(ac.name)}
                 </label>
               ))}
             </div>
-            <p className={styles.hint}>每种强调色在亮色、暗色主题下各有一套值，保证文字对比度。</p>
+            <p className={styles.hint}>{tr("每种强调色在亮色、暗色主题下各有一套值，保证文字对比度。")}</p>
           </fieldset>
 
           <div className={styles.grid2}>
             <label className={styles.stack}>
               <span>
-                释义字号 <code>{a.glossFontSize}px</code>
+                {tr("释义字号")} <code>{a.glossFontSize}px</code>
               </span>
               <input type="range" min={13} max={22} value={a.glossFontSize} onChange={(e) => setA({ glossFontSize: Number(e.target.value) })} />
             </label>
             <label className={styles.stack}>
-              <span>释义字体</span>
+              <span>{tr("释义字体")}</span>
               <select value={a.glossFont} onChange={(e) => setA({ glossFont: e.target.value as "serif" | "sans" })}>
-                <option value="serif">衬线 · Source Serif 4 + 思源宋体</option>
-                <option value="sans">无衬线 · IBM Plex Sans + 微软雅黑</option>
+                <option value="serif">{tr("衬线 · Source Serif 4 + 思源宋体")}</option>
+                <option value="sans">{tr("无衬线 · IBM Plex Sans + 微软雅黑")}</option>
+              </select>
+            </label>
+            <label className={styles.stack}>
+              <span>{tr("界面语言")} · Language</span>
+              {/* 语言名用各自的写法，不翻译 */}
+              <select value={a.language} onChange={(e) => setA({ language: e.target.value as "zh" | "en" })}>
+                <option value="zh">中文</option>
+                <option value="en">English</option>
               </select>
             </label>
           </div>
         </section>
 
         <section id="set-layout" className={styles.section} aria-labelledby="h-layout">
-          <h2 id="h-layout">布局</h2>
+          <h2 id="h-layout">{tr("布局")}</h2>
           <fieldset className={styles.fieldset}>
-            <legend className="sr-only">布局预设</legend>
+            <legend className="sr-only">{tr("布局预设")}</legend>
             <div className={styles.cards3}>
               {PRESETS.map((p) => (
                 <label key={p.id} className={styles.choice} data-checked={l.preset === p.id || undefined}>
@@ -325,35 +334,35 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
                   </span>
                   <span className={styles.choiceLabel}>
                     <input type="radio" name="layout" checked={l.preset === p.id} onChange={() => setL({ preset: p.id, ...p.regions })} />
-                    {p.name}
-                    <small>{p.hint}</small>
+                    {tr(p.name)}
+                    <small>{tr(p.hint)}</small>
                   </span>
                 </label>
               ))}
             </div>
           </fieldset>
           <div className={styles.grid2}>
-            <Toggle label="显示左侧导航" checked={l.showNav} onChange={(v) => setL({ showNav: v })} />
-            <Toggle label="显示右侧上下文栏" checked={l.showContext} onChange={(v) => setL({ showContext: v })} />
-            <Toggle label="显示状态栏" checked={l.showStatusBar} onChange={(v) => setL({ showStatusBar: v })} />
-            <Toggle label="词典跳转条" checked={l.showJumpBar} onChange={(v) => setL({ showJumpBar: v })} />
-            <Toggle label="启动时回到简洁单栏" hint="不管上次用的是哪种布局" checked={l.startCompact} onChange={(v) => setL({ startCompact: v })} />
+            <Toggle label={tr("显示左侧导航")} checked={l.showNav} onChange={(v) => setL({ showNav: v })} />
+            <Toggle label={tr("显示右侧上下文栏")} checked={l.showContext} onChange={(v) => setL({ showContext: v })} />
+            <Toggle label={tr("显示状态栏")} checked={l.showStatusBar} onChange={(v) => setL({ showStatusBar: v })} />
+            <Toggle label={tr("词典跳转条")} checked={l.showJumpBar} onChange={(v) => setL({ showJumpBar: v })} />
+            <Toggle label={tr("启动时回到简洁单栏")} hint={tr("不管上次用的是哪种布局")} checked={l.startCompact} onChange={(v) => setL({ startCompact: v })} />
           </div>
         </section>
 
         <section id="set-immersive" className={styles.section} aria-labelledby="h-immersive">
           <div className={styles.titleRow}>
-            <h2 id="h-immersive">沉浸模式</h2>
-            <span className={styles.hint}>只留下单词和释义；按 F11 进入，Esc 或 F11 退出</span>
+            <h2 id="h-immersive">{tr("沉浸模式")}</h2>
+            <span className={styles.hint}>{tr("只留下单词和释义；按 F11 进入，Esc 或 F11 退出")}</span>
           </div>
           <div className={styles.grid2}>
-            <Toggle label="隐藏标题栏" checked={im.hideTitleBar} onChange={(v) => setI({ hideTitleBar: v, borderless: v })} />
-            <Toggle label="隐藏状态栏" checked={im.hideStatusBar} onChange={(v) => setI({ hideStatusBar: v })} />
-            <Toggle label="隐藏左侧导航与右侧栏" checked={im.hideSidebars} onChange={(v) => setI({ hideSidebars: v })} />
-            <Toggle label="隐藏跳转条与复制按钮" checked={im.hideCardChrome} onChange={(v) => setI({ hideCardChrome: v })} />
-            <Toggle label="鼠标移到顶部时浮现工具栏" checked={im.revealOnHover} onChange={(v) => setI({ revealOnHover: v })} />
+            <Toggle label={tr("隐藏标题栏")} checked={im.hideTitleBar} onChange={(v) => setI({ hideTitleBar: v, borderless: v })} />
+            <Toggle label={tr("隐藏状态栏")} checked={im.hideStatusBar} onChange={(v) => setI({ hideStatusBar: v })} />
+            <Toggle label={tr("隐藏左侧导航与右侧栏")} checked={im.hideSidebars} onChange={(v) => setI({ hideSidebars: v })} />
+            <Toggle label={tr("隐藏跳转条与复制按钮")} checked={im.hideCardChrome} onChange={(v) => setI({ hideCardChrome: v })} />
+            <Toggle label={tr("鼠标移到顶部时浮现工具栏")} checked={im.revealOnHover} onChange={(v) => setI({ revealOnHover: v })} />
             <Select
-              label="窗口方式"
+              label={tr("窗口方式")}
               value={im.fullscreen ? "full" : "window"}
               options={[
                 ["window", "保持窗口大小"],
@@ -362,7 +371,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               onChange={(v) => setI({ fullscreen: v === "full" })}
             />
             <Select
-              label="正文宽度"
+              label={tr("正文宽度")}
               value={im.width}
               options={[
                 [720, "720 px（推荐）"],
@@ -372,20 +381,20 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               onChange={(v) => setI({ width: v })}
             />
             <Select
-              label="沉浸时使用主题"
+              label={tr("沉浸时使用主题")}
               value={im.theme ?? ""}
               options={[["", "跟随当前主题"], ...THEMES.map((t) => [t.id, t.name] as [string, string])]}
               onChange={(v) => setI({ theme: v || null })}
             />
-            <Toggle label="启动时直接进入沉浸模式" checked={im.onStartup} onChange={(v) => setI({ onStartup: v })} />
+            <Toggle label={tr("启动时直接进入沉浸模式")} checked={im.onStartup} onChange={(v) => setI({ onStartup: v })} />
           </div>
-          <p className={styles.hint}>只想去掉状态栏，不需要完整的沉浸模式？用上面「布局」里的「显示状态栏」开关即可。</p>
+          <p className={styles.hint}>{tr("只想去掉状态栏，不需要完整的沉浸模式？用上面「布局」里的「显示状态栏」开关即可。")}</p>
         </section>
 
         <section id="set-online" className={styles.section} aria-labelledby="h-online">
-          <h2 id="h-online">在线词典</h2>
+          <h2 id="h-online">{tr("在线词典")}</h2>
           <fieldset className={styles.fieldset}>
-            <legend>默认查询时机（可在词典库里给每部词典单独设置）</legend>
+            <legend>{tr("默认查询时机（可在词典库里给每部词典单独设置）")}</legend>
             {(
               [
                 ["always", "每次都查", "结果最全，会多发网络请求"],
@@ -396,15 +405,15 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               <label key={id} className={styles.radioRow}>
                 <input type="radio" name="online-trigger" checked={settings.online.trigger === id} onChange={() => update({ online: { trigger: id } })} />
                 <span>
-                  {name}
-                  <small>{hint}</small>
+                  {tr(name)}
+                  <small>{tr(hint)}</small>
                 </span>
               </label>
             ))}
           </fieldset>
           <div className={styles.grid2}>
             <Select
-              label="请求超时"
+              label={tr("请求超时")}
               value={settings.online.timeoutMs}
               options={[
                 [3000, "3 秒"],
@@ -414,7 +423,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               onChange={(v) => update({ online: { timeoutMs: v } })}
             />
             <Select
-              label="结果缓存"
+              label={tr("结果缓存")}
               value={settings.online.cacheDays}
               options={[
                 [7, "7 天"],
@@ -425,13 +434,13 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               onChange={(v) => update({ online: { cacheDays: v } })}
             />
           </div>
-          <p className={styles.hint}>超时不会拖慢本地词典的结果。联网失败时显示过期的缓存，并标注获取时间。添加在线词典、填写 API Key 在「词典库」（Ctrl+L）。</p>
+          <p className={styles.hint}>{tr("超时不会拖慢本地词典的结果。联网失败时显示过期的缓存，并标注获取时间。添加在线词典、填写 API Key 在「词典库」（Ctrl+L）。")}</p>
         </section>
 
         <section id="set-copy" className={styles.section} aria-labelledby="h-copy">
-          <h2 id="h-copy">复制</h2>
+          <h2 id="h-copy">{tr("复制")}</h2>
           <fieldset className={styles.fieldset}>
-            <legend>点击复制按钮时的默认格式</legend>
+            <legend>{tr("点击复制按钮时的默认格式")}</legend>
             <div className={styles.segmented}>
               {(
                 [
@@ -442,31 +451,31 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               ).map(([id, name]) => (
                 <label key={id} data-checked={settings.copy.defaultFormat === id || undefined}>
                   <input type="radio" name="copy-format" className="sr-only" checked={settings.copy.defaultFormat === id} onChange={() => setC({ defaultFormat: id })} />
-                  {name}
+                  {tr(name)}
                 </label>
               ))}
             </div>
           </fieldset>
           <div className={styles.grid2}>
             <div>
-              <Toggle label="末尾附来源（词典名 · 词条）" checked={settings.copy.appendSource} onChange={(v) => setC({ appendSource: v })} />
-              <Toggle label="包含例句" checked={settings.copy.includeExamples} onChange={(v) => setC({ includeExamples: v })} />
-              <Toggle label="HTML 内联词典样式" hint="粘贴到 Word 保留颜色与粗斜体" checked={settings.copy.inlineHtmlStyles} onChange={(v) => setC({ inlineHtmlStyles: v })} />
-              <Toggle label="Markdown 图片转为链接" checked={settings.copy.mdImagesAsLinks} onChange={(v) => setC({ mdImagesAsLinks: v })} />
+              <Toggle label={tr("末尾附来源（词典名 · 词条）")} checked={settings.copy.appendSource} onChange={(v) => setC({ appendSource: v })} />
+              <Toggle label={tr("包含例句")} checked={settings.copy.includeExamples} onChange={(v) => setC({ includeExamples: v })} />
+              <Toggle label={tr("HTML 内联词典样式")} hint={tr("粘贴到 Word 保留颜色与粗斜体")} checked={settings.copy.inlineHtmlStyles} onChange={(v) => setC({ inlineHtmlStyles: v })} />
+              <Toggle label={tr("Markdown 图片转为链接")} checked={settings.copy.mdImagesAsLinks} onChange={(v) => setC({ mdImagesAsLinks: v })} />
             </div>
             <div className={styles.stack}>
-              <span className={styles.hint}>Markdown 预览</span>
+              <span className={styles.hint}>{tr("Markdown 预览")}</span>
               <pre className={styles.preview}>{mdPreview}</pre>
             </div>
           </div>
         </section>
 
         <section id="set-export" className={styles.section} aria-labelledby="h-export">
-          <h2 id="h-export">导出</h2>
-          <p className={styles.hint}>导出对话框（Ctrl+E）的默认值；在对话框里改过后会记住上一次的选择。</p>
+          <h2 id="h-export">{tr("导出")}</h2>
+          <p className={styles.hint}>{tr("导出对话框（Ctrl+E）的默认值；在对话框里改过后会记住上一次的选择。")}</p>
           <div className={styles.grid2}>
             <Select
-              label="版式"
+              label={tr("版式")}
               value={ex.layout}
               options={[
                 ["cards", "卡片式"],
@@ -475,7 +484,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               onChange={(v) => setE({ layout: v })}
             />
             <Select
-              label="样式"
+              label={tr("样式")}
               value={ex.style}
               options={[
                 ["paperWhite", "纸本（白底打印版）"],
@@ -485,7 +494,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               onChange={(v) => setE({ style: v })}
             />
             <Select
-              label="纸张"
+              label={tr("纸张")}
               value={ex.paper}
               options={[
                 ["a4", "A4 纵向"],
@@ -495,19 +504,19 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
             />
             <div className={styles.row}>
               <span>
-                保存位置
-                <small className={styles.path}>{ex.dir ?? "上次导出的位置（尚未导出过）"}</small>
+                {tr("保存位置")}
+                <small className={styles.path}>{ex.dir ?? tr("上次导出的位置（尚未导出过）")}</small>
               </span>
               <span className={styles.buttons}>
                 <button
                   type="button"
                   className={styles.ghost}
                   onClick={async () => {
-                    const dir = await openDialog({ directory: true, title: "选择导出文件夹", defaultPath: ex.dir ?? undefined });
+                    const dir = await openDialog({ directory: true, title: tr("选择导出文件夹"), defaultPath: ex.dir ?? undefined });
                     if (typeof dir === "string") setE({ dir });
                   }}
                 >
-                  选择…
+                  {tr("选择…")}
                 </button>
               </span>
             </div>
@@ -515,23 +524,23 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
         </section>
 
         <section id="set-shortcuts" className={styles.section} aria-labelledby="h-shortcuts">
-          <h2 id="h-shortcuts">快捷键</h2>
+          <h2 id="h-shortcuts">{tr("快捷键")}</h2>
           <div className={styles.row}>
             <span>
-              全局划词快捷键
-              <small>在任何程序里选中文字后按下，弹出查词窗口；点击后按下新组合键即可更换</small>
+              {tr("全局划词快捷键")}
+              <small>{tr("在任何程序里选中文字后按下，弹出查词窗口；点击后按下新组合键即可更换")}</small>
             </span>
             <HotkeyField value={cap.hotkey} onSave={(v) => void updateNow({ capture: { hotkey: v } })} />
           </div>
           <table className={styles.keys}>
-            <caption className="sr-only">应用内快捷键</caption>
+            <caption className="sr-only">{tr("应用内快捷键")}</caption>
             <tbody>
               {SHORTCUTS.map(([k, what]) => (
                 <tr key={k}>
                   <th scope="row">
                     <kbd>{k}</kbd>
                   </th>
-                  <td>{what}</td>
+                  <td>{tr(what)}</td>
                 </tr>
               ))}
             </tbody>
@@ -539,11 +548,11 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
         </section>
 
         <section id="set-capture" className={styles.section} aria-labelledby="h-capture">
-          <h2 id="h-capture">取词</h2>
+          <h2 id="h-capture">{tr("取词")}</h2>
           <div className={styles.grid2}>
-            <Toggle label="Ctrl+C+C 划词" hint="连按两次复制即查词，任何程序都能用" checked={cap.doubleCopy} onChange={(v) => void updateNow({ capture: { doubleCopy: v } })} />
+            <Toggle label={tr("Ctrl+C+C 划词")} hint={tr("连按两次复制即查词，任何程序都能用")} checked={cap.doubleCopy} onChange={(v) => void updateNow({ capture: { doubleCopy: v } })} />
             <Select
-              label="取词等待"
+              label={tr("取词等待")}
               value={cap.timeoutMs}
               options={[
                 [100, "100 ms（更快弹出）"],
@@ -554,42 +563,42 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               onChange={(v) => update({ capture: { timeoutMs: v } })}
             />
           </div>
-          <p className={styles.hint}>取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。</p>
+          <p className={styles.hint}>{tr("取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。")}</p>
         </section>
 
         <section id="set-data" className={styles.section} aria-labelledby="h-data">
-          <h2 id="h-data">数据</h2>
+          <h2 id="h-data">{tr("数据")}</h2>
           {paths && (
             <>
               <div className={styles.row}>
                 <span>
-                  数据文件夹
+                  {tr("数据文件夹")}
                   <small className={styles.path}>{paths.data}</small>
                 </span>
                 <button type="button" className={styles.ghost} onClick={() => void revealItemInDir(paths.settings)}>
-                  在资源管理器中显示
+                  {tr("在资源管理器中显示")}
                 </button>
               </div>
               <div className={styles.row}>
                 <span>
-                  日志
+                  {tr("日志")}
                   <small className={styles.path}>{paths.logs}</small>
                 </span>
                 <button type="button" className={styles.ghost} onClick={() => void revealItemInDir(paths.logs)}>
-                  在资源管理器中显示
+                  {tr("在资源管理器中显示")}
                 </button>
               </div>
             </>
           )}
-          <p className={styles.hint}>查词历史、生词本、词典索引都保存在本机，不会上传。清空历史在「历史」页。</p>
+          <p className={styles.hint}>{tr("查词历史、生词本、词典索引都保存在本机，不会上传。清空历史在「历史」页。")}</p>
         </section>
 
         <section id="set-about" className={styles.section} aria-labelledby="h-about">
-          <h2 id="h-about">关于</h2>
+          <h2 id="h-about">{tr("关于")}</h2>
           <p className={styles.about}>
             词镜 Lens {paths ? `v${paths.version}` : ""}
             <br />
-            离线多词典查词、划词取句、复制与导出。软件不附带任何词典；释义内容版权归各词典所有，仅供个人学习使用。
+            {tr("离线多词典查词、划词取句、复制与导出。软件不附带任何词典；释义内容版权归各词典所有，仅供个人学习使用。")}
           </p>
         </section>
       </div>

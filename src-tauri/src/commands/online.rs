@@ -65,7 +65,7 @@ pub async fn update_online_dict(
     let mut row = rows
         .into_iter()
         .find(|r| r.id == id && r.kind == "online")
-        .ok_or_else(|| Error::Other("找不到这部在线词典".into()))?;
+        .ok_or_else(|| Error::Other(crate::i18n::t("找不到这部在线词典", "Online dictionary not found").into()))?;
     if let Some(n) = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty()) {
         row.name = n;
     }
@@ -87,7 +87,7 @@ pub async fn update_online_dict(
 /// 保存或清除 API Key（Windows 凭据管理器）。`key` 为空表示清除。返回现在是否有 Key。
 #[tauri::command]
 pub async fn set_online_key(state: State<'_, AppState>, id: String, app_id: Option<String>, key: Option<String>) -> Result<bool> {
-    let dict = state.online.get(&id)?.ok_or_else(|| Error::Other("找不到这部在线词典".into()))?;
+    let dict = state.online.get(&id)?.ok_or_else(|| Error::Other(crate::i18n::t("找不到这部在线词典", "Online dictionary not found").into()))?;
     let key = key.map(|k| k.trim().to_string()).filter(|k| !k.is_empty());
     match key {
         None => {
@@ -97,7 +97,7 @@ pub async fn set_online_key(state: State<'_, AppState>, id: String, app_id: Opti
         Some(k) => {
             let app_id = match dict.provider.key_kind() {
                 online::KeyKind::IdAndKey => Some(
-                    app_id.map(|a| a.trim().to_string()).filter(|a| !a.is_empty()).ok_or_else(|| Error::Online("请同时填写 App ID".into()))?,
+                    app_id.map(|a| a.trim().to_string()).filter(|a| !a.is_empty()).ok_or_else(|| Error::Online(crate::i18n::t("请同时填写 App ID", "Please also enter the App ID").into()))?,
                 ),
                 _ => None,
             };
@@ -116,7 +116,7 @@ pub fn has_key(id: &str) -> bool {
 /// 手动查询一部在线词典（查询时机为「手动」时，用户点卡片上的按钮）。
 #[tauri::command]
 pub async fn lookup_online(state: State<'_, AppState>, request_id: String, id: String, query: String) -> Result<LookupResultEvent> {
-    let dict = state.online.get(&id)?.ok_or_else(|| Error::Other("找不到这部在线词典".into()))?;
+    let dict = state.online.get(&id)?.ok_or_else(|| Error::Other(crate::i18n::t("找不到这部在线词典", "Online dictionary not found").into()))?;
     let word = crate::query::normalize_query(&query);
     let cfg = state.settings.get()?.online;
     let t = Instant::now();
@@ -128,11 +128,11 @@ pub async fn lookup_online(state: State<'_, AppState>, request_id: String, id: S
 /// 窗口常驻复用：已打开时直接跳转。
 #[tauri::command]
 pub async fn open_web_dict(app: AppHandle, state: State<'_, AppState>, url: String, title: Option<String>) -> Result<()> {
-    let url = Url::parse(&url).map_err(|_| Error::Online("网址无效".into()))?;
+    let url = Url::parse(&url).map_err(|_| Error::Online(crate::i18n::t("网址无效", "Invalid URL").into()))?;
     if !matches!(url.scheme(), "http" | "https") {
-        return Err(Error::Online("只能打开 http(s) 网址".into()));
+        return Err(Error::Online(crate::i18n::t("只能打开 http(s) 网址", "Only http(s) URLs can be opened").into()));
     }
-    let title = format!("{} · 网页词典", title.unwrap_or_else(|| url.host_str().unwrap_or_default().to_string()));
+    let title = crate::tf!("{} · 网页词典", "{} · Web dictionary", title.unwrap_or_else(|| url.host_str().unwrap_or_default().to_string()));
     if let Some(w) = app.get_webview_window(WEB_WINDOW) {
         w.navigate(url).map_err(|e| Error::Other(e.to_string()))?;
         let _ = w.set_title(&title);
@@ -154,6 +154,6 @@ pub async fn open_web_dict(app: AppHandle, state: State<'_, AppState>, url: Stri
             }
         })
         .build()
-        .map_err(|e| Error::Other(format!("无法打开网页词典窗口：{e}")))?;
+        .map_err(|e| Error::Other(crate::tf!("无法打开网页词典窗口：{}", "Could not open the web dictionary window: {}", e)))?;
     Ok(())
 }

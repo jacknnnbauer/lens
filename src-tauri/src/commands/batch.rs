@@ -56,13 +56,13 @@ pub struct Preflight {
 
 /// 开始导出前：创建目录并试写。
 fn check_writable(dir: &std::path::Path) -> std::result::Result<(), String> {
-    std::fs::create_dir_all(dir).map_err(|e| format!("无法创建目录：{e}"))?;
+    std::fs::create_dir_all(dir).map_err(|e| crate::tf!("无法创建目录：{}", "Could not create the folder: {}", e))?;
     probe_write(dir)
 }
 
 fn probe_write(dir: &std::path::Path) -> std::result::Result<(), String> {
     let probe = dir.join(".lens-write-test");
-    std::fs::write(&probe, b"x").map_err(|e| format!("目录不可写：{e}"))?;
+    std::fs::write(&probe, b"x").map_err(|e| crate::tf!("目录不可写：{}", "The folder is not writable: {}", e))?;
     let _ = std::fs::remove_file(probe);
     Ok(())
 }
@@ -72,10 +72,10 @@ fn probe_write(dir: &std::path::Path) -> std::result::Result<(), String> {
 fn check_writable_no_create(dir: &std::path::Path) -> std::result::Result<(), String> {
     let mut probe = dir.to_path_buf();
     while !probe.exists() {
-        probe = probe.parent().ok_or_else(|| "目录无效".to_string())?.to_path_buf();
+        probe = probe.parent().ok_or_else(|| crate::i18n::t("目录无效", "Invalid folder").to_string())?.to_path_buf();
     }
     if !probe.is_dir() {
-        return Err("保存位置不是文件夹".into());
+        return Err(crate::i18n::t("保存位置不是文件夹", "The save location is not a folder").into());
     }
     probe_write(&probe)
 }
@@ -162,17 +162,17 @@ fn summary(state: &AppState, manager: &BatchManager, row: dbb::BatchRow) -> Resu
 #[tauri::command]
 pub async fn start_batch(app: AppHandle, state: State<'_, AppState>, manager: State<'_, BatchManager>, mut req: BatchRequest) -> Result<String> {
     if req.words.is_empty() {
-        return Err(Error::Other("没有要导出的词".into()));
+        return Err(Error::Other(crate::i18n::t("没有要导出的词", "No words to export").into()));
     }
     if !req.pdf && !req.html {
-        return Err(Error::Other("至少选择 PDF 或 HTML 一种格式".into()));
+        return Err(Error::Other(crate::i18n::t("至少选择 PDF 或 HTML 一种格式", "Choose at least one format: PDF or HTML").into()));
     }
     let max = state.settings.get()?.batch.max_words;
     if req.words.len() > max {
-        return Err(Error::Other(format!("单批最多 {max} 个词（可在设置里调整）")));
+        return Err(Error::Other(crate::tf!("单批最多 {} 个词（可在设置里调整）", "At most {} words per batch (adjustable in Settings)", max)));
     }
     if manager.active_id().is_some() {
-        return Err(Error::Other("已有一个批量导出在进行，请等它完成或取消".into()));
+        return Err(Error::Other(crate::i18n::t("已有一个批量导出在进行，请等它完成或取消", "Another batch export is running. Wait for it to finish or cancel it").into()));
     }
     check_writable(std::path::Path::new(&req.out_dir)).map_err(Error::Other)?;
     req.profile = state.settings.get()?.active_profile;
@@ -186,7 +186,7 @@ pub async fn start_batch(app: AppHandle, state: State<'_, AppState>, manager: St
 fn require_active(manager: &BatchManager, id: &str) -> Result<std::sync::Arc<batch::Control>> {
     match manager.active() {
         Some((active, ctl)) if active == id => Ok(ctl),
-        _ => Err(Error::Other("这个批次没有在运行".into())),
+        _ => Err(Error::Other(crate::i18n::t("这个批次没有在运行", "This batch is not running").into())),
     }
 }
 
@@ -206,7 +206,7 @@ pub async fn resume_batch(app: AppHandle, state: State<'_, AppState>, manager: S
         state.db.with_conn(|c| dbb::set_state(c, &id, "running", now_ms()))?;
         return Ok(());
     }
-    state.db.with_conn(|c| dbb::get(c, &id))?.ok_or_else(|| Error::Other("找不到这个批次".into()))?;
+    state.db.with_conn(|c| dbb::get(c, &id))?.ok_or_else(|| Error::Other(crate::i18n::t("找不到这个批次", "Batch not found").into()))?;
     batch::start(&app, &manager, &id)
 }
 
@@ -224,7 +224,7 @@ pub async fn cancel_batch(state: State<'_, AppState>, manager: State<'_, BatchMa
 #[tauri::command]
 pub async fn retry_failed_batch(app: AppHandle, state: State<'_, AppState>, manager: State<'_, BatchManager>, id: String) -> Result<usize> {
     if manager.active_id().as_deref() == Some(id.as_str()) {
-        return Err(Error::Other("请等这一轮导出结束后再重试".into()));
+        return Err(Error::Other(crate::i18n::t("请等这一轮导出结束后再重试", "Wait for this run to finish before retrying").into()));
     }
     let n = state.db.with_conn(|c| dbb::reset_failed(c, &id))?;
     if n > 0 {
@@ -241,7 +241,7 @@ pub async fn list_unfinished_batches(state: State<'_, AppState>, manager: State<
 
 #[tauri::command]
 pub async fn batch_status(state: State<'_, AppState>, manager: State<'_, BatchManager>, id: String) -> Result<BatchSummary> {
-    let row = state.db.with_conn(|c| dbb::get(c, &id))?.ok_or_else(|| Error::Other("找不到这个批次".into()))?;
+    let row = state.db.with_conn(|c| dbb::get(c, &id))?.ok_or_else(|| Error::Other(crate::i18n::t("找不到这个批次", "Batch not found").into()))?;
     summary(&state, &manager, row)
 }
 
@@ -255,7 +255,7 @@ pub async fn batch_items(state: State<'_, AppState>, id: String, filter: Option<
 #[tauri::command]
 pub async fn discard_batch(state: State<'_, AppState>, manager: State<'_, BatchManager>, id: String) -> Result<bool> {
     if manager.active_id().as_deref() == Some(id.as_str()) {
-        return Err(Error::Other("这个批次正在运行，请先取消".into()));
+        return Err(Error::Other(crate::i18n::t("这个批次正在运行，请先取消", "This batch is running. Cancel it first").into()));
     }
     state.db.with_conn(|c| dbb::delete(c, &id))
 }

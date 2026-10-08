@@ -7,6 +7,7 @@ import { openWebDict } from "../ipc/online";
 import type { Card } from "../stores/lookup";
 import styles from "./DictCard.module.css";
 import { CopyMenu } from "./CopyMenu";
+import { tr } from "../i18n";
 
 interface Props {
   card: Card;
@@ -38,18 +39,18 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
         <h2 className={styles.heading} tabIndex={0} data-card-toggle={card.id} onKeyDown={onToggleKeyDown}>
           <span className={styles.toggle}>
             <strong className={styles.name}>{card.name}</strong>
-            {SOURCE_TAG[card.source] && <span className={styles.tag}>{SOURCE_TAG[card.source]}</span>}
+            {SOURCE_TAG[card.source] && <span className={styles.tag}>{tr(SOURCE_TAG[card.source] ?? "")}</span>}
             {card.cachedAt != null && (
-              <span className={styles.tag} data-stale={card.stale || undefined} title={card.stale ? `联网失败：${card.error ?? ""}` : undefined}>
-                {card.stale ? "离线缓存" : "缓存"} · {fmtDate(card.cachedAt)}
+              <span className={styles.tag} data-stale={card.stale || undefined} title={card.stale ? tr("联网失败：{error}", { error: card.error ?? "" }) : undefined}>
+                {tr(card.stale ? "离线缓存" : "缓存")} · {fmtDate(card.cachedAt)}
               </span>
             )}
-            {card.entries.length > 1 && <span className={styles.count}>{card.entries.length} 条</span>}
+            {card.entries.length > 1 && <span className={styles.count}>{tr("{n} 条", { n: card.entries.length })}</span>}
           </span>
         </h2>
         {card.source !== "web" && (
           <CopyMenu
-            label={`「${card.name}」`}
+            label={tr("「{name}」", { name: card.name })}
             defaultFormat={copyFormat}
             disabled={card.status !== "hit"}
             onCopy={onCopy}
@@ -60,7 +61,7 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
 
       <div>
         {pending && (
-          <div className={styles.skeleton} aria-label="正在查询">
+          <div className={styles.skeleton} aria-label={tr("正在查询")}>
             <span />
             <span />
             <span />
@@ -68,23 +69,23 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
         )}
         {card.status === "manual" && (
           <p className={styles.online}>
-            这部在线词典设为手动查询。
+            {tr("这部在线词典设为手动查询。")}
             <button type="button" className={styles.onlineBtn} onClick={onQueryOnline}>
-              查询
+              {tr("查询")}
             </button>
           </p>
         )}
         {card.status === "web" && card.webUrl && (
           <p className={styles.online}>
-            网页词典在单独的只读窗口里打开原页面。
+            {tr("网页词典在单独的只读窗口里打开原页面。")}
             <button type="button" className={styles.onlineBtn} onClick={() => void openWebDict(card.webUrl ?? "", card.name)}>
-              打开网页 ↗
+              {tr("打开网页 ↗")}
             </button>
           </p>
         )}
         {card.status === "error" && (
           <p className={styles.error} role="alert">
-            查询出错：{card.error}
+            {tr("查询出错：{error}", { error: card.error ?? "" })}
           </p>
         )}
         {card.entries.map((e, i) => (

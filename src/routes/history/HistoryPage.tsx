@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clearHistory, deleteHistory, listHistory, type HistoryItem } from "../../ipc/history";
 import { useBatch } from "../../stores/batch";
 import styles from "./HistoryPage.module.css";
+import { getLang, tr } from "../../i18n";
 
 const PAGE = 200;
 const SEARCH_DEBOUNCE_MS = 200;
@@ -24,10 +25,13 @@ function dayLabel(ms: number): string {
   const d = new Date(ms);
   const today = new Date();
   const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-  if (dayKey(ms) === dayKey(today.getTime())) return "今天";
-  if (dayKey(ms) === dayKey(yesterday.getTime())) return "昨天";
-  const week = "日一二三四五六"[d.getDay()];
+  if (dayKey(ms) === dayKey(today.getTime())) return tr("今天");
+  if (dayKey(ms) === dayKey(yesterday.getTime())) return tr("昨天");
   const sameYear = d.getFullYear() === today.getFullYear();
+  if (getLang() === "en") {
+    return d.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", year: sameYear ? undefined : "numeric" });
+  }
+  const week = "日一二三四五六"[d.getDay()];
   return `${sameYear ? "" : `${d.getFullYear()} 年 `}${d.getMonth() + 1} 月 ${d.getDate()} 日 · 周${week}`;
 }
 
@@ -105,29 +109,29 @@ export function HistoryPage({ onLookup, active }: Props) {
   return (
     <div className={styles.column}>
       <header className={styles.head}>
-        <h1 className={styles.title}>历史</h1>
+        <h1 className={styles.title}>{tr("历史")}</h1>
         <label className={styles.search}>
-          <span className="sr-only">搜索历史</span>
-          <input type="search" placeholder="搜索查过的词" value={search} onChange={(e) => setSearch(e.target.value)} spellCheck={false} />
+          <span className="sr-only">{tr("搜索历史")}</span>
+          <input type="search" placeholder={tr("搜索查过的词")} value={search} onChange={(e) => setSearch(e.target.value)} spellCheck={false} />
         </label>
         {items.length > 0 && (
           <button type="button" className={styles.ghost} onClick={() => useBatch.getState().openDialog("history")}>
-            批量导出…
+            {tr("批量导出…")}
           </button>
         )}
         {items.length > 0 &&
           (confirmClear ? (
             <span className={styles.confirm}>
               <button type="button" className={styles.danger} onClick={() => void clearAll()}>
-                确认清空全部
+                {tr("确认清空全部")}
               </button>
               <button type="button" className={styles.ghost} onClick={() => setConfirmClear(false)}>
-                取消
+                {tr("取消")}
               </button>
             </span>
           ) : (
             <button type="button" className={styles.ghost} onClick={() => setConfirmClear(true)}>
-              清空…
+              {tr("清空…")}
             </button>
           ))}
       </header>
@@ -139,7 +143,7 @@ export function HistoryPage({ onLookup, active }: Props) {
       )}
 
       {!loading && items.length === 0 && (
-        <p className={styles.empty}>{search ? `没有匹配「${search}」的记录。` : "还没有查询记录。查过的词会出现在这里。"}</p>
+        <p className={styles.empty}>{search ? tr("没有匹配「{q}」的记录。", { q: search }) : tr("还没有查询记录。查过的词会出现在这里。")}</p>
       )}
 
       {groups.map((g) => (
@@ -154,8 +158,8 @@ export function HistoryPage({ onLookup, active }: Props) {
                     <button type="button" className={styles.word} onClick={() => onLookup(it.query)}>
                       {it.query}
                     </button>
-                    <span className={styles.badge}>{it.source === "popup" ? "划词" : "主窗口"}</span>
-                    {it.lookups > 1 && <span className={styles.count}>共查 {it.lookups} 次</span>}
+                    <span className={styles.badge}>{tr(it.source === "popup" ? "划词" : "主窗口")}</span>
+                    {it.lookups > 1 && <span className={styles.count}>{tr("共查 {n} 次", { n: it.lookups })}</span>}
                   </div>
                   {it.context && (
                     <>
@@ -178,14 +182,14 @@ export function HistoryPage({ onLookup, active }: Props) {
                               void openUrl(it.context?.url ?? "");
                             }}
                           >
-                            回到原处 ↗
+                            {tr("回到原处 ↗")}
                           </a>
                         )}
                       </div>
                     </>
                   )}
                 </div>
-                <button type="button" className={styles.remove} aria-label={`删除「${it.query}」这条记录`} onClick={() => void remove(it.id)}>
+                <button type="button" className={styles.remove} aria-label={tr("删除「{q}」这条记录", { q: it.query })} onClick={() => void remove(it.id)}>
                   ×
                 </button>
               </li>
@@ -196,7 +200,7 @@ export function HistoryPage({ onLookup, active }: Props) {
 
       {more && (
         <button type="button" className={styles.more} disabled={loading} onClick={() => void load(search, items.length)}>
-          {loading ? "加载中…" : "加载更多"}
+          {loading ? tr("加载中…") : tr("加载更多")}
         </button>
       )}
     </div>

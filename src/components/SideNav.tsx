@@ -5,6 +5,7 @@ import { useLookup } from "../stores/lookup";
 import { useRoute } from "../stores/route";
 import { useSettings } from "../stores/settings";
 import styles from "./SideNav.module.css";
+import { tr } from "../i18n";
 
 interface Props {
   onFocusSearch: () => void;
@@ -24,31 +25,31 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLi
   const recent = useLookup((s) => s.recent);
 
   return (
-    <nav aria-label="主导航" className={styles.nav}>
+    <nav aria-label={tr("主导航")} className={styles.nav}>
       <div className={styles.group}>
         <button type="button" className={styles.item} aria-current={page === "lookup" ? "page" : undefined} onClick={onFocusSearch}>
-          查词<kbd>Ctrl+K</kbd>
+          {tr("查词")}<kbd>Ctrl+K</kbd>
         </button>
         <button type="button" className={styles.item} aria-current={page === "wordbook" ? "page" : undefined} onClick={onOpenWordbook}>
-          生词本<kbd>Ctrl+B</kbd>
+          {tr("生词本")}<kbd>Ctrl+B</kbd>
         </button>
         <button type="button" className={styles.item} aria-current={page === "history" ? "page" : undefined} onClick={onOpenHistory}>
-          历史<kbd>Ctrl+H</kbd>
+          {tr("历史")}<kbd>Ctrl+H</kbd>
         </button>
         <button type="button" className={styles.item} onClick={onOpenLibrary}>
-          词典库<kbd>Ctrl+L</kbd>
+          {tr("词典库")}<kbd>Ctrl+L</kbd>
         </button>
         <button type="button" className={styles.item} onClick={onOpenBatch}>
-          批量导出
+          {tr("批量导出")}
         </button>
         <button type="button" className={styles.item} onClick={onOpenSettings}>
-          设置<kbd>Ctrl+,</kbd>
+          {tr("设置")}<kbd>Ctrl+,</kbd>
         </button>
       </div>
 
       <div className={styles.group}>
         <div className={styles.label} id="nav-profiles">
-          场景配置组
+          {tr("场景配置组")}
         </div>
         <div role="group" aria-labelledby="nav-profiles" className={styles.group}>
           {profiles.map((p, i) => (
@@ -60,7 +61,7 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLi
               onClick={() => onSwitchProfile(p.id)}
             >
               <span>
-                {p.name} · {p.dictCount} 典
+                {tr("{name} · {n} 典", { name: tr(p.name), n: p.dictCount })}
               </span>
               {i < 9 && <kbd>Ctrl+{i + 1}</kbd>}
             </button>
@@ -69,9 +70,9 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLi
       </div>
 
       <div className={styles.group}>
-        <div className={styles.label}>最近</div>
+        <div className={styles.label}>{tr("最近")}</div>
         {recent.length === 0 ? (
-          <p className={styles.empty}>本次还没有查询</p>
+          <p className={styles.empty}>{tr("本次还没有查询")}</p>
         ) : (
           recent.map((w) => (
             <button key={w} type="button" className={styles.word} onClick={() => onLookup(w)}>

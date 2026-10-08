@@ -24,6 +24,8 @@ export interface BatchRequest {
   options: ExportOptions;
   theme: string;
   accent: string;
+  /** 界面语言：导出文件与批量导出提示用 */
+  lang: "zh" | "en";
 }
 
 export interface ParseOutput {
@@ -113,6 +115,7 @@ export interface RenderJob {
   paper: Paper;
   pdfPath: string | null;
   wantHtml: boolean;
+  lang?: string;
 }
 
 export const batchParse = (text: string) => invoke<ParseOutput>("batch_parse", { text });

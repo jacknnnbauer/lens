@@ -145,14 +145,14 @@ fn existing_stems(dir: &Path) -> HashSet<String> {
 
 async fn run(app: &AppHandle, batch_id: &str, ctl: &Arc<Control>) -> Result<()> {
     let state = app.state::<AppState>();
-    let row = state.db.with_conn(|c| dbb::get(c, batch_id))?.ok_or_else(|| Error::Other("找不到这个批次".into()))?;
+    let row = state.db.with_conn(|c| dbb::get(c, batch_id))?.ok_or_else(|| Error::Other(crate::i18n::t("找不到这个批次", "Batch not found").into()))?;
     let req: BatchRequest = serde_json::from_str(&row.request_json)?;
     let settings = state.settings.get()?;
     let (cfg_batch, cfg_online) = (settings.batch.clone(), settings.online.clone());
     let profile = if req.profile.is_empty() { settings.active_profile.clone() } else { req.profile.clone() };
     let sources = Arc::new(BatchSources::new(sources_for_profile(&state, &profile)?, req.offline_only));
     if sources.list.is_empty() {
-        return Err(Error::Other("当前配置组没有可用的词典".into()));
+        return Err(Error::Other(crate::i18n::t("当前配置组没有可用的词典", "The current profile has no usable dictionaries").into()));
     }
 
     state.db.with_conn(|c| {
@@ -280,7 +280,7 @@ async fn ensure_render_window(app: &AppHandle, recycle: bool) -> Result<()> {
     if export::ensure_window(app)? {
         match tokio::time::timeout(WINDOW_READY_TIMEOUT, ready.changed()).await {
             Ok(Ok(())) => {}
-            _ => return Err(Error::Other("渲染窗口启动超时".into())),
+            _ => return Err(Error::Other(crate::i18n::t("渲染窗口启动超时", "The render window took too long to start").into())),
         }
     }
     Ok(())
@@ -292,14 +292,14 @@ async fn render(app: &AppHandle, job: RenderJob, timeout: Duration) -> Result<Re
     let rx = manager.expect_reply(&job_id)?;
     if let Err(e) = app.emit_to(export::EXPORT, EVENT_RENDER, job) {
         manager.forget_reply(&job_id);
-        return Err(Error::Other(format!("无法发送渲染任务：{e}")));
+        return Err(Error::Other(crate::tf!("无法发送渲染任务：{}", "Could not send the render job: {}", e)));
     }
     match tokio::time::timeout(timeout, rx).await {
         Ok(Ok(r)) => Ok(r),
-        Ok(Err(_)) => Err(Error::Other("渲染窗口没有回应".into())),
+        Ok(Err(_)) => Err(Error::Other(crate::i18n::t("渲染窗口没有回应", "The render window did not respond").into())),
         Err(_) => {
             manager.forget_reply(&job_id);
-            Err(Error::Other("渲染超时".into()))
+            Err(Error::Other(crate::i18n::t("渲染超时", "Rendering timed out").into()))
         }
     }
 }
@@ -318,16 +318,17 @@ fn job_base(req: &BatchRequest, mode: &'static str, title: String, words: Vec<Re
         paper: req.paper,
         pdf_path: pdf_path.map(|p| p.to_string_lossy().into_owned()),
         want_html: req.html,
+        lang: req.lang.clone(),
     }
 }
 
 fn no_result_note(r: &WordResult) -> String {
-    let mut s = "所有词典均无结果".to_string();
+    let mut s = crate::i18n::t("所有词典均无结果", "No results in any dictionary").to_string();
     if !r.suggestions.is_empty() {
-        s.push_str(&format!(" · 拼写建议：{}", r.suggestions.join("、")));
+        s.push_str(&crate::tf!(" · 拼写建议：{}", " · Did you mean: {}", r.suggestions.join(crate::i18n::t("、", ", "))));
     }
     if !r.notes.is_empty() {
-        s.push_str(&format!("（{}）", r.notes.join("；")));
+        s.push_str(&crate::tf!("（{}）", " ({})", r.notes.join(crate::i18n::t("；", "; "))));
     }
     s
 }
@@ -413,7 +414,7 @@ async fn render_stage(
                         }
                     }
                     Ok(RenderReply { error, .. }) => {
-                        set_item(&state, shared, r.seq, dbb::FAILED, Some(&format!("渲染失败：{}", error.unwrap_or_default())), None);
+                        set_item(&state, shared, r.seq, dbb::FAILED, Some(&crate::tf!("渲染失败：{}", "Rendering failed: {}", error.unwrap_or_default())), None);
                     }
                     Err(e) => {
                         // 窗口没回应：下一个词前重建
@@ -434,8 +435,8 @@ async fn render_stage(
         }
         if req.merge && !volume.is_empty() && (volume.len() >= volume_size || end) {
             volume_no += 1;
-            let stem = if volumes_total > 1 { format!("{label_stem}-第{volume_no}卷") } else { label_stem.clone() };
-            let title = if volumes_total > 1 { format!("{} · 第 {volume_no} 卷", req.label) } else { req.label.clone() };
+            let stem = if volumes_total > 1 { crate::tf!("{}-第{}卷", "{}-vol{}", label_stem, volume_no) } else { label_stem.clone() };
+            let title = if volumes_total > 1 { crate::tf!("{} · 第 {} 卷", "{} · Volume {}", req.label, volume_no) } else { req.label.clone() };
             // 查词并发完成顺序不定，卷内按输入顺序排
             volume.sort_by_key(|r| r.seq);
             ensure_render_window(app, true).await?;
@@ -454,7 +455,7 @@ async fn render_stage(
                     }
                 }
                 Ok(RenderReply { error, .. }) => {
-                    let note = format!("渲染失败：{}", error.unwrap_or_default());
+                    let note = crate::tf!("渲染失败：{}", "Rendering failed: {}", error.unwrap_or_default());
                     for (seq, _) in seqs {
                         set_item(&state, shared, seq, dbb::FAILED, Some(&note), None);
                     }
@@ -503,7 +504,7 @@ async fn write_stage(app: &AppHandle, shared: &Shared, out_dir: &Path, used: &mu
                 let safe = safe_file_stem(&word);
                 let stem = unique_stem(&safe, used);
                 if stem != word {
-                    notes.push(format!("文件名已规范为 {stem}"));
+                    notes.push(crate::tf!("文件名已规范为 {}", "File name normalized to {}", stem));
                 }
                 let (dir, stem2, pdf2) = (out_dir.to_path_buf(), stem.clone(), pdf.clone());
                 let placed = tauri::async_runtime::spawn_blocking(move || place_files(&dir, &stem2, pdf2.as_deref(), html.as_deref())).await;
@@ -512,8 +513,8 @@ async fn write_stage(app: &AppHandle, shared: &Shared, out_dir: &Path, used: &mu
                         let note = (!notes.is_empty()).then(|| notes.join("；"));
                         set_item(&state, shared, seq, dbb::DONE, note.as_deref(), Some(&files));
                     }
-                    Ok(Err(e)) => set_item(&state, shared, seq, dbb::FAILED, Some(&format!("写文件失败：{e}")), None),
-                    Err(e) => set_item(&state, shared, seq, dbb::FAILED, Some(&format!("写文件失败：{e}")), None),
+                    Ok(Err(e)) => set_item(&state, shared, seq, dbb::FAILED, Some(&crate::tf!("写文件失败：{}", "Could not write the file: {}", e)), None),
+                    Err(e) => set_item(&state, shared, seq, dbb::FAILED, Some(&crate::tf!("写文件失败：{}", "Could not write the file: {}", e)), None),
                 }
             }
             WriteJob::Volume { seqs, stem, pdf, html } => {
@@ -530,7 +531,7 @@ async fn write_stage(app: &AppHandle, shared: &Shared, out_dir: &Path, used: &mu
                             let note = (!notes.is_empty()).then(|| notes.join("；"));
                             set_item(&state, shared, seq, dbb::DONE, note.as_deref(), Some(files));
                         }
-                        Err(e) => set_item(&state, shared, seq, dbb::FAILED, Some(&format!("写文件失败：{e}")), None),
+                        Err(e) => set_item(&state, shared, seq, dbb::FAILED, Some(&crate::tf!("写文件失败：{}", "Could not write the file: {}", e)), None),
                     }
                 }
             }

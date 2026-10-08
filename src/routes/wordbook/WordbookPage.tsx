@@ -21,6 +21,7 @@ import {
 import { useBatch } from "../../stores/batch";
 import { toast } from "../../stores/toast";
 import styles from "./WordbookPage.module.css";
+import { tr } from "../../i18n";
 
 const SEARCH_DEBOUNCE_MS = 200;
 const STATUSES: Array<{ id: WordStatus | undefined; name: string }> = [
@@ -56,21 +57,21 @@ function BackLink({ url }: { url: string | null }) {
         void openUrl(url);
       }}
     >
-      回到原处 ↗
+      {tr("回到原处 ↗")}
     </a>
   );
 }
 
 function Familiarity({ value, onChange, word }: { value: number; onChange: (v: number) => void; word: string }) {
   return (
-    <span role="group" aria-label={`「${word}」熟悉度 ${value}/5`} className={styles.dots}>
+    <span role="group" aria-label={tr("「{word}」熟悉度 {v}/5", { word, v: value })} className={styles.dots}>
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
           type="button"
           className={styles.dot}
           data-on={n <= value || undefined}
-          aria-label={`熟悉度设为 ${n}`}
+          aria-label={tr("熟悉度设为 {n}", { n })}
           aria-pressed={n === value}
           // 再点当前值归零（回到新词）
           onClick={() => onChange(n === value ? 0 : n)}
@@ -87,7 +88,7 @@ function WordDetail({ word, onChanged, onLookup }: { word: Word; onChanged: () =
 
   const saveEdits = async () => {
     await updateWord(word.id, { brief, tags: tags.split(/[,，\s]+/).filter(Boolean) });
-    toast(`已更新「${word.lemma}」`);
+    toast(tr("已更新「{word}」", { word: word.lemma }));
     onChanged();
   };
 
@@ -95,36 +96,36 @@ function WordDetail({ word, onChanged, onLookup }: { word: Word; onChanged: () =
     <div className={styles.detail}>
       <div className={styles.fields}>
         <label>
-          <span>简释</span>
-          <input value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="一句话释义" />
+          <span>{tr("简释")}</span>
+          <input value={brief} onChange={(e) => setBrief(e.target.value)} placeholder={tr("一句话释义")} />
         </label>
         <label>
-          <span>标签</span>
-          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="用逗号分隔，如：论文，技术文档" />
+          <span>{tr("标签")}</span>
+          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={tr("用逗号分隔，如：论文，技术文档")} />
         </label>
         <div className={styles.fieldActions}>
           <button type="button" className={styles.primary} onClick={() => void saveEdits()}>
-            保存
+            {tr("保存")}
           </button>
           <button type="button" className={styles.ghost} onClick={() => onLookup(word.lemma)}>
-            查词
+            {tr("查词")}
           </button>
           {confirmDelete ? (
             <>
               <button
                 type="button"
                 className={styles.danger}
-                onClick={() => void deleteWord(word.id).then(() => (toast(`已从生词本移除「${word.lemma}」`), onChanged()))}
+                onClick={() => void deleteWord(word.id).then(() => (toast(tr("已从生词本移除「{word}」", { word: word.lemma })), onChanged()))}
               >
-                确认移除
+                {tr("确认移除")}
               </button>
               <button type="button" className={styles.ghost} onClick={() => setConfirmDelete(false)}>
-                取消
+                {tr("取消")}
               </button>
             </>
           ) : (
             <button type="button" className={styles.ghost} onClick={() => setConfirmDelete(true)}>
-              移出生词本
+              {tr("移出生词本")}
             </button>
           )}
         </div>
@@ -132,7 +133,7 @@ function WordDetail({ word, onChanged, onLookup }: { word: Word; onChanged: () =
 
       {word.contexts.length > 0 && (
         <div className={styles.contexts}>
-          <div className={styles.label}>同一个词，{word.contexts.length} 个语境</div>
+          <div className={styles.label}>{tr("同一个词，{n} 个语境", { n: word.contexts.length })}</div>
           <ul>
             {word.contexts.map((c) => (
               <li key={c.id}>
@@ -147,9 +148,9 @@ function WordDetail({ word, onChanged, onLookup }: { word: Word; onChanged: () =
                     type="button"
                     className={styles.linkBtn}
                     onClick={() => void unlinkWordContext(word.id, c.id).then(onChanged)}
-                    aria-label="移除这条语境"
+                    aria-label={tr("移除这条语境")}
                   >
-                    移除
+                    {tr("移除")}
                   </button>
                 </div>
               </li>
@@ -170,12 +171,12 @@ function ContextCard({ word }: { word: Word }) {
       type="button"
       className={styles.card}
       aria-pressed={flipped}
-      aria-label={flipped ? `${word.lemma}：${word.brief ?? ""}` : "语境卡，按 Space 翻面"}
+      aria-label={flipped ? `${word.lemma}: ${word.brief ?? ""}` : tr("语境卡，按 Space 翻面")}
       onClick={() => setFlipped((f) => !f)}
     >
       {!flipped ? (
         <>
-          <span className={styles.cardSide}>正面 · 你当时读到的句子</span>
+          <span className={styles.cardSide}>{tr("正面 · 你当时读到的句子")}</span>
           {ctx ? (
             <span className={styles.cardQuote}>
               “<Sentence ctx={ctx} />”
@@ -187,9 +188,9 @@ function ContextCard({ word }: { word: Word }) {
         </>
       ) : (
         <>
-          <span className={styles.cardSide}>背面</span>
+          <span className={styles.cardSide}>{tr("背面")}</span>
           <span className={styles.cardWord}>{word.lemma}</span>
-          <span className={styles.cardBrief}>{word.brief ?? "（没有简释，可在列表里补上）"}</span>
+          <span className={styles.cardBrief}>{word.brief ?? tr("（没有简释，可在列表里补上）")}</span>
         </>
       )}
     </button>
@@ -236,51 +237,51 @@ export function WordbookPage({ onLookup, active }: Props) {
 
   const saveFrequent = async (lemma: string) => {
     await saveWord(lemma);
-    toast(`已收藏「${lemma}」`);
+    toast(tr("已收藏「{word}」", { word: lemma }));
     void reload();
   };
 
   return (
     <div className={styles.column}>
       <header className={styles.head}>
-        <h1 className={styles.title}>生词本</h1>
-        <div role="group" aria-label="视图" className={styles.segmented}>
+        <h1 className={styles.title}>{tr("生词本")}</h1>
+        <div role="group" aria-label={tr("视图")} className={styles.segmented}>
           <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
-            列表
+            {tr("列表")}
           </button>
           <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")}>
-            语境卡
+            {tr("语境卡")}
           </button>
         </div>
         <label className={styles.search}>
-          <span className="sr-only">搜索生词</span>
-          <input type="search" placeholder="搜索词或释义" value={search} onChange={(e) => setSearch(e.target.value)} spellCheck={false} />
+          <span className="sr-only">{tr("搜索生词")}</span>
+          <input type="search" placeholder={tr("搜索词或释义")} value={search} onChange={(e) => setSearch(e.target.value)} spellCheck={false} />
         </label>
         <button type="button" className={styles.ghost} onClick={() => useBatch.getState().openDialog("wordbook")}>
-          批量导出…
+          {tr("批量导出…")}
         </button>
       </header>
 
       {stats && (
         <div className={styles.stats}>
           <div className={styles.stat}>
-            <span>已收藏</span>
+            <span>{tr("已收藏")}</span>
             <strong>{stats.total}</strong>
           </div>
           <div className={styles.stat}>
-            <span>本周在阅读中再遇</span>
+            <span>{tr("本周在阅读中再遇")}</span>
             <strong>
               {stats.metThisWeek}
-              <small> 次</small>
+              <small> {tr("次")}</small>
             </strong>
           </div>
           <div className={styles.stat}>
-            <span>查过 3 次以上未收藏</span>
+            <span>{tr("查过 3 次以上未收藏")}</span>
             <strong>
               {stats.frequentUnsaved.length}
               {stats.frequentUnsaved.length > 0 && (
                 <button type="button" className={styles.linkBtn} aria-expanded={showFrequent} onClick={() => setShowFrequent((s) => !s)}>
-                  {showFrequent ? "收起" : "查看"}
+                  {tr(showFrequent ? "收起" : "查看")}
                 </button>
               )}
             </strong>
@@ -289,14 +290,14 @@ export function WordbookPage({ onLookup, active }: Props) {
       )}
 
       {showFrequent && stats && stats.frequentUnsaved.length > 0 && (
-        <ul className={styles.frequent} aria-label="常查未收藏">
+        <ul className={styles.frequent} aria-label={tr("常查未收藏")}>
           {stats.frequentUnsaved.map((w) => (
             <li key={w}>
               <button type="button" className={styles.wordBtn} onClick={() => onLookup(w)}>
                 {w}
               </button>
               <button type="button" className={styles.ghost} onClick={() => void saveFrequent(w)}>
-                收藏
+                {tr("收藏")}
               </button>
             </li>
           ))}
@@ -304,27 +305,27 @@ export function WordbookPage({ onLookup, active }: Props) {
       )}
 
       <div className={styles.filters}>
-        <div role="group" aria-label="状态" className={styles.segmented}>
+        <div role="group" aria-label={tr("状态")} className={styles.segmented}>
           {STATUSES.map((s) => (
             <button key={s.name} type="button" aria-pressed={query.status === s.id} onClick={() => setQuery((q) => ({ ...q, status: s.id }))}>
-              {s.name}
+              {tr(s.name)}
             </button>
           ))}
         </div>
         <label className={styles.sort}>
-          排序
+          {tr("排序")}
           <select value={query.sort} onChange={(e) => setQuery((q) => ({ ...q, sort: e.target.value as WordQuery["sort"] }))}>
-            <option value="added">最近收藏</option>
-            <option value="alpha">字母</option>
-            <option value="familiarity">熟悉度</option>
+            <option value="added">{tr("最近收藏")}</option>
+            <option value="alpha">{tr("字母")}</option>
+            <option value="familiarity">{tr("熟悉度")}</option>
           </select>
         </label>
       </div>
 
       {tags.length > 0 && (
-        <div role="group" aria-label="标签" className={styles.tags}>
+        <div role="group" aria-label={tr("标签")} className={styles.tags}>
           <button type="button" aria-pressed={!query.tag} onClick={() => setQuery((q) => ({ ...q, tag: undefined }))}>
-            全部
+            {tr("全部")}
           </button>
           {tags.map((t) => (
             <button key={t.name} type="button" aria-pressed={query.tag === t.name} onClick={() => setQuery((q) => ({ ...q, tag: t.name }))}>
@@ -343,7 +344,7 @@ export function WordbookPage({ onLookup, active }: Props) {
 
       {words.length === 0 ? (
         <p className={styles.empty}>
-          {stats?.total ? "没有符合条件的词。" : "生词本还是空的。查词时按 Ctrl+S（或点星标）收藏，划词收藏会带上原句。"}
+          {tr(stats?.total ? "没有符合条件的词。" : "生词本还是空的。查词时按 Ctrl+S（或点星标）收藏，划词收藏会带上原句。")}
         </p>
       ) : view === "cards" ? (
         <div className={styles.cardGrid}>
@@ -374,8 +375,8 @@ export function WordbookPage({ onLookup, active }: Props) {
                     {w.tags.map((t) => (
                       <span key={t}># {t}</span>
                     ))}
-                    {w.lookups > 0 && <span>查过 {w.lookups} 次</span>}
-                    {w.contexts.length > 1 && <span>{w.contexts.length} 个语境</span>}
+                    {w.lookups > 0 && <span>{tr("查过 {n} 次", { n: w.lookups })}</span>}
+                    {w.contexts.length > 1 && <span>{tr("{n} 个语境", { n: w.contexts.length })}</span>}
                     {ctx && <BackLink url={ctx.url} />}
                   </div>
                 </div>
@@ -387,7 +388,7 @@ export function WordbookPage({ onLookup, active }: Props) {
                     aria-expanded={open === w.id}
                     onClick={() => setOpen((o) => (o === w.id ? null : w.id))}
                   >
-                    {open === w.id ? "收起" : "详情"}
+                    {tr(open === w.id ? "收起" : "详情")}
                   </button>
                 </div>
                 {open === w.id && <WordDetail word={w} onChanged={() => void reload()} onLookup={onLookup} />}

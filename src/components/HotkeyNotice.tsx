@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { captureStatus, onCaptureStatus, type CaptureStatus } from "../ipc/capture";
 import { useSettings } from "../stores/settings";
 import styles from "./HotkeyNotice.module.css";
+import { tr } from "../i18n";
 
 export function useCaptureStatus(): CaptureStatus | null {
   const [status, setStatus] = useState<CaptureStatus | null>(null);
@@ -25,8 +26,8 @@ export function HotkeyNotice({ status }: { status: CaptureStatus | null }) {
   return (
     <div role="status" className={styles.bar}>
       <span>
-        全局快捷键 <kbd>{status.hotkey}</kbd> {status.hotkeyError ?? "注册失败"}。
-        {status.doubleCopy && "划词仍可用 Ctrl+C+C。"}
+        {tr("全局快捷键")} <kbd>{status.hotkey}</kbd> {tr(status.hotkeyError ?? "注册失败")}
+        {status.doubleCopy && ` ${tr("划词仍可用 Ctrl+C+C。")}`}
       </span>
       <form
         className={styles.form}
@@ -36,14 +37,14 @@ export function HotkeyNotice({ status }: { status: CaptureStatus | null }) {
         }}
       >
         <label className="sr-only" htmlFor="hotkey-input">
-          新的快捷键
+          {tr("新的快捷键")}
         </label>
         <input id="hotkey-input" className={styles.input} value={value} onChange={(e) => setValue(e.target.value)} spellCheck={false} />
         <button type="submit" className={styles.btn}>
-          改用
+          {tr("改用")}
         </button>
       </form>
-      <button type="button" className={styles.close} aria-label="关闭提示" onClick={() => setDismissed(true)}>
+      <button type="button" className={styles.close} aria-label={tr("关闭提示")} onClick={() => setDismissed(true)}>
         ×
       </button>
     </div>

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useImmersive } from "../stores/immersive";
 import { useSettings } from "../stores/settings";
 import styles from "./ImmersiveBar.module.css";
+import { tr } from "../i18n";
 
 const REVEAL_MS = 300;
 const HIDE_MS = 1500;
@@ -136,9 +137,9 @@ export function ImmersiveBar({ revealOnHover, onWordbook, onExport, onSettings }
     <>
       {/* 顶部 48px：悬停浮现工具栏；无边框时也是拖动窗口的区域 */}
       <div className={styles.zone} data-tauri-drag-region onMouseEnter={enter} onMouseLeave={leave}>
-        <div role="toolbar" aria-label="沉浸模式工具栏" className={styles.bar} data-shown={shown || undefined} onMouseEnter={enter} onMouseLeave={leave}>
+        <div role="toolbar" aria-label={tr("沉浸模式工具栏")} className={styles.bar} data-shown={shown || undefined} onMouseEnter={enter} onMouseLeave={leave}>
           <button type="button" onClick={exit}>
-            退出沉浸
+            {tr("退出沉浸")}
           </button>
           <button
             type="button"
@@ -147,10 +148,10 @@ export function ImmersiveBar({ revealOnHover, onWordbook, onExport, onSettings }
               onWordbook();
             }}
           >
-            生词本
+            {tr("生词本")}
           </button>
           <button type="button" onClick={onExport}>
-            导出
+            {tr("导出")}
           </button>
           <button
             type="button"
@@ -159,13 +160,14 @@ export function ImmersiveBar({ revealOnHover, onWordbook, onExport, onSettings }
               onSettings();
             }}
           >
-            设置
+            {tr("设置")}
           </button>
-          <span className={styles.note}>鼠标离开后 1.5 秒自动隐藏</span>
+          <span className={styles.note}>{tr("鼠标离开后 1.5 秒自动隐藏")}</span>
         </div>
       </div>
       <p className={styles.hint} data-hidden={!hint || undefined} aria-hidden={!hint}>
-        F11 / Esc 退出沉浸 · {revealOnHover ? "鼠标移到顶部显示工具栏 · " : ""}J / K 上下翻词典
+        {tr("F11 / Esc 退出沉浸")} · {revealOnHover ? `${tr("鼠标移到顶部显示工具栏")} · ` : ""}
+        {tr("J / K 上下翻词典")}
       </p>
     </>
   );

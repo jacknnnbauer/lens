@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { Paper } from "../export-templates/template";
+import type { Lang } from "../i18n";
+import { tr } from "../i18n";
 
 export interface ExportJob {
   jobId: string;
@@ -15,6 +17,8 @@ export interface ExportJob {
   accent: string;
   path: string;
   paper: Paper;
+  /** 界面语言：导出文件里的标签、版权说明跟着它 */
+  lang: Lang;
 }
 
 const READY_TIMEOUT_MS = 20_000;
@@ -24,7 +28,7 @@ function waitFor<T>(event: string, ms: number, accept: (p: T) => boolean = () =>
   let off: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const promise = new Promise<T>((resolve, reject) => {
-    timer = setTimeout(() => reject(new Error(`等待 ${event} 超时`)), ms);
+    timer = setTimeout(() => reject(new Error(tr("等待 {event} 超时", { event }))), ms);
     void getCurrentWebviewWindow()
       .listen<T>(event, (e) => {
         if (!accept(e.payload)) return;
@@ -53,5 +57,5 @@ export async function runExport(job: ExportJob): Promise<void> {
   const done = waitFor<{ jobId: string; ok: boolean; error: string | null }>("export:done", DONE_TIMEOUT_MS, (p) => p.jobId === job.jobId);
   await emitTo("export", "export:render", job);
   const r = await done.promise;
-  if (!r.ok) throw new Error(r.error ?? "导出失败");
+  if (!r.ok) throw new Error(r.error ?? tr("导出失败"));
 }

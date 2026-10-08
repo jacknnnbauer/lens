@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { saveWord, wordId } from "../ipc/words";
 import type { Card } from "./lookup";
 import { toast } from "./toast";
+import { tr } from "../i18n";
 
 const BRIEF_CHARS = 80;
 
@@ -39,9 +40,9 @@ export function useSaveWord(query: string | undefined, cards: Card[], contextId:
       const id = await saveWord(query, { brief: briefOf(cards, query), contextId });
       const already = savedId !== null;
       setSavedId(id);
-      toast(already ? `「${query}」已在生词本，已追加语境` : `已收藏「${query}」`, "生词本 Ctrl+B");
+      toast(already ? tr("「{q}」已在生词本，已追加语境", { q: query }) : tr("已收藏「{q}」", { q: query }), tr("生词本 Ctrl+B"));
     } catch (e) {
-      toast(`收藏失败：${String(e)}`);
+      toast(tr("收藏失败：{error}", { error: String(e) }));
     }
   };
 

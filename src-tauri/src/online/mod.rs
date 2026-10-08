@@ -346,15 +346,15 @@ async fn request(client: &reqwest::Client, dict: &OnlineDict, word: &str, timeou
         KeyKind::None => None,
         kind => {
             let c = credentials::read(dict.id())?
-                .ok_or_else(|| Error::Online("还没有填写 API Key（词典库 › 在线词典）".into()))?;
+                .ok_or_else(|| Error::Online(crate::i18n::t("还没有填写 API Key（词典库 › 在线词典）", "No API key yet (Dictionaries › online dictionary settings)").into()))?;
             Some(credentials::split(&c, kind)?)
         }
     };
-    let _permit = dict.permits.acquire().await.map_err(|_| Error::Online("在线词典已关闭".into()))?;
+    let _permit = dict.permits.acquire().await.map_err(|_| Error::Online(crate::i18n::t("在线词典已关闭", "The online dictionary was closed").into()))?;
     let ctx = Ctx { client, cred: cred.as_ref() };
     match tokio::time::timeout(Duration::from_millis(timeout_ms.max(500)), dict.provider.lookup(&ctx, word)).await {
         Ok(r) => r,
-        Err(_) => Err(Error::Online(format!("请求超时（{} 秒）", timeout_ms.max(500) / 1000))),
+        Err(_) => Err(Error::Online(crate::tf!("请求超时（{} 秒）", "Request timed out ({} s)", timeout_ms.max(500) / 1000))),
     }
 }
 
@@ -366,30 +366,30 @@ pub(crate) async fn get_json(req: reqwest::RequestBuilder) -> Result<Option<serd
         return Ok(None);
     }
     if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
-        return Err(Error::Online("API Key 无效或没有权限".into()));
+        return Err(Error::Online(crate::i18n::t("API Key 无效或没有权限", "Invalid API key or no permission").into()));
     }
     if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
-        return Err(Error::Online("请求过于频繁，已被接口限流".into()));
+        return Err(Error::Online(crate::i18n::t("请求过于频繁，已被接口限流", "Too many requests; rate-limited by the service").into()));
     }
     if !status.is_success() {
-        return Err(Error::Online(format!("服务器返回 {}", status.as_u16())));
+        return Err(Error::Online(crate::tf!("服务器返回 {}", "Server returned {}", status.as_u16())));
     }
     let text = res.text().await.map_err(net_error)?;
     match serde_json::from_str(&text) {
         Ok(v) => Ok(Some(v)),
         // 韦氏 Key 无效时返回 200 + 纯文本
-        Err(_) if text.to_ascii_lowercase().contains("invalid api key") => Err(Error::Online("API Key 无效".into())),
-        Err(e) => Err(Error::Online(format!("返回内容无法解析：{e}"))),
+        Err(_) if text.to_ascii_lowercase().contains("invalid api key") => Err(Error::Online(crate::i18n::t("API Key 无效", "Invalid API key").into())),
+        Err(e) => Err(Error::Online(crate::tf!("返回内容无法解析：{}", "Could not parse the response: {}", e))),
     }
 }
 
 fn net_error(e: reqwest::Error) -> Error {
     if e.is_timeout() {
-        Error::Online("请求超时".into())
+        Error::Online(crate::i18n::t("请求超时", "Request timed out").into())
     } else if e.is_connect() {
-        Error::Online("无法连接到服务器（离线或被拦截）".into())
+        Error::Online(crate::i18n::t("无法连接到服务器（离线或被拦截）", "Cannot reach the server (offline or blocked)").into())
     } else {
-        Error::Online(format!("网络错误：{e}"))
+        Error::Online(crate::tf!("网络错误：{}", "Network error: {}", e))
     }
 }
 

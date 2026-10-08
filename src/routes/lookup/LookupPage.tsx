@@ -14,6 +14,7 @@ import type { CopyFormat } from "../../copy/convert";
 import { copyCard, copyMerged, DEFAULT_COPY, FORMAT_NAME } from "../../copy/copy";
 import { scrollRoot } from "../../windows/main/scroll";
 import styles from "./LookupPage.module.css";
+import { tr } from "../../i18n";
 
 const IDLE_COMMIT_MS = 1500;
 
@@ -54,7 +55,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const updateSettings = useSettings((s) => s.update);
   const setDefaultFormat = (f: CopyFormat) => {
     updateSettings({ copy: { defaultFormat: f } });
-    toast(`默认复制格式：${FORMAT_NAME[f]}`);
+    toast(tr("默认复制格式：{format}", { format: tr(FORMAT_NAME[f]) }));
   };
 
   const lookupWord = useCallback(
@@ -167,8 +168,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           type="button"
           className={styles.star}
           aria-pressed={saved}
-          aria-label={saved ? "已收藏（Ctrl+S 追加语境）" : "收藏到生词本（Ctrl+S）"}
-          title={saved ? "已收藏 · Ctrl+S 追加语境" : "收藏到生词本 · Ctrl+S"}
+          aria-label={tr(saved ? "已收藏（Ctrl+S 追加语境）" : "收藏到生词本（Ctrl+S）")}
+          title={tr(saved ? "已收藏 · Ctrl+S 追加语境" : "收藏到生词本 · Ctrl+S")}
           disabled={!anyHit}
           onClick={() => void save()}
         >
@@ -177,8 +178,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         <button
           type="button"
           className={styles.star}
-          aria-label="导出 PDF 或 HTML（Ctrl+E）"
-          title="导出 PDF 或 HTML · Ctrl+E"
+          aria-label={tr("导出 PDF 或 HTML（Ctrl+E）")}
+          title={tr("导出 PDF 或 HTML · Ctrl+E")}
           disabled={!anyHit}
           onClick={() => setExportOpen(true)}
         >
@@ -191,13 +192,13 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         <header className={styles.headword}>
           <h1>{headword}</h1>
           <span>
-            {hitCount}/{cards.length} 部词典命中
+            {tr("{hits}/{total} 部词典命中", { hits: hitCount, total: cards.length })}
           </span>
         </header>
       )}
 
       {showJumpBar && visible.length > 0 && (
-        <nav aria-label="跳转到词典" className={styles.jump}>
+        <nav aria-label={tr("跳转到词典")} className={styles.jump}>
           {visible.map((c) => (
             <a
               key={c.id}
@@ -212,7 +213,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
               {c.name}
             </a>
           ))}
-          <span className={styles.jumpHint}>Tab / Shift+Tab 跳转</span>
+          <span className={styles.jumpHint}>{tr("Tab / Shift+Tab 跳转")}</span>
         </nav>
       )}
 
@@ -237,10 +238,10 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
       {allMissed && (
         <section className={styles.empty} aria-live="polite">
-          <p className={styles.emptyTitle}>没有找到「{handle.normalized || handle.query}」</p>
+          <p className={styles.emptyTitle}>{tr("没有找到「{q}」", { q: handle.normalized || handle.query })}</p>
           {suggestions.length > 0 && (
             <div className={styles.suggest}>
-              <span>你是不是要找：</span>
+              <span>{tr("你是不是要找：")}</span>
               {suggestions.map((s) => (
                 <button key={s} type="button" className={styles.suggestBtn} onClick={() => lookupWord(s)}>
                   {s}
@@ -252,22 +253,22 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
       )}
 
       {visible.length > 0 && missed.length > 0 && done && (
-        <p className={styles.missed}>未收录：{missed.map((c) => c.name).join("、")}</p>
+        <p className={styles.missed}>{tr("未收录：{names}", { names: missed.map((c) => c.name).join(tr("、")) })}</p>
       )}
 
       {!handle && dictsLoaded && (
         <section className={styles.empty}>
           {dictCount === 0 ? (
             <>
-              <p className={styles.emptyTitle}>还没有词典</p>
-              <p className={styles.emptySub}>支持 MDict（.mdx/.mdd）、StarDict（.ifo）和 Lens JSON 词典。</p>
+              <p className={styles.emptyTitle}>{tr("还没有词典")}</p>
+              <p className={styles.emptySub}>{tr("支持 MDict（.mdx/.mdd）、StarDict（.ifo）和 Lens JSON 词典。")}</p>
               <button type="button" className={styles.primary} onClick={onOpenLibrary}>
-                导入词典…
+                {tr("导入词典…")}
               </button>
             </>
           ) : (
             <p className={styles.emptySub}>
-              {dictCount} 部词典就绪 · 输入单词开始查询 · <kbd>Ctrl+K</kbd> 聚焦搜索框
+              {tr("{n} 部词典就绪 · 输入单词开始查询", { n: dictCount })} · <kbd>Ctrl+K</kbd> {tr("聚焦搜索框")}
             </p>
           )}
         </section>
@@ -275,7 +276,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} word={headword || handle?.normalized || ""} cards={cards} />
 
-      {visible.length > 0 && <p className={styles.footHint}>Tab / Shift+Tab 在词典之间跳转 · Ctrl+Shift+C 复制当前词典 · Ctrl+Shift+A 合并复制全部词典</p>}
+      {visible.length > 0 && <p className={styles.footHint}>{tr("Tab / Shift+Tab 在词典之间跳转 · Ctrl+Shift+C 复制当前词典 · Ctrl+Shift+A 合并复制全部词典")}</p>}
     </div>
   );
 });

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { tr } from "../i18n";
 
 interface State {
   error: Error | null;
@@ -13,17 +14,17 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("界面渲染出错", error, info.componentStack);
+    console.error(tr("界面渲染出错"), error, info.componentStack);
   }
 
   render() {
     if (this.state.error) {
       return (
         <div role="alert" style={{ padding: 24 }}>
-          <h1 style={{ fontSize: 16 }}>界面出错了</h1>
+          <h1 style={{ fontSize: 16 }}>{tr("界面出错了")}</h1>
           <pre style={{ whiteSpace: "pre-wrap", color: "var(--warn)" }}>{this.state.error.message}</pre>
           <button type="button" onClick={() => this.setState({ error: null })}>
-            重试
+            {tr("重试")}
           </button>
         </div>
       );

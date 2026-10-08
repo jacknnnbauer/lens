@@ -8,6 +8,7 @@ import { THEMES } from "../theme/themes";
 import { useAppliedTheme } from "../theme/useApplyTheme";
 import { contextMarkdown, escapeHtml, htmlToMarkdown, htmlToText, sourceLine, type ContextMeta, type CopyFormat } from "./convert";
 import { basicHtml, inlineHtml, visibleHtml } from "./inlineHtml";
+import { tr } from "../i18n";
 
 export const FORMAT_NAME: Record<CopyFormat, string> = { md: "Markdown", html: "HTML", text: "纯文本" };
 const FORMAT_HINT: Record<CopyFormat, string> = {
@@ -77,9 +78,9 @@ export async function copyCard(card: Card, format: CopyFormat, cfg: Copy, contex
     if (context && format === "md") p.text += `\n\n${contextMarkdown(context)}`;
     if (context && format === "text") p.text += `\n\n“${context.sentence}”`;
     await write(p);
-    toast(`已复制「${card.name}」为 ${FORMAT_NAME[format]}`, FORMAT_HINT[format]);
+    toast(tr("已复制「{name}」为 {format}", { name: card.name, format: tr(FORMAT_NAME[format]) }), tr(FORMAT_HINT[format]));
   } catch (e) {
-    toast(`复制失败：${String(e)}`);
+    toast(tr("复制失败：{error}", { error: String(e) }));
   }
 }
 
@@ -94,8 +95,8 @@ export async function copyMerged(cards: Card[], format: CopyFormat, cfg: Copy) {
       text: parts.map((p) => p.text).join(sep),
       html: format === "html" ? parts.map((p) => p.html ?? "").join("") : null,
     });
-    toast(`已合并复制 ${hits.length} 部词典为 ${FORMAT_NAME[format]}`, FORMAT_HINT[format]);
+    toast(tr("已合并复制 {n} 部词典为 {format}", { n: hits.length, format: tr(FORMAT_NAME[format]) }), tr(FORMAT_HINT[format]));
   } catch (e) {
-    toast(`复制失败：${String(e)}`);
+    toast(tr("复制失败：{error}", { error: String(e) }));
   }
 }

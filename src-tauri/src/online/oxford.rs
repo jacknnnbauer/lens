@@ -24,7 +24,7 @@ impl Oxford {
     fn endpoint(&self, kind: &str, word: &str) -> Result<Url> {
         let mut url = Url::parse(if self.sandbox { SANDBOX } else { PRODUCTION }).map_err(|e| Error::Online(e.to_string()))?;
         url.path_segments_mut()
-            .map_err(|_| Error::Online("地址无效".into()))?
+            .map_err(|_| Error::Online(crate::i18n::t("地址无效", "Invalid address").into()))?
             .pop_if_empty()
             .extend([kind, LANG, &word.trim().to_lowercase()]);
         Ok(url)
@@ -51,7 +51,7 @@ impl OnlineProvider for Oxford {
     }
 
     async fn lookup(&self, ctx: &Ctx<'_>, word: &str) -> Result<Vec<RawEntry>> {
-        let cred = ctx.cred.ok_or_else(|| Error::Online("缺少 App ID / App Key".into()))?;
+        let cred = ctx.cred.ok_or_else(|| Error::Online(crate::i18n::t("缺少 App ID / App Key", "Missing App ID / App Key").into()))?;
         let mut entries = self.endpoint("entries", word)?;
         entries.query_pairs_mut().append_pair("strictMatch", "false");
         if let Some(v) = self.get(ctx, cred, entries).await? {

@@ -3,6 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./theme/base.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { LangRoot } from "./i18n";
 import { MainWindow } from "./windows/main/MainWindow";
 import { ExportRenderWindow } from "./windows/export/ExportRenderWindow";
 import { PopupWindow } from "./windows/popup/PopupWindow";
@@ -29,7 +30,12 @@ try {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      {label === "popup" ? <PopupWindow /> : label === "export" ? <ExportRenderWindow /> : <MainWindow />}
+      {label === "export" ? (
+        // 导出窗口的语言跟随每个导出任务
+        <ExportRenderWindow />
+      ) : (
+        <LangRoot>{label === "popup" ? <PopupWindow /> : <MainWindow />}</LangRoot>
+      )}
     </ErrorBoundary>
   </React.StrictMode>,
 );

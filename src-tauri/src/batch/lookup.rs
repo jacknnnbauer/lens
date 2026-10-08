@@ -150,7 +150,7 @@ async fn query_online(state: &AppState, dict: &OnlineDict, gate: &Gate, word: &s
                 gate.failures.store(0, Ordering::Relaxed);
                 if o.stale {
                     if let Some(at) = o.cached_at {
-                        notes.push(format!("{name} 联网失败，用了 {} 的缓存", date_of(at)));
+                        notes.push(crate::tf!("{} 联网失败，用了 {} 的缓存", "{}: offline, used the cache from {}", name, date_of(at)));
                     }
                 }
                 return (o.status == "hit").then_some(o.entries);
@@ -166,9 +166,9 @@ async fn query_online(state: &AppState, dict: &OnlineDict, gate: &Gate, word: &s
     }
     let failures = gate.failures.fetch_add(1, Ordering::Relaxed) + 1;
     if failures >= MAX_CONSECUTIVE_FAILURES && !gate.skipped.swap(true, Ordering::Relaxed) {
-        notes.push(format!("{name} 连续失败 {failures} 次，本批之后跳过：{last_error}"));
+        notes.push(crate::tf!("{} 连续失败 {} 次，本批之后跳过：{}", "{}: failed {} times in a row, skipped for the rest of this batch: {}", name, failures, last_error));
     } else {
-        notes.push(format!("{name} 失败：{last_error}"));
+        notes.push(crate::tf!("{} 失败：{}", "{} failed: {}", name, last_error));
     }
     None
 }
@@ -205,7 +205,7 @@ pub async fn lookup_word(state: &AppState, sources: &BatchSources, cfg: &setting
     let mut found: HashMap<String, BatchCard> = HashMap::new();
     for (id, name, entries, err) in local_results {
         if let Some(e) = err {
-            notes.push(format!("{name} 出错：{e}"));
+            notes.push(crate::tf!("{} 出错：{}", "{} error: {}", name, e));
         }
         if !entries.is_empty() {
             found.insert(id.clone(), BatchCard { id, name, online: false, entries });

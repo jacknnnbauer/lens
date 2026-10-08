@@ -5,6 +5,7 @@ import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } f
 import { suggest } from "../ipc/lookup";
 import { SearchIcon } from "./icons";
 import styles from "./SearchBox.module.css";
+import { tr } from "../i18n";
 
 const DEBOUNCE_MS = 100;
 
@@ -108,7 +109,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
         <span className={styles.icon}>
           <SearchIcon />
         </span>
-        <span className="sr-only">查词</span>
+        <span className="sr-only">{tr("查词")}</span>
         <input
           ref={input}
           className={styles.input}
@@ -121,18 +122,18 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
           autoComplete="off"
           spellCheck={false}
           autoFocus
-          placeholder="输入单词或短语"
+          placeholder={tr("输入单词或短语")}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           onBlur={() => setOpen(false)}
         />
         <span className={styles.hint} aria-hidden="true">
-          {value ? "Esc 清空" : "Ctrl+K"}
+          {value ? tr("Esc 清空") : "Ctrl+K"}
         </span>
       </label>
       {open && (
-        <ul id={listId} role="listbox" aria-label="候选词" className={styles.list}>
+        <ul id={listId} role="listbox" aria-label={tr("候选词")} className={styles.list}>
           {items.map((s, i) => (
             <li key={s} role="presentation">
               <button

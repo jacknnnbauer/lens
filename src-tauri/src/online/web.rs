@@ -21,11 +21,11 @@ impl WebDict {
     pub fn new(template: &str) -> Result<Self> {
         let t = template.trim();
         if !t.contains(PLACEHOLDER) {
-            return Err(Error::Online("网址模板里要有 {word}，查词时替换成单词".into()));
+            return Err(Error::Online(crate::i18n::t("网址模板里要有 {word}，查词时替换成单词", "The URL template must contain {word}; it is replaced by the looked-up word").into()));
         }
-        let probe = Url::parse(&t.replace(PLACEHOLDER, "test")).map_err(|_| Error::Online("网址模板不是有效的网址".into()))?;
+        let probe = Url::parse(&t.replace(PLACEHOLDER, "test")).map_err(|_| Error::Online(crate::i18n::t("网址模板不是有效的网址", "The URL template is not a valid URL").into()))?;
         if !matches!(probe.scheme(), "https" | "http") || probe.host_str().is_none() {
-            return Err(Error::Online("网址模板只能是 http:// 或 https:// 开头".into()));
+            return Err(Error::Online(crate::i18n::t("网址模板只能是 http:// 或 https:// 开头", "The URL template must start with http:// or https://").into()));
         }
         Ok(Self { template: t.to_string() })
     }

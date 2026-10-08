@@ -4,6 +4,7 @@ import type { CaptureStatus } from "../ipc/capture";
 import { useDicts } from "../stores/dicts";
 import { useSettings } from "../stores/settings";
 import styles from "./StatusBar.module.css";
+import { tr } from "../i18n";
 
 export function StatusBar({ capture }: { capture: CaptureStatus | null }) {
   const dicts = useDicts((s) => s.dicts);
@@ -17,16 +18,16 @@ export function StatusBar({ capture }: { capture: CaptureStatus | null }) {
     <footer className={styles.bar}>
       <span className={styles.item}>
         <span className={styles.dot} aria-hidden="true" />
-        {loaded} 部离线词典 · 索引就绪
+        {tr("{n} 部离线词典 · 索引就绪", { n: loaded })}
       </span>
-      {failed > 0 && <span className={styles.warn}>{failed} 部未能加载</span>}
-      {profile && <span>配置组：{profile.name}</span>}
+      {failed > 0 && <span className={styles.warn}>{tr("{n} 部未能加载", { n: failed })}</span>}
+      {profile && <span>{tr("配置组：{name}", { name: tr(profile.name) })}</span>}
       {capture && (
         <span className={capture.hotkeyRegistered ? undefined : styles.warn}>
-          划词：{[capture.hotkeyRegistered && capture.hotkey, capture.doubleCopy && "Ctrl+C+C"].filter(Boolean).join(" / ") || "未启用"}
+          {tr("划词：{how}", { how: [capture.hotkeyRegistered && capture.hotkey, capture.doubleCopy && "Ctrl+C+C"].filter(Boolean).join(" / ") || tr("未启用") })}
         </span>
       )}
-      <span className={styles.keys}>Ctrl+K 搜索　Ctrl+S 收藏　Tab 切典　Space 展开　Ctrl+B 生词本　Ctrl+H 历史　Ctrl+1/2/3 配置组</span>
+      <span className={styles.keys}>{tr("Ctrl+K 搜索 Ctrl+S 收藏 Tab 切典 Ctrl+B 生词本 Ctrl+H 历史 Ctrl+1/2/3 配置组")}</span>
     </footer>
   );
 }

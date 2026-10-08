@@ -56,6 +56,9 @@ pub struct BatchRequest {
     /// 开始时的场景配置组
     #[serde(default)]
     pub profile: String,
+    /// 界面语言（zh | en）：导出文件里的标签跟着它
+    #[serde(default)]
+    pub lang: String,
 }
 
 /// 发给导出窗口的渲染任务。
@@ -76,6 +79,7 @@ pub struct RenderJob {
     /// 需要 PDF 时的临时输出路径
     pub pdf_path: Option<String>,
     pub want_html: bool,
+    pub lang: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -158,7 +162,7 @@ impl BatchManager {
     fn claim(&self, id: &str) -> Result<Arc<Control>> {
         let mut a = self.active.lock().map_err(|_| Error::LockPoisoned)?;
         if let Some((other, _)) = a.as_ref() {
-            return Err(Error::Other(if other == id { "这个批次正在导出".into() } else { "已有一个批量导出在进行，请等它完成或取消".into() }));
+            return Err(Error::Other(if other == id { crate::i18n::t("这个批次正在导出", "This batch is already exporting").into() } else { crate::i18n::t("已有一个批量导出在进行，请等它完成或取消", "Another batch export is running. Wait for it to finish or cancel it").into() }));
         }
         let ctl = Arc::new(Control::default());
         *a = Some((id.to_string(), ctl.clone()));

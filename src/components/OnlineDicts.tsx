@@ -6,6 +6,7 @@ import { addOnlineDict, listOnlineProviders, setOnlineKey, updateOnlineDict } fr
 import type { DictInfo, OnlineOptions, OnlineTrigger, ProviderInfo } from "../ipc/types";
 import { useDicts } from "../stores/dicts";
 import styles from "./OnlineDicts.module.css";
+import { tr } from "../i18n";
 
 const TRIGGERS: Array<[OnlineTrigger | "", string]> = [
   ["", "跟随全局设置"],
@@ -17,9 +18,9 @@ const TRIGGERS: Array<[OnlineTrigger | "", string]> = [
 const EMPTY_OPTIONS: OnlineOptions = { trigger: null, urlTemplate: null, endpoint: null };
 
 export function onlineMeta(d: DictInfo): string {
-  if (d.mode === "web") return "网页模式";
-  if (d.keyKind && d.keyKind !== "none") return d.hasKey ? "API · 已填 Key" : "API · 未填 Key";
-  return "API · 免 Key";
+  if (d.mode === "web") return tr("网页模式");
+  if (d.keyKind && d.keyKind !== "none") return tr(d.hasKey ? "API · 已填 Key" : "API · 未填 Key");
+  return tr("API · 免 Key");
 }
 
 export function AddOnlinePanel({ onDone }: { onDone: () => void }) {
@@ -48,18 +49,18 @@ export function AddOnlinePanel({ onDone }: { onDone: () => void }) {
 
   return (
     <section className={styles.panel} aria-labelledby="add-online-title">
-      <h3 id="add-online-title">添加在线词典</h3>
+      <h3 id="add-online-title">{tr("添加在线词典")}</h3>
       <ul className={styles.providers}>
         {providers
           .filter((p) => p.mode === "api")
           .map((p) => (
             <li key={p.id}>
               <span className={styles.pInfo}>
-                <strong>{p.name}</strong>
-                <small>{p.description}</small>
+                <strong>{tr(p.name)}</strong>
+                <small>{tr(p.description)}</small>
               </span>
               <button type="button" className={styles.btn} disabled={added.has(p.id)} onClick={() => void add(p.id)}>
-                {added.has(p.id) ? "已添加" : "添加"}
+                {tr(added.has(p.id) ? "已添加" : "添加")}
               </button>
             </li>
           ))}
@@ -71,15 +72,15 @@ export function AddOnlinePanel({ onDone }: { onDone: () => void }) {
           void add("web", webName, template);
         }}
       >
-        <strong>网页词典</strong>
-        <small>{providers.find((p) => p.id === "web")?.description}</small>
+        <strong>{tr("网页词典")}</strong>
+        <small>{tr(providers.find((p) => p.id === "web")?.description ?? "")}</small>
         <div className={styles.webRow}>
           <label>
-            <span>名称</span>
+            <span>{tr("名称")}</span>
             <input value={webName} onChange={(e) => setWebName(e.target.value)} placeholder="Cambridge" />
           </label>
           <label className={styles.grow}>
-            <span>网址模板</span>
+            <span>{tr("网址模板")}</span>
             <input
               value={template}
               onChange={(e) => setTemplate(e.target.value)}
@@ -88,7 +89,7 @@ export function AddOnlinePanel({ onDone }: { onDone: () => void }) {
             />
           </label>
           <button type="submit" className={styles.btn} disabled={!template.trim()}>
-            添加
+            {tr("添加")}
           </button>
         </div>
       </form>
@@ -119,7 +120,7 @@ export function OnlineSettings({ dict }: { dict: DictInfo }) {
     try {
       await updateOnlineDict(dict.id, { ...opts, ...patch });
       await refresh();
-      setMsg({ ok: true, text: "已保存" });
+      setMsg({ ok: true, text: tr("已保存") });
     } catch (e) {
       setMsg({ ok: false, text: String(e) });
     }
@@ -132,7 +133,7 @@ export function OnlineSettings({ dict }: { dict: DictInfo }) {
       setKey("");
       setAppId("");
       await refresh();
-      setMsg({ ok: true, text: has ? "Key 已保存到 Windows 凭据管理器" : "Key 已清除" });
+      setMsg({ ok: true, text: tr(has ? "Key 已保存到 Windows 凭据管理器" : "Key 已清除") });
     } catch (e) {
       setMsg({ ok: false, text: String(e) });
     }
@@ -141,11 +142,11 @@ export function OnlineSettings({ dict }: { dict: DictInfo }) {
   return (
     <div className={styles.settings}>
       <label className={styles.field}>
-        <span>查询时机</span>
+        <span>{tr("查询时机")}</span>
         <select value={opts.trigger ?? ""} onChange={(e) => void save({ trigger: (e.target.value || null) as OnlineTrigger | null })}>
           {TRIGGERS.map(([v, name]) => (
             <option key={v} value={v}>
-              {name}
+              {tr(name)}
             </option>
           ))}
         </select>
@@ -153,10 +154,10 @@ export function OnlineSettings({ dict }: { dict: DictInfo }) {
 
       {dict.provider === "oxford" && (
         <label className={styles.field}>
-          <span>接口</span>
+          <span>{tr("接口")}</span>
           <select value={opts.endpoint ?? "production"} onChange={(e) => void save({ endpoint: e.target.value as "production" | "sandbox" })}>
-            <option value="production">正式（付费套餐）</option>
-            <option value="sandbox">试用沙盒（共 500 次，只能查 a 开头的词）</option>
+            <option value="production">{tr("正式（付费套餐）")}</option>
+            <option value="sandbox">{tr("试用沙盒（共 500 次，只能查 a 开头的词）")}</option>
           </select>
         </label>
       )}
@@ -169,11 +170,11 @@ export function OnlineSettings({ dict }: { dict: DictInfo }) {
             void save({ urlTemplate: template.trim() });
           }}
         >
-          <span>网址模板</span>
+          <span>{tr("网址模板")}</span>
           <span className={styles.inline}>
-            <input value={template} onChange={(e) => setTemplate(e.target.value)} spellCheck={false} aria-label="网址模板" />
+            <input value={template} onChange={(e) => setTemplate(e.target.value)} spellCheck={false} aria-label={tr("网址模板")} />
             <button type="submit" className={styles.btn}>
-              保存
+              {tr("保存")}
             </button>
           </span>
         </form>
@@ -189,19 +190,21 @@ export function OnlineSettings({ dict }: { dict: DictInfo }) {
         >
           <span>
             {dict.keyKind === "idAndKey" ? "App ID / App Key" : "API Key"}
-            <small>{dict.hasKey ? "已保存（不显示）" : "未填写"} · 存在 Windows 凭据管理器，不写进设置文件</small>
+            <small>
+              {tr(dict.hasKey ? "已保存（不显示）" : "未填写")} · {tr("存在 Windows 凭据管理器，不写进设置文件")}
+            </small>
           </span>
           <span className={styles.inline}>
             {dict.keyKind === "idAndKey" && (
               <input value={appId} onChange={(e) => setAppId(e.target.value)} placeholder="App ID" aria-label="App ID" spellCheck={false} autoComplete="off" />
             )}
-            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={dict.hasKey ? "输入新 Key 以替换" : "粘贴 Key"} aria-label="API Key" autoComplete="off" />
+            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={tr(dict.hasKey ? "输入新 Key 以替换" : "粘贴 Key")} aria-label="API Key" autoComplete="off" />
             <button type="submit" className={styles.btn} disabled={!key.trim()}>
-              保存
+              {tr("保存")}
             </button>
             {dict.hasKey && (
               <button type="button" className={styles.ghost} onClick={() => void saveKey("")}>
-                清除
+                {tr("清除")}
               </button>
             )}
           </span>
@@ -214,7 +217,7 @@ export function OnlineSettings({ dict }: { dict: DictInfo }) {
                 void openUrl(keyUrl);
               }}
             >
-              去官网申请 Key ↗
+              {tr("去官网申请 Key ↗")}
             </a>
           )}
         </form>

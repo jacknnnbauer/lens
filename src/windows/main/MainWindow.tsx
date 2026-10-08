@@ -23,6 +23,7 @@ import { useRoute } from "../../stores/route";
 import { useSettings } from "../../stores/settings";
 import { useApplyTheme } from "../../theme/useApplyTheme";
 import styles from "./MainWindow.module.css";
+import { tr } from "../../i18n";
 
 /**
  * 主窗口。布局（SPEC 9.2）：简洁单栏 / 双栏（+左侧导航）/ 三栏（+右侧查询详情），
@@ -176,7 +177,7 @@ export function MainWindow() {
         {!immersive && <BatchResumeNotice />}
         {settingsError && (
           <p role="alert" className={styles.error}>
-            设置读取失败：{settingsError}
+            {tr("设置读取失败：{error}", { error: settingsError })}
           </p>
         )}
         <div hidden={page !== "lookup"}>
@@ -187,19 +188,19 @@ export function MainWindow() {
             showHeadword={showNav && !immersive}
             actions={
               <>
-                <button type="button" className={styles.iconBtn} aria-label="生词本" title="生词本（Ctrl+B）" onClick={() => go("wordbook")}>
+                <button type="button" className={styles.iconBtn} aria-label={tr("生词本")} title={tr("生词本（Ctrl+B）")} onClick={() => go("wordbook")}>
                   <BookmarkIcon />
                 </button>
-                <button type="button" className={styles.iconBtn} aria-label="历史" title="历史（Ctrl+H）" onClick={() => go("history")}>
+                <button type="button" className={styles.iconBtn} aria-label={tr("历史")} title={tr("历史（Ctrl+H）")} onClick={() => go("history")}>
                   <ClockIcon />
                 </button>
-                <button type="button" className={styles.iconBtn} aria-label="词典库" title="词典库（Ctrl+L）" onClick={() => setLibraryOpen(true)}>
+                <button type="button" className={styles.iconBtn} aria-label={tr("词典库")} title={tr("词典库（Ctrl+L）")} onClick={() => setLibraryOpen(true)}>
                   <LibraryIcon />
                 </button>
-                <button type="button" className={styles.iconBtn} aria-label="设置" title="设置（Ctrl+,）" onClick={() => go("settings")}>
+                <button type="button" className={styles.iconBtn} aria-label={tr("设置")} title={tr("设置（Ctrl+,）")} onClick={() => go("settings")}>
                   <GearIcon />
                 </button>
-                <button type="button" className={styles.iconBtn} aria-label="沉浸模式" title="沉浸模式（F11）" onClick={() => useImmersive.getState().enter()}>
+                <button type="button" className={styles.iconBtn} aria-label={tr("沉浸模式")} title={tr("沉浸模式（F11）")} onClick={() => useImmersive.getState().enter()}>
                   <ImmersiveIcon />
                 </button>
               </>

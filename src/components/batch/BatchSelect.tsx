@@ -15,6 +15,7 @@ import { useAppliedTheme } from "../../theme/useApplyTheme";
 import styles from "./Batch.module.css";
 import { isStopword } from "./stopwords";
 import { VirtualList } from "./VirtualList";
+import { getLang, tr } from "../../i18n";
 
 const ROW = 36;
 const DAY = 86_400_000;
@@ -44,8 +45,8 @@ function dayLabel(ms: number): string {
   const d = new Date(ms);
   const today = new Date();
   const diff = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / DAY);
-  const md = `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
-  return diff === 0 ? `今天 · ${md}` : diff === 1 ? `昨天 · ${md}` : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const md = tr("{m} 月 {d} 日", { m: d.getMonth() + 1, d: d.getDate() });
+  return diff === 0 ? tr("今天 · {date}", { date: md }) : diff === 1 ? tr("昨天 · {date}", { date: md }) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /** 历史：同一个词（按原形）只留最近一次，按日期分组 */
@@ -63,8 +64,8 @@ function historyRows(items: HistoryItem[]): Row[] {
       lastDay = day;
     }
     const stop = isStopword(h.query);
-    const ctx = h.context?.sentence ? `语境：${h.context.sentence}` : "";
-    rows.push({ kind: "word", key, word: h.query, brief: stop ? "常见虚词 · 已自动取消勾选" : ctx, count: h.lookups, stop });
+    const ctx = h.context?.sentence ? tr("语境：{sentence}", { sentence: h.context.sentence }) : "";
+    rows.push({ kind: "word", key, word: h.query, brief: stop ? tr("常见虚词 · 已自动取消勾选") : ctx, count: h.lookups, stop });
   }
   return rows;
 }
@@ -81,9 +82,9 @@ function wordbookRows(words: Word[]): Row[] {
 }
 
 function fmtDuration(sec: number): string {
-  if (sec < 60) return `约 ${Math.max(1, sec)} 秒`;
+  if (sec < 60) return tr("约 {n} 秒", { n: Math.max(1, sec) });
   const m = Math.round(sec / 60);
-  return m < 60 ? `约 ${m} 分钟` : `约 ${Math.floor(m / 60)} 小时 ${m % 60} 分`;
+  return m < 60 ? tr("约 {n} 分钟", { n: m }) : tr("约 {h} 小时 {m} 分", { h: Math.floor(m / 60), m: m % 60 });
 }
 
 export function fmtBytes(b: number): string {
@@ -133,7 +134,7 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void (async () => {
       try {
-        setBaseDir(prefs?.dir ?? (await join(await documentDir(), "Lens导出")));
+        setBaseDir(prefs?.dir ?? (await join(await documentDir(), tr("Lens导出"))));
       } catch {
         setBaseDir(prefs?.dir ?? null);
       }
@@ -193,7 +194,7 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
   }, [parseInput, source]);
 
   const finalWords = parsed?.words ?? [];
-  const label = `${isoDate(new Date())}_${SOURCE_NAME[source]}${source === "wordbook" && tag ? `-${tag}` : ""}_${finalWords.length}词`;
+  const label = `${isoDate(new Date())}_${tr(SOURCE_NAME[source])}${source === "wordbook" && tag ? `-${tag}` : ""}_${tr("{n}词", { n: finalWords.length })}`;
   const [outDir, setOutDir] = useState("");
   useEffect(() => {
     if (customDir) setOutDir(customDir);
@@ -217,6 +218,7 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
           options: { phonetics: true, examples: true, context: true, sourceDate: true },
           theme,
           accent,
+          lang: getLang(),
         }
       : null;
 
@@ -253,15 +255,15 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div className={styles.head}>
-        <h2 id="batch-title">批量导出</h2>
-        <div role="tablist" aria-label="选词方式" className={styles.tabs}>
+        <h2 id="batch-title">{tr("批量导出")}</h2>
+        <div role="tablist" aria-label={tr("选词方式")} className={styles.tabs}>
           {(["history", "paste", "wordbook"] as const).map((s) => (
             <button key={s} type="button" role="tab" aria-selected={source === s} onClick={() => setSource(s)}>
-              {s === "history" ? "从历史记录" : s === "paste" ? "粘贴词表" : "从生词本"}
+              {tr(s === "history" ? "从历史记录" : s === "paste" ? "粘贴词表" : "从生词本")}
             </button>
           ))}
         </div>
-        <button type="button" className={styles.close} aria-label="关闭" onClick={onClose}>
+        <button type="button" className={styles.close} aria-label={tr("关闭")} onClick={onClose}>
           ×
         </button>
       </div>
@@ -271,46 +273,46 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
           {source === "paste" ? (
             <div className={styles.paste}>
               <label className={styles.pasteLabel}>
-                <span>粘贴的词表</span>
+                <span>{tr("粘贴的词表")}</span>
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder={"每行一个词，也可以用逗号、分号、顿号、Tab 分隔\nubiquitous\nephemeral, pervasive\ntake into account"}
+                  placeholder={`${tr("每行一个词，也可以用逗号、分号、顿号、Tab 分隔")}\nubiquitous\nephemeral, pervasive\ntake into account`}
                   spellCheck={false}
                 />
               </label>
               {parsed && (
                 <div className={styles.parse}>
-                  <strong>解析结果</strong>
+                  <strong>{tr("解析结果")}</strong>
                   <span>
-                    <span>识别到</span>
-                    <span>{parsed.total} 条</span>
+                    <span>{tr("识别到")}</span>
+                    <span>{tr("{n} 条", { n: parsed.total })}</span>
                   </span>
                   <span>
-                    <span>合并重复 / 同原形</span>
+                    <span>{tr("合并重复 / 同原形")}</span>
                     <span>
                       −{parsed.merged.length}
-                      {parsed.merged[0] && `（${parsed.merged[0].from} → ${parsed.merged[0].to}）`}
+                      {parsed.merged[0] && tr("（{from} → {to}）", { from: parsed.merged[0].from, to: parsed.merged[0].to })}
                     </span>
                   </span>
                   <span>
-                    <span>无效条目</span>
+                    <span>{tr("无效条目")}</span>
                     <span>
                       −{parsed.invalid.length}
-                      {parsed.invalid[0] && `（如 ${parsed.invalid[0].text}：${parsed.invalid[0].reason}）`}
+                      {parsed.invalid[0] && tr("（如 {text}：{reason}）", { text: parsed.invalid[0].text, reason: tr(parsed.invalid[0].reason) })}
                     </span>
                   </span>
                   {parsed.overLimit.length > 0 && (
                     <span className={styles.warn}>
-                      <span>超出单批上限</span>
+                      <span>{tr("超出单批上限")}</span>
                       <span>−{parsed.overLimit.length}</span>
                     </span>
                   )}
                   <span>
-                    <span>实际导出</span>
-                    <strong>{parsed.words.length} 个词</strong>
+                    <span>{tr("实际导出")}</span>
+                    <strong>{tr("{n} 个词", { n: parsed.words.length })}</strong>
                   </span>
-                  <small>短语会保留为整体；含路径字符、超过 64 个字符或纯数字的条目不导出</small>
+                  <small>{tr("短语会保留为整体；含路径字符、超过 64 个字符或纯数字的条目不导出")}</small>
                 </div>
               )}
             </div>
@@ -318,21 +320,21 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
             <>
               <div className={styles.filters}>
                 {source === "history" ? (
-                  <div role="group" aria-label="时间范围" className={styles.chips}>
+                  <div role="group" aria-label={tr("时间范围")} className={styles.chips}>
                     {RANGES.map(([r, name]) => (
                       <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)}>
-                        {name}
+                        {tr(name)}
                       </button>
                     ))}
                   </div>
                 ) : (
                   <label className={styles.inlineField}>
-                    标签
+                    {tr("标签")}
                     <select value={tag} onChange={(e) => setTag(e.target.value)}>
-                      <option value="">全部生词</option>
+                      <option value="">{tr("全部生词")}</option>
                       {tags.map((t) => (
                         <option key={t.name} value={t.name}>
-                          {t.name}（{t.count}）
+                          {t.name} ({t.count})
                         </option>
                       ))}
                     </select>
@@ -342,19 +344,19 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
               <div className={styles.selectBar}>
                 <label>
                   <input type="checkbox" checked={wordRows.length > 0 && selectedWords.length === wordRows.length} onChange={(e) => setAll(e.target.checked)} />
-                  全选
+                  {tr("全选")}
                 </label>
                 <span>
-                  已选 <strong>{selectedWords.length}</strong> / {wordRows.length} 个词
+                  {tr("已选")} <strong>{selectedWords.length}</strong> / {tr("{n} 个词", { n: wordRows.length })}
                 </span>
-                <span className={styles.hintRight}>Shift 点击可连选</span>
+                <span className={styles.hintRight}>{tr("Shift 点击可连选")}</span>
               </div>
               {wordRows.length === 0 ? (
-                <p className={styles.empty}>{source === "history" ? "这个时间范围里没有查词记录" : "生词本里还没有词"}</p>
+                <p className={styles.empty}>{tr(source === "history" ? "这个时间范围里没有查词记录" : "生词本里还没有词")}</p>
               ) : (
                 <VirtualList
                   className={styles.list}
-                  label="可选的词"
+                  label={tr("可选的词")}
                   items={rows}
                   rowHeight={ROW}
                   keyOf={(r, i) => (r.kind === "head" ? `h${i}` : r.key)}
@@ -378,7 +380,7 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
                         />
                         <span className={styles.word}>{r.word}</span>
                         <span className={styles.brief}>{r.brief}</span>
-                        {r.count > 0 && <span className={styles.count}>查 {r.count} 次</span>}
+                        {r.count > 0 && <span className={styles.count}>{tr("查 {n} 次", { n: r.count })}</span>}
                       </label>
                     )
                   }
@@ -390,7 +392,7 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
 
         <div className={styles.right}>
           <fieldset className={styles.fieldset}>
-            <legend>输出</legend>
+            <legend>{tr("输出")}</legend>
             <div className={styles.formats}>
               <label data-checked={pdf || undefined}>
                 <input type="checkbox" checked={pdf} onChange={(e) => setPdf(e.target.checked)} />
@@ -404,41 +406,41 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
             <label className={styles.radio}>
               <input type="radio" name="batch-split" checked={!merge} onChange={() => setMerge(false)} />
               <span>
-                每个词一个文件<small>另生成 index.html 总目录</small>
+                {tr("每个词一个文件")}<small>{tr("另生成 index.html 总目录")}</small>
               </span>
             </label>
             <label className={styles.radio}>
               <input type="radio" name="batch-split" checked={merge} onChange={() => setMerge(true)} />
               <span>
-                合并成一个文件<small>带目录书签；超过 300 词自动分卷</small>
+                {tr("合并成一个文件")}<small>{tr("带目录书签；超过 300 词自动分卷")}</small>
               </span>
             </label>
           </fieldset>
           <div className={styles.grid2}>
             <label className={styles.field}>
-              <span>版式</span>
+              <span>{tr("版式")}</span>
               <select value={layout} onChange={(e) => setLayout(e.target.value as ExportLayout)}>
-                <option value="cards">卡片式</option>
-                <option value="document">文档式</option>
+                <option value="cards">{tr("卡片式")}</option>
+                <option value="document">{tr("文档式")}</option>
               </select>
             </label>
             <label className={styles.field}>
-              <span>词典</span>
+              <span>{tr("词典")}</span>
               <select value={offlineOnly ? "offline" : "profile"} onChange={(e) => setOfflineOnly(e.target.value === "offline")}>
-                <option value="profile">{profileName ? `${profileName.name}配置组 · ${profileName.dictCount} 本` : "当前配置组"}</option>
-                <option value="offline">仅离线词典（最快）</option>
+                <option value="profile">{profileName ? tr("{name}配置组 · {n} 本", { name: tr(profileName.name), n: profileName.dictCount }) : tr("当前配置组")}</option>
+                <option value="offline">{tr("仅离线词典（最快）")}</option>
               </select>
             </label>
             <label className={styles.field}>
-              <span>样式</span>
+              <span>{tr("样式")}</span>
               <select value={style} onChange={(e) => setStyle(e.target.value as ExportStyle)}>
-                <option value="paperWhite">纸本（白底）</option>
-                <option value="followTheme">跟随当前主题</option>
-                <option value="inkSaving">黑白省墨</option>
+                <option value="paperWhite">{tr("纸本（白底）")}</option>
+                <option value="followTheme">{tr("跟随当前主题")}</option>
+                <option value="inkSaving">{tr("黑白省墨")}</option>
               </select>
             </label>
             <label className={styles.field}>
-              <span>纸张</span>
+              <span>{tr("纸张")}</span>
               <select value={paper} disabled={!pdf} onChange={(e) => setPaper(e.target.value as Paper)}>
                 <option value="a4">A4</option>
                 <option value="letter">Letter</option>
@@ -446,51 +448,52 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
             </label>
           </div>
           <label className={styles.field}>
-            <span>保存到</span>
+            <span>{tr("保存到")}</span>
             <span className={styles.dirRow}>
-              <input type="text" value={outDir} readOnly aria-label="保存目录" />
+              <input type="text" value={outDir} readOnly aria-label={tr("保存目录")} />
               <button
                 type="button"
                 className={styles.ghost}
                 onClick={async () => {
-                  const dir = await openDialog({ directory: true, title: "选择保存目录", defaultPath: baseDir ?? undefined });
+                  const dir = await openDialog({ directory: true, title: tr("选择保存目录"), defaultPath: baseDir ?? undefined });
                   if (typeof dir === "string") setCustomDir(dir);
                 }}
               >
-                浏览
+                {tr("浏览")}
               </button>
             </span>
           </label>
 
           <div className={styles.preflight} aria-live="polite">
-            <strong>导出前检查</strong>
+            <strong>{tr("导出前检查")}</strong>
             <span>
-              <span>去重后</span>
+              <span>{tr("去重后")}</span>
               <span>
-                {finalWords.length} 个词{mergedCount > 0 && `（合并 ${mergedCount} 个）`}
+                {tr("{n} 个词", { n: finalWords.length })}
+                {mergedCount > 0 && tr("（合并 {n} 个）", { n: mergedCount })}
               </span>
             </span>
             {preflight && (
               <>
                 <span>
-                  <span>预计用时</span>
+                  <span>{tr("预计用时")}</span>
                   <span>{fmtDuration(preflight.estSeconds)}</span>
                 </span>
                 <span>
-                  <span>预计大小</span>
+                  <span>{tr("预计大小")}</span>
                   <span data-warn={!preflight.spaceOk || undefined}>
-                    约 {fmtBytes(preflight.estBytes)} · {preflight.freeBytes == null ? "剩余空间未知" : preflight.spaceOk ? "磁盘剩余充足" : `磁盘只剩 ${fmtBytes(preflight.freeBytes)}`}
+                    {tr("约 {size}", { size: fmtBytes(preflight.estBytes) })} · {preflight.freeBytes == null ? tr("剩余空间未知") : preflight.spaceOk ? tr("磁盘剩余充足") : tr("磁盘只剩 {size}", { size: fmtBytes(preflight.freeBytes) })}
                   </span>
                 </span>
                 {preflight.onlineDicts > 0 && (
                   <span>
-                    <span>在线词典</span>
+                    <span>{tr("在线词典")}</span>
                     <span>
-                      {preflight.onlineCached} 个已缓存，{preflight.onlineUncached} 个需联网
+                      {tr("{a} 个已缓存，{b} 个需联网", { a: preflight.onlineCached, b: preflight.onlineUncached })}
                     </span>
                   </span>
                 )}
-                {!preflight.writable && <span className={styles.warn}>{preflight.writeError ?? "目录不可写"}</span>}
+                {!preflight.writable && <span className={styles.warn}>{preflight.writeError ?? tr("目录不可写")}</span>}
               </>
             )}
           </div>
@@ -503,13 +506,13 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
             {error}
           </span>
         ) : (
-          <span className={styles.footHint}>导出在后台进行，期间可以继续查词；中途关闭软件，下次打开可以接着导出</span>
+          <span className={styles.footHint}>{tr("导出在后台进行，期间可以继续查词；中途关闭软件，下次打开可以接着导出")}</span>
         )}
         <button type="button" className={styles.ghostBtn} onClick={onClose}>
-          取消
+          {tr("取消")}
         </button>
         <button type="button" className={styles.primary} disabled={!canStart} onClick={() => void start()}>
-          {busy ? "正在开始…" : `开始导出 ${finalWords.length} 个词`}
+          {busy ? tr("正在开始…") : tr("开始导出 {n} 个词", { n: finalWords.length })}
         </button>
       </div>
     </>

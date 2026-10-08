@@ -54,15 +54,20 @@ pub fn index_html(req: &BatchRequest, items: &[ItemRow]) -> String {
     let failed_section = if failed.is_empty() {
         String::new()
     } else {
-        format!("<h2>未能导出（{}）</h2><p class=\"n\">详见 failed.csv</p><table>{failed_rows}</table>", failed.len())
+        crate::tf!(
+            "<h2>未能导出（{}）</h2><p class=\"n\">详见 failed.csv</p><table>{}</table>",
+            "<h2>Not exported ({})</h2><p class=\"n\">See failed.csv</p><table>{}</table>",
+            failed.len(),
+            failed_rows
+        )
     };
     format!(
         r#"<!doctype html>
-<html lang="zh-CN">
+<html lang="{lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} · Lens 词镜</title>
+<title>{title} · {app}</title>
 <style>
 :root {{ --bg:#F7F6F3; --panel:#FFFFFF; --line:#E2E0DA; --text:#1A1B1E; --sub:#4E5258; --accent:#2F5FD0; --warn:#A64F0C; }}
 @media (prefers-color-scheme: dark) {{ :root {{ --bg:#141518; --panel:#1B1D21; --line:#2C3036; --text:#ECEAE4; --sub:#A3A7AF; --accent:#8AB4F8; --warn:#F2A65A; }} }}
@@ -84,26 +89,37 @@ footer {{ margin-top:36px; font-size:12px; color:var(--sub); }}
 <body>
 <main>
 <h1>{title}</h1>
-<p>共 {total} 个词 · 已导出 {done} · 未能导出 {failed}</p>
-<h2>已导出</h2>
+<p>{summary}</p>
+<h2>{exported}</h2>
 <table>
 {rows}</table>
 {failed_section}
-<footer>由 Lens 词镜导出。释义内容版权归各词典所有，仅供个人学习使用。</footer>
+<footer>{footer}</footer>
 </main>
 </body>
 </html>
 "#,
         title = esc(&req.label),
-        total = items.len(),
-        done = done.len(),
-        failed = failed.len(),
+        lang = crate::i18n::t("zh-CN", "en"),
+        app = crate::i18n::t("Lens 词镜", "Lens"),
+        summary = crate::tf!(
+            "共 {} 个词 · 已导出 {} · 未能导出 {}",
+            "{} words · {} exported · {} not exported",
+            items.len(),
+            done.len(),
+            failed.len()
+        ),
+        exported = crate::i18n::t("已导出", "Exported"),
+        footer = crate::i18n::t(
+            "由 Lens 词镜导出。释义内容版权归各词典所有，仅供个人学习使用。",
+            "Exported by Lens. Definitions are copyright of their respective dictionaries; for personal study only."
+        ),
     )
 }
 
 pub fn failed_csv(items: &[ItemRow]) -> String {
     // 带 BOM，Excel 打开不乱码
-    let mut s = String::from("\u{feff}词,原因\r\n");
+    let mut s = format!("\u{feff}{}\r\n", crate::i18n::t("词,原因", "word,reason"));
     for i in items.iter().filter(|i| i.state == FAILED) {
         s.push_str(&format!("{},{}\r\n", csv_field(&i.lemma), csv_field(i.note.as_deref().unwrap_or_default())));
     }
@@ -144,6 +160,7 @@ mod tests {
             theme: "paper".into(),
             accent: "blue".into(),
             profile: String::new(),
+            lang: String::new(),
         }
     }
 

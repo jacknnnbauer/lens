@@ -7,6 +7,7 @@ import { useBatch } from "../../stores/batch";
 import { useSettings } from "../../stores/settings";
 import styles from "./Batch.module.css";
 import { VirtualList } from "./VirtualList";
+import { tr } from "../../i18n";
 
 const ROW = 34;
 type Filter = "all" | "active" | "noted" | "failed";
@@ -31,12 +32,12 @@ function ItemRow({ item }: { item: BatchItem }) {
         ? `${item.files.join(" · ")} — ${item.note}`
         : item.files.join(" · ")
       : item.state === "failed"
-        ? (item.note ?? "失败")
+        ? (item.note ?? tr("失败"))
         : item.state === "querying"
-          ? "查词中"
+          ? tr("查词中")
           : item.state === "rendering"
-            ? "渲染中"
-            : "等待";
+            ? tr("渲染中")
+            : tr("等待");
   return (
     <div className={styles.itemRow} data-state={item.state} data-noted={isNoted(item) || undefined}>
       <span className={styles.icon} aria-hidden="true">
@@ -97,18 +98,18 @@ export function BatchProgress({ onClose }: { onClose: () => void }) {
   const reveal = () => void revealItemInDir(state === "done" || state === "cancelled" ? `${current.outDir}\\index.html` : current.outDir);
 
   const stateText =
-    state === "paused" ? "已暂停" : state === "done" ? "已完成" : state === "cancelled" ? "已取消" : state === "error" ? "出错，已暂停" : null;
+    state === "paused" ? tr("已暂停") : state === "done" ? tr("已完成") : state === "cancelled" ? tr("已取消") : state === "error" ? tr("出错，已暂停") : null;
 
   return (
     <>
       <div className={styles.head}>
-        <h2 id="batch-title">批量导出</h2>
+        <h2 id="batch-title">{tr("批量导出")}</h2>
         <span className={styles.headMeta}>
-          {current.label} · {counts.total} 个词 · {formats} · {current.layout === "document" ? "文档式" : "卡片式"}
-          {current.merge && " · 合并"}
+          {current.label} · {tr("{n} 个词", { n: counts.total })} · {formats} · {tr(current.layout === "document" ? "文档式" : "卡片式")}
+          {current.merge && ` · ${tr("合并")}`}
         </span>
         <button type="button" className={styles.ghost} onClick={onClose}>
-          {running ? "转到后台" : "关闭"}
+          {tr(running ? "转到后台" : "关闭")}
         </button>
       </div>
 
@@ -120,52 +121,52 @@ export function BatchProgress({ onClose }: { onClose: () => void }) {
             </span>
             <span className={styles.sub}>
               {stateText ? `${stateText} · ` : ""}
-              {elapsed > 0 && `已用 ${clock(elapsed)}`}
-              {remaining != null && state === "running" && ` · 剩余约 ${clock(remaining)}`}
+              {elapsed > 0 && tr("已用 {t}", { t: clock(elapsed) })}
+              {remaining != null && state === "running" && ` · ${tr("剩余约 {t}", { t: clock(remaining) })}`}
             </span>
           </div>
-          <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="总进度" className={styles.bar}>
+          <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={tr("总进度")} className={styles.bar}>
             <div style={{ width: `${pct}%` }} data-state={state} />
           </div>
         </div>
 
         <div className={styles.stages}>
           <div>
-            <span>① 查词</span>
+            <span>{tr("① 查词")}</span>
             <strong>
-              {concurrency} 并发 · 进行 {counts.querying}
+              {tr("{c} 并发 · 进行 {n}", { c: concurrency, n: counts.querying })}
             </strong>
-            <small>在线源限速 2 次/秒</small>
+            <small>{tr("在线源限速 2 次/秒")}</small>
           </div>
           <div>
-            <span>② 渲染</span>
+            <span>{tr("② 渲染")}</span>
             <strong>
-              {counts.rendering} 个 · 排队 {live?.renderQueue ?? 0}/8
+              {tr("{n} 个 · 排队 {q}/8", { n: counts.rendering, q: live?.renderQueue ?? 0 })}
             </strong>
-            <small>{(live?.renderQueue ?? 0) >= 8 ? "队列满，查词自动放慢" : "导出窗口逐个渲染"}</small>
+            <small>{tr((live?.renderQueue ?? 0) >= 8 ? "队列满，查词自动放慢" : "导出窗口逐个渲染")}</small>
           </div>
           <div>
-            <span>③ 写入</span>
-            <strong>{counts.files} 个文件</strong>
-            <small>先写临时文件再改名</small>
+            <span>{tr("③ 写入")}</span>
+            <strong>{tr("{n} 个文件", { n: counts.files })}</strong>
+            <small>{tr("先写临时文件再改名")}</small>
           </div>
         </div>
 
         <div className={styles.memLine}>
           {live && live.memMb > 0 && (
             <span>
-              内存 {live.memMb} MB / 上限 {live.memLimitMb} MB
+              {tr("内存 {mem} MB / 上限 {limit} MB", { mem: live.memMb, limit: live.memLimitMb })}
             </span>
           )}
-          {live && live.recycles > 0 && <span>渲染窗口已重建 {live.recycles} 次</span>}
-          <span>进度已保存，可随时中断</span>
+          {live && live.recycles > 0 && <span>{tr("渲染窗口已重建 {n} 次", { n: live.recycles })}</span>}
+          <span>{tr("进度已保存，可随时中断")}</span>
           <button type="button" className={styles.link} onClick={reveal}>
-            打开文件夹
+            {tr("打开文件夹")}
           </button>
         </div>
 
         <div className={styles.itemsBox}>
-          <div role="group" aria-label="筛选" className={styles.chips}>
+          <div role="group" aria-label={tr("筛选")} className={styles.chips}>
             {(
               [
                 ["all", "全部", counts.total],
@@ -175,12 +176,12 @@ export function BatchProgress({ onClose }: { onClose: () => void }) {
               ] as const
             ).map(([f, name, n]) => (
               <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-                {name}
+                {tr(name)}
                 {f !== "all" && ` ${n}`}
               </button>
             ))}
           </div>
-          <VirtualList className={styles.itemList} label="逐词状态" items={shown} rowHeight={ROW} keyOf={(i) => i.seq} render={(i) => <ItemRow item={i} />} />
+          <VirtualList className={styles.itemList} label={tr("逐词状态")} items={shown} rowHeight={ROW} keyOf={(i) => i.seq} render={(i) => <ItemRow item={i} />} />
         </div>
       </div>
 
@@ -190,31 +191,31 @@ export function BatchProgress({ onClose }: { onClose: () => void }) {
             {error ?? live?.error}
           </span>
         ) : (
-          <span className={styles.footHint}>取消时已导出的文件会保留；完成后会生成 index.html 总目录和失败清单</span>
+          <span className={styles.footHint}>{tr("取消时已导出的文件会保留；完成后会生成 index.html 总目录和失败清单")}</span>
         )}
         {running ? (
           <>
             {confirmCancel ? (
               <>
                 <button type="button" className={styles.danger} onClick={() => void cancel().then(() => setConfirmCancel(false))}>
-                  确认取消
+                  {tr("确认取消")}
                 </button>
                 <button type="button" className={styles.ghostBtn} onClick={() => setConfirmCancel(false)}>
-                  不取消
+                  {tr("不取消")}
                 </button>
               </>
             ) : (
               <button type="button" className={styles.ghostBtn} onClick={() => setConfirmCancel(true)}>
-                取消
+                {tr("取消")}
               </button>
             )}
             {state === "paused" ? (
               <button type="button" className={styles.primary} onClick={() => void resume()}>
-                继续
+                {tr("继续")}
               </button>
             ) : (
               <button type="button" className={styles.primary} onClick={() => void pause()}>
-                暂停
+                {tr("暂停")}
               </button>
             )}
           </>
@@ -222,16 +223,16 @@ export function BatchProgress({ onClose }: { onClose: () => void }) {
           <>
             {counts.failed > 0 && state !== "error" && (
               <button type="button" className={styles.ghostBtn} onClick={() => void retryFailed()}>
-                重试失败项
+                {tr("重试失败项")}
               </button>
             )}
             {state === "error" && (
               <button type="button" className={styles.ghostBtn} onClick={() => void resume()}>
-                继续
+                {tr("继续")}
               </button>
             )}
             <button type="button" className={styles.ghostBtn} onClick={reveal}>
-              打开文件夹
+              {tr("打开文件夹")}
             </button>
             <button
               type="button"
@@ -241,7 +242,7 @@ export function BatchProgress({ onClose }: { onClose: () => void }) {
                 onClose();
               }}
             >
-              完成
+              {tr("完成")}
             </button>
           </>
         )}

@@ -3,6 +3,7 @@
 
 import { useLookup } from "../stores/lookup";
 import styles from "./ContextPanel.module.css";
+import { tr } from "../i18n";
 
 const STATUS_LABEL = {
   pending: "查询中…",
@@ -20,23 +21,23 @@ export function ContextPanel() {
 
   if (!handle) {
     return (
-      <aside aria-label="查询详情" className={styles.aside}>
-        <p className={styles.empty}>查询后，这里显示各词典的命中情况与耗时。</p>
+      <aside aria-label={tr("查询详情")} className={styles.aside}>
+        <p className={styles.empty}>{tr("查询后，这里显示各词典的命中情况与耗时。")}</p>
       </aside>
     );
   }
   const hits = cards.filter((c) => c.status === "hit").length;
 
   return (
-    <aside aria-label="查询详情" className={styles.aside}>
+    <aside aria-label={tr("查询详情")} className={styles.aside}>
       <section className={styles.section}>
-        <div className={styles.label}>查询</div>
+        <div className={styles.label}>{tr("查询")}</div>
         <dl className={styles.kv}>
-          <dt>输入</dt>
+          <dt>{tr("输入")}</dt>
           <dd>{handle.query}</dd>
           {handle.normalized !== handle.query.trim() && (
             <>
-              <dt>查询键</dt>
+              <dt>{tr("查询键")}</dt>
               <dd>{handle.normalized}</dd>
             </>
           )}
@@ -45,14 +46,14 @@ export function ContextPanel() {
 
       <section className={styles.section}>
         <div className={styles.label}>
-          词典 · {hits}/{cards.length} 命中
+          {tr("词典 · {hits}/{total} 命中", { hits, total: cards.length })}
         </div>
         <ul className={styles.list}>
           {cards.map((c) => (
             <li key={c.id} className={styles.row} data-status={c.status}>
               <span className={styles.name}>{c.name}</span>
               <span className={styles.status}>
-                {c.status === "hit" && c.entries.length > 1 ? `${c.entries.length} 条` : STATUS_LABEL[c.status]}
+                {c.status === "hit" && c.entries.length > 1 ? tr("{n} 条", { n: c.entries.length }) : tr(STATUS_LABEL[c.status])}
                 {c.ms != null && ` · ${c.ms < 10 ? c.ms.toFixed(1) : Math.round(c.ms)} ms`}
               </span>
             </li>

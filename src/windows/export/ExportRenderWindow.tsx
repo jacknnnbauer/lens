@@ -15,6 +15,7 @@ import { inlineEntry } from "../../export/resources";
 import type { ExportJob } from "../../export/run";
 import exportCss from "../../export-templates/export.css?raw";
 import { buildExportBody, buildVolumeBody, type ExportCard } from "../../export-templates/template";
+import { isLang, setLang } from "../../i18n";
 import type { RenderJob } from "../../ipc/batch";
 import tokensCss from "../../theme/tokens.css?raw";
 import { THEMES } from "../../theme/themes";
@@ -101,6 +102,7 @@ function unmount() {
 }
 
 async function renderSingle(job: ExportJob) {
+  setLang(job.lang ?? "zh");
   const container = await mount(job.body, job.theme, job.accent);
   if (job.format === "pdf") {
     await invoke("export_print_pdf", { path: job.path, paper: job.paper });
@@ -111,6 +113,7 @@ async function renderSingle(job: ExportJob) {
 
 /** 批量导出：原始词条 → 清洗（与查词页同一套）→（HTML 需要时）内联资源 → 组装文档 → 打印 / 序列化。 */
 async function renderBatch(job: RenderJob): Promise<string | null> {
+  setLang(isLang(job.lang) ? job.lang : "zh");
   const words = await Promise.all(
     job.words.map(async (w) => ({
       word: w.word,

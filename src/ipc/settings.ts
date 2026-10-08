@@ -10,6 +10,8 @@ export interface Appearance {
   accent: string;
   glossFontSize: number;
   glossFont: "serif" | "sans";
+  /** 界面语言 */
+  language: "zh" | "en";
 }
 
 export type LayoutPreset = "compact" | "two-column" | "three-column";

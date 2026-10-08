@@ -15,7 +15,7 @@ pub fn split(stored: &str, kind: KeyKind) -> Result<Credential> {
         KeyKind::IdAndKey => {
             let (id, key) = stored
                 .split_once('\n')
-                .ok_or_else(|| Error::Online("凭据不完整，请重新填写 App ID 和 App Key".into()))?;
+                .ok_or_else(|| Error::Online(crate::i18n::t("凭据不完整，请重新填写 App ID 和 App Key", "Credentials are incomplete. Please re-enter the App ID and App Key").into()))?;
             Ok(Credential { id: Some(id.trim().to_string()), key: key.trim().to_string() })
         }
         _ => Ok(Credential { id: None, key: stored.trim().to_string() }),
@@ -49,7 +49,7 @@ mod imp {
         // SAFETY: CredReadW 成功时写入一个由系统分配的 CREDENTIALW，读完后用 CredFree 释放。
         unsafe {
             if let Err(e) = CredReadW(&name, CRED_TYPE_GENERIC, None, &mut cred) {
-                return if not_found(&e) { Ok(None) } else { Err(Error::Online(format!("读取凭据失败：{e}"))) };
+                return if not_found(&e) { Ok(None) } else { Err(Error::Online(crate::tf!("读取凭据失败：{}", "Failed to read the credential: {}", e))) };
             }
             let c = &*cred;
             let blob = if c.CredentialBlob.is_null() {
@@ -76,7 +76,7 @@ mod imp {
             ..Default::default()
         };
         // SAFETY: cred 引用的缓冲区在调用期间有效；系统会复制内容。
-        unsafe { CredWriteW(&cred, 0) }.map_err(|e| Error::Online(format!("保存凭据失败：{e}")))
+        unsafe { CredWriteW(&cred, 0) }.map_err(|e| Error::Online(crate::tf!("保存凭据失败：{}", "Failed to save the credential: {}", e)))
     }
 
     pub fn delete(target: &str) -> Result<()> {
@@ -85,7 +85,7 @@ mod imp {
         match unsafe { CredDeleteW(&name, CRED_TYPE_GENERIC, None) } {
             Ok(()) => Ok(()),
             Err(e) if not_found(&e) => Ok(()),
-            Err(e) => Err(Error::Online(format!("删除凭据失败：{e}"))),
+            Err(e) => Err(Error::Online(crate::tf!("删除凭据失败：{}", "Failed to delete the credential: {}", e))),
         }
     }
 }
@@ -98,7 +98,7 @@ mod imp {
         Ok(None)
     }
     pub fn write(_: &str, _: &str) -> Result<()> {
-        Err(Error::Online("当前平台不支持保存凭据".into()))
+        Err(Error::Online(crate::i18n::t("当前平台不支持保存凭据", "Saving credentials is not supported on this platform").into()))
     }
     pub fn delete(_: &str) -> Result<()> {
         Ok(())

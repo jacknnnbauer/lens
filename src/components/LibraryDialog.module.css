@@ -114,33 +114,59 @@
   border-top: 1px solid var(--line);
 }
 
-.order {
+/* 拖动把手 */
+.grip {
+  flex: none;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.moveBtn {
-  width: 26px;
-  height: 22px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 36px;
+  margin-left: -8px;
   padding: 0;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--sub);
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
+  color: var(--faint);
+  cursor: grab;
+  touch-action: none;
 }
 
-.moveBtn:hover:not(:disabled) {
+.grip:hover {
   background: var(--raised);
   color: var(--text);
 }
 
-.moveBtn:disabled {
-  opacity: 0.35;
-  cursor: default;
+.grip:active {
+  cursor: grabbing;
+}
+
+/* 拖动中：被拖的行变淡，放下位置画一条强调色线 */
+.item[data-dragging] {
+  opacity: 0.45;
+}
+
+.item {
+  position: relative;
+}
+
+.item[data-drop-before]::before,
+.item[data-drop-after]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.item[data-drop-before]::before {
+  top: -1px;
+}
+
+.item[data-drop-after]::after {
+  bottom: -1px;
 }
 
 .info {

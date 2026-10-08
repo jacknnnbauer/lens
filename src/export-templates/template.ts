@@ -3,6 +3,7 @@
 
 import { escapeHtml, isExample, isPhonetic } from "../copy/convert";
 import { BASE_CSS } from "../dict-render/DictBody";
+import { tr } from "../i18n";
 import type { ContextRow } from "../ipc/history";
 
 export type ExportLayout = "cards" | "document";
@@ -84,25 +85,25 @@ function contextHtml(input: ExportInput, label: string): string {
   const src = [c.windowTitle, c.app?.replace(/\.exe$/i, "")].filter(Boolean).map((x) => escapeHtml(x as string));
   const url = c.url && /^https?:/i.test(c.url) ? ` · <a href="${escapeHtml(c.url)}">${escapeHtml(c.url)}</a>` : "";
   const meta = input.options.sourceDate && src.length ? ` · ${src.join(" · ")}${url}` : "";
-  return `<section class="context"><div class="label">${label}${meta}</div><p>“${quote}”</p></section>`;
+  return `<section class="context"><div class="label">${tr(label)}${meta}</div><p>“${quote}”</p></section>`;
 }
 
 function cardsLayout(input: ExportInput): string {
-  const meta = input.options.sourceDate ? `<span class="meta">Lens 词镜 · ${isoDate(input.date)}</span>` : "";
+  const meta = input.options.sourceDate ? `<span class="meta">${tr("Lens 词镜")} · ${isoDate(input.date)}</span>` : "";
   const tags = input.cards.map((c) => `<span>${escapeHtml(c.name)}</span>`).join("");
   const cards = input.cards
-    .map((c) => `<article class="card"><header><strong>${escapeHtml(c.name)}</strong>${c.online ? "<span>在线</span>" : ""}</header>${entriesHtml(c, input)}</article>`)
+    .map((c) => `<article class="card"><header><strong>${escapeHtml(c.name)}</strong>${c.online ? `<span>${tr("在线")}</span>` : ""}</header>${entriesHtml(c, input)}</article>`)
     .join("");
   return `<div class="wordbox"><h1>${escapeHtml(input.word)}</h1>${meta}</div><div class="dict-tags">${tags}</div>${cards}${contextHtml(input, "语境句")}`;
 }
 
 function documentLayout(input: ExportInput): string {
-  const row = input.options.sourceDate ? `<div class="row"><span>Lens 词镜 · 多词典释义</span><span>${isoDate(input.date)}</span></div>` : "";
-  const dicts = `<div class="dicts">收录词典：${input.cards.map((c) => escapeHtml(c.name)).join(" · ")}</div>`;
+  const row = input.options.sourceDate ? `<div class="row"><span>${tr("Lens 词镜 · 多词典释义")}</span><span>${isoDate(input.date)}</span></div>` : "";
+  const dicts = `<div class="dicts">${tr("收录词典：")}${input.cards.map((c) => escapeHtml(c.name)).join(" · ")}</div>`;
   const sections = input.cards
     .map(
       (c, i) =>
-        `<section class="section"><h2><span><span class="no">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(c.name)}</span>${c.online ? '<span class="kind">在线</span>' : ""}</h2>${entriesHtml(c, input)}</section>`,
+        `<section class="section"><h2><span><span class="no">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(c.name)}</span>${c.online ? `<span class="kind">${tr("在线")}</span>` : ""}</h2>${entriesHtml(c, input)}</section>`,
     )
     .join("");
   return `<header class="doc-head">${row}<h1>${escapeHtml(input.word)}</h1>${dicts}</header>${sections}${contextHtml(input, "我的语境")}`;
@@ -118,7 +119,7 @@ function styleAttr(style: ExportStyle): string {
 
 /** 导出文档的 <body> 内容。 */
 export function buildExportBody(input: ExportInput): string {
-  return `<main class="lens-export" data-layout="${input.layout}" data-style="${styleAttr(input.style)}">${wordInner(input)}<footer class="copyright">${COPYRIGHT}</footer></main>`;
+  return `<main class="lens-export" data-layout="${input.layout}" data-style="${styleAttr(input.style)}">${wordInner(input)}<footer class="copyright">${tr(COPYRIGHT)}</footer></main>`;
 }
 
 export interface VolumeWord {
@@ -142,7 +143,7 @@ export function buildVolumeBody(input: VolumeInput): string {
     .map((w, i) => `<section class="vol-word" id="w-${i + 1}">${wordInner({ ...input, word: w.word, cards: w.cards, context: w.context })}</section>`)
     .join("");
   const meta = input.options.sourceDate ? ` · ${isoDate(input.date)}` : "";
-  return `<main class="lens-export lens-volume" data-layout="${input.layout}" data-style="${styleAttr(input.style)}"><header class="vol-head"><h1>${escapeHtml(input.title)}</h1><p>${input.words.length} 个词${meta} · Lens 词镜</p></header><nav class="toc" aria-label="目录"><h2>目录</h2><ol>${toc}</ol></nav>${sections}<footer class="copyright">${COPYRIGHT}</footer></main>`;
+  return `<main class="lens-export lens-volume" data-layout="${input.layout}" data-style="${styleAttr(input.style)}"><header class="vol-head"><h1>${escapeHtml(input.title)}</h1><p>${tr("{n} 个词", { n: input.words.length })}${meta} · ${tr("Lens 词镜")}</p></header><nav class="toc" aria-label="${tr("目录")}"><h2>${tr("目录")}</h2><ol>${toc}</ol></nav>${sections}<footer class="copyright">${tr(COPYRIGHT)}</footer></main>`;
 }
 
 /** 文件名：去掉 Windows 不允许的字符、保留名、首尾空格和点，限长（SPEC 12 的规则子集）。 */

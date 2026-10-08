@@ -6,6 +6,7 @@ import { useLayoutEffect, useRef } from "react";
 import { THEMES } from "../theme/themes";
 import { useAppliedTheme } from "../theme/useApplyTheme";
 import { adjustContrast, parseColor, type RGB } from "./contrast";
+import { tr } from "../i18n";
 
 // 主题变量穿透 Shadow 边界继承；词典自带 CSS 写在后面，可以覆盖这里的默认值
 export const BASE_CSS = `
@@ -48,7 +49,7 @@ function cssVarColor(el: Element, name: string): RGB | null {
 }
 
 function play(url: string) {
-  new Audio(url).play().catch((e) => console.warn("发音播放失败", url, e));
+  new Audio(url).play().catch((e) => console.warn(tr("发音播放失败"), url, e));
 }
 
 export function DictBody({ html, onEntry, dictId }: Props) {

@@ -22,6 +22,8 @@ pub struct Appearance {
     pub accent: String,
     pub gloss_font_size: u32,
     pub gloss_font: String,
+    /// 界面语言：zh | en
+    pub language: String,
 }
 
 impl Default for Appearance {
@@ -34,6 +36,7 @@ impl Default for Appearance {
             accent: "blue".into(),
             gloss_font_size: 17,
             gloss_font: "serif".into(),
+            language: "zh".into(),
         }
     }
 }

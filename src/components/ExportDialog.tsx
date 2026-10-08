@@ -20,7 +20,9 @@ import type { Card } from "../stores/lookup";
 import { useSettings } from "../stores/settings";
 import { useAppliedTheme } from "../theme/useApplyTheme";
 import styles from "./ExportDialog.module.css";
-import { CloseIcon } from "./icons";
+import { CloseIcon, GripIcon } from "./icons";
+import { useDragReorder } from "./useDragReorder";
+import { getLang, tr } from "../i18n";
 
 interface Props {
   open: boolean;
@@ -82,22 +84,25 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
     return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib);
   });
   const chosen = ordered.filter((c) => selected.has(c.id));
-  const move = (id: string, dir: -1 | 1) =>
-    setOrder(() => {
-      const ids = ordered.map((c) => c.id);
-      const i = ids.indexOf(id);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= ids.length) return ids;
-      [ids[i], ids[j]] = [ids[j], ids[i]];
-      return ids;
-    });
+  const move = (id: string, dir: -1 | 1) => {
+    const ids = ordered.map((c) => c.id);
+    const i = ids.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    setOrder(ids);
+  };
+  const drag = useDragReorder(
+    ordered.map((c) => c.id),
+    setOrder,
+  );
   const ext = format === "pdf" ? "pdf" : "html";
 
   const doExport = async () => {
     if (chosen.length === 0 || phase.kind === "busy") return;
     const fileName = `${safeFileName(name.replace(/\.(pdf|html?)$/i, "")) || "lens"}.${ext}`;
     const path = await saveDialog({
-      title: "导出词条",
+      title: tr("导出词条"),
       defaultPath: prefs?.dir ? `${prefs.dir}\\${fileName}` : fileName,
       filters: [format === "pdf" ? { name: "PDF", extensions: ["pdf"] } : { name: "HTML", extensions: ["html"] }],
     });
@@ -115,7 +120,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
       );
       const body = buildExportBody({ word, date: new Date(), layout, style, options, cards: exportCards, context });
       const theme = style === "inkSaving" ? "eink" : style === "followTheme" ? appliedTheme : "paper";
-      await runExport({ jobId: crypto.randomUUID(), format, body, title: `${word} · Lens 词镜`, theme, accent, path, paper });
+      await runExport({ jobId: crypto.randomUUID(), format, body, title: `${word} · ${tr("Lens 词镜")}`, theme, accent, path, paper, lang: getLang() });
       update({ export: { layout, style, paper, dir: path.replace(/[\\/][^\\/]*$/, "") } });
       setPhase({ kind: "done", path });
     } catch (e) {
@@ -145,9 +150,9 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
       }}
     >
       <header className={styles.head}>
-        <h2 id="export-title">导出词条</h2>
+        <h2 id="export-title">{tr("导出词条")}</h2>
         <span className={styles.word}>{word}</span>
-        <button type="button" className={styles.iconBtn} aria-label="关闭" onClick={onClose}>
+        <button type="button" className={styles.iconBtn} aria-label={tr("关闭")} onClick={onClose}>
           <CloseIcon />
         </button>
       </header>
@@ -155,14 +160,14 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
       <div className={styles.content}>
         <div className={styles.form}>
           <fieldset>
-            <legend>格式</legend>
+            <legend>{tr("格式")}</legend>
             <div className={styles.formats}>
               {(["pdf", "html"] as const).map((f) => (
                 <label key={f} className={styles.format} data-checked={format === f || undefined}>
                   <input type="radio" name="export-format" checked={format === f} onChange={() => setFormat(f)} />
                   <span>
                     <strong>{f.toUpperCase()}</strong>
-                    <small>{f === "pdf" ? "打印、归档、发给别人" : "单个文件，浏览器直接打开"}</small>
+                    <small>{tr(f === "pdf" ? "打印、归档、发给别人" : "单个文件，浏览器直接打开")}</small>
                   </span>
                 </label>
               ))}
@@ -171,48 +176,61 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
 
           <fieldset>
             <legend>
-              包含的词典 <small>{chosen.length} / {hits.length} · 可用 ↑ ↓ 调整先后</small>
+              {tr("包含的词典")} <small>{tr("{a} / {b} · 拖动调整先后", { a: chosen.length, b: hits.length })}</small>
             </legend>
             <div className={styles.dicts}>
               {ordered.map((c, i) => (
-                <label key={c.id}>
-                  <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
-                  {c.name}
-                  <span className={styles.moves}>
-                    <button type="button" aria-label={`上移 ${c.name}`} disabled={i === 0} onClick={() => move(c.id, -1)}>
-                      ↑
-                    </button>
-                    <button type="button" aria-label={`下移 ${c.name}`} disabled={i === ordered.length - 1} onClick={() => move(c.id, 1)}>
-                      ↓
-                    </button>
-                  </span>
-                  {c.source !== "local" && <small>在线</small>}
-                </label>
+                <div
+                  key={c.id}
+                  ref={drag.rowRef(c.id)}
+                  className={styles.dictRow}
+                  {...drag.rowState(c.id, i)}
+                  onKeyDown={(e) => {
+                    if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+                    e.preventDefault();
+                    move(c.id, e.key === "ArrowUp" ? -1 : 1);
+                  }}
+                >
+                  <button
+                    type="button"
+                    className={styles.grip}
+                    aria-label={tr("拖动调整顺序（Alt+↑ / Alt+↓）") + ` · ${c.name}`}
+                    title={tr("拖动调整顺序（Alt+↑ / Alt+↓）")}
+                    {...drag.handleProps(c.id)}
+                  >
+                    <GripIcon size={14} />
+                  </button>
+                  <label>
+                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
+                    {c.name}
+                    {c.source !== "local" && <small>{tr("在线")}</small>}
+                  </label>
+                </div>
               ))}
             </div>
           </fieldset>
 
           <div className={styles.selects}>
             <label>
-              <span>版式</span>
+              <span>{tr("版式")}</span>
               <select value={layout} onChange={(e) => setLayout(e.target.value as ExportLayout)}>
-                <option value="cards">卡片式（同简洁单栏）</option>
-                <option value="document">文档式</option>
+                <option value="cards">{tr("卡片式（同简洁单栏）")}</option>
+                <option value="document">{tr("文档式")}</option>
               </select>
             </label>
             <label>
-              <span>样式</span>
+              <span>{tr("样式")}</span>
               <select value={style} onChange={(e) => setStyle(e.target.value as ExportStyle)}>
-                <option value="paperWhite">纸本（白底打印版）</option>
-                <option value="followTheme">跟随当前主题</option>
-                <option value="inkSaving">黑白省墨</option>
+                <option value="paperWhite">{tr("纸本（白底打印版）")}</option>
+                <option value="followTheme">{tr("跟随当前主题")}</option>
+                <option value="inkSaving">{tr("黑白省墨")}</option>
               </select>
             </label>
             <label>
-              <span>纸张</span>
+              <span>{tr("纸张")}</span>
               <select value={paper} disabled={format === "html"} onChange={(e) => setPaper(e.target.value as Paper)}>
-                <option value="a4">A4 纵向</option>
-                <option value="letter">Letter 纵向</option>
+                <option value="a4">{tr("A4 纵向")}</option>
+                <option value="letter">{tr("Letter 纵向")}</option>
               </select>
             </label>
           </div>
@@ -233,14 +251,14 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
                   disabled={k === "context" && !context}
                   onChange={(e) => setOptions((o) => ({ ...o, [k]: e.target.checked }))}
                 />
-                {label}
+                {tr(label)}
               </label>
             ))}
           </div>
         </div>
 
-        <aside className={styles.preview} aria-label="版式示意">
-          <div className={styles.previewHead}>示意</div>
+        <aside className={styles.preview} aria-label={tr("版式示意")}>
+          <div className={styles.previewHead}>{tr("示意")}</div>
           <div className={styles.page} data-layout={layout} data-style={style}>
             {layout === "cards" ? (
               <>
@@ -275,19 +293,19 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
         {phase.kind === "done" ? (
           <>
             <span className={styles.status} role="status">
-              已导出到 {phase.path}
+              {tr("已导出到 {path}", { path: phase.path })}
             </span>
             <button type="button" className={styles.ghost} onClick={() => void revealItemInDir(phase.path)}>
-              在文件夹中显示
+              {tr("在文件夹中显示")}
             </button>
             <button type="button" className={styles.primary} onClick={onClose}>
-              完成
+              {tr("完成")}
             </button>
           </>
         ) : (
           <>
             <label className={styles.name}>
-              文件名
+              {tr("文件名")}
               <input value={name} onChange={(e) => setName(e.target.value)} spellCheck={false} />
               <span>.{ext}</span>
             </label>
@@ -297,10 +315,10 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
               </span>
             )}
             <button type="button" className={styles.ghost} onClick={onClose}>
-              取消
+              {tr("取消")}
             </button>
             <button type="button" className={styles.primary} disabled={chosen.length === 0 || phase.kind === "busy"} onClick={() => void doExport()}>
-              {phase.kind === "busy" ? "正在导出…" : `导出 ${ext.toUpperCase()}`}
+              {phase.kind === "busy" ? tr("正在导出…") : tr("导出 {format}", { format: ext.toUpperCase() })}
               <kbd>Ctrl+Enter</kbd>
             </button>
           </>

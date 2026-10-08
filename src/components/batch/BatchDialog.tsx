@@ -6,6 +6,7 @@ import { useBatch } from "../../stores/batch";
 import styles from "./Batch.module.css";
 import { BatchProgress } from "./BatchProgress";
 import { BatchSelect } from "./BatchSelect";
+import { tr } from "../../i18n";
 
 export function BatchDialog() {
   const open = useBatch((s) => s.open);
@@ -37,16 +38,17 @@ export function BatchResumeNotice() {
   return (
     <div role="status" className={styles.notice}>
       <span>
-        上次的批量导出没做完：<strong>{b.label}</strong>（{b.counts.done + b.counts.failed}/{b.counts.total}）
+        {tr("上次的批量导出没做完：")}
+        <strong>{b.label}</strong> ({b.counts.done + b.counts.failed}/{b.counts.total})
       </span>
       <button type="button" className={styles.primarySmall} onClick={() => void resume(b.id)}>
-        继续导出
+        {tr("继续导出")}
       </button>
       <button type="button" className={styles.ghost} onClick={() => void show(b.id)}>
-        查看
+        {tr("查看")}
       </button>
       <button type="button" className={styles.ghost} onClick={() => void discard(b.id)}>
-        放弃
+        {tr("放弃")}
       </button>
     </div>
   );
@@ -64,8 +66,8 @@ export function BatchChip() {
   return (
     <button type="button" className={styles.chip} onClick={() => openDialog()}>
       <span className={styles.spinner} data-paused={state === "paused" || undefined} aria-hidden="true" />
-      批量导出 {c.done + c.failed}/{c.total}
-      {state === "paused" && " · 已暂停"}
+      {tr("批量导出")} {c.done + c.failed}/{c.total}
+      {state === "paused" && ` · ${tr("已暂停")}`}
     </button>
   );
 }

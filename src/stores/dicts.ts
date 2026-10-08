@@ -15,8 +15,10 @@ interface DictsState {
   refresh: () => Promise<void>;
   importPaths: (paths: string[]) => Promise<void>;
   remove: (id: string) => Promise<void>;
-  /** 上移（-1）/ 下移（+1）；当前查询随即按新顺序重查 */
+  /** 上移（-1）/ 下移（+1） */
   move: (id: string, dir: -1 | 1) => Promise<void>;
+  /** 按新顺序排列（拖动把手）；当前查询随即按新顺序重查 */
+  setOrder: (ids: string[]) => Promise<void>;
 }
 
 export const useDicts = create<DictsState>((set, get) => ({
@@ -50,6 +52,10 @@ export const useDicts = create<DictsState>((set, get) => ({
     const j = i + dir;
     if (i < 0 || j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
+    await get().setOrder(ids);
+  },
+
+  setOrder: async (ids) => {
     // 先在界面上换位，再写库
     const byId = new Map(get().dicts.map((d) => [d.id, d]));
     set({ dicts: ids.flatMap((x) => byId.get(x) ?? []) });

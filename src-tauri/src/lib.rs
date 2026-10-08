@@ -8,6 +8,7 @@ mod db;
 mod dict;
 mod error;
 mod export;
+mod i18n;
 mod logging;
 mod online;
 mod protocol;

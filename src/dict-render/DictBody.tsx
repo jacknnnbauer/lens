@@ -3,7 +3,6 @@
 
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLayoutEffect, useRef } from "react";
-import { THEMES } from "../theme/themes";
 import { useAppliedTheme } from "../theme/useApplyTheme";
 import { adjustContrast, parseColor, type RGB } from "./contrast";
 import { tr } from "../i18n";
@@ -57,6 +56,7 @@ export function DictBody({ html, onEntry, dictId }: Props) {
   const onEntryRef = useRef(onEntry);
   onEntryRef.current = onEntry;
   const theme = useAppliedTheme((s) => s.theme);
+  const dark = useAppliedTheme((s) => s.dark);
 
   useLayoutEffect(() => {
     const el = host.current;
@@ -72,7 +72,6 @@ export function DictBody({ html, onEntry, dictId }: Props) {
       const panel = cssVarColor(el, "--panel");
       const raised = cssVarColor(el, "--raised");
       if (panel && raised) {
-        const dark = THEMES.find((t) => t.id === theme)?.dark ?? false;
         adjustContrast(root, { panel, raised, dark });
       }
       el.style.visibility = "";
@@ -107,7 +106,7 @@ export function DictBody({ html, onEntry, dictId }: Props) {
       cancelled = true;
       root.removeEventListener("click", onClick);
     };
-  }, [html, theme]);
+  }, [html, theme, dark]);
 
   return <div ref={host} data-dict-body={dictId} />;
 }

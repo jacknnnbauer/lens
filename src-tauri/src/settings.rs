@@ -222,6 +222,8 @@ pub struct Settings {
     pub copy: Copy,
     pub export: Export,
     pub batch: Batch,
+    /// 自定义主题（主题库里「复制并编辑」或导入的）
+    pub custom_themes: Vec<crate::themes::CustomTheme>,
     pub active_profile: String,
     #[serde(flatten)]
     pub rest: Map<String, Value>,
@@ -238,6 +240,7 @@ impl Default for Settings {
             copy: Copy::default(),
             export: Export::default(),
             batch: Batch::default(),
+            custom_themes: Vec::new(),
             active_profile: "reading".into(),
             rest: Map::new(),
         }

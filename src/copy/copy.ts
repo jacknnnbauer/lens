@@ -4,7 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Copy } from "../ipc/settings";
 import type { Card } from "../stores/lookup";
 import { toast } from "../stores/toast";
-import { THEMES } from "../theme/themes";
 import { useAppliedTheme } from "../theme/useApplyTheme";
 import { contextMarkdown, escapeHtml, htmlToMarkdown, htmlToText, sourceLine, type ContextMeta, type CopyFormat } from "./convert";
 import { basicHtml, inlineHtml, visibleHtml } from "./inlineHtml";
@@ -43,7 +42,7 @@ function cardPayload(card: Card, format: CopyFormat, cfg: Copy, heading: boolean
   const src = { dict: card.name, headword };
 
   if (format === "html") {
-    const dark = THEMES.find((t) => t.id === useAppliedTheme.getState().theme)?.dark ?? false;
+    const dark = useAppliedTheme.getState().dark;
     const inline = { colors: cfg.inlineHtmlStyles && !dark, includeExamples: cfg.includeExamples };
     const bodies = renderedBodies(card.id);
     const parts = card.entries.map((e, i) =>

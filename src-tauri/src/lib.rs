@@ -14,6 +14,7 @@ mod online;
 mod protocol;
 mod query;
 mod settings;
+mod themes;
 
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::ShortcutState;
@@ -98,6 +99,10 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::set_settings,
             commands::settings::app_paths,
+            commands::settings::save_custom_theme,
+            commands::settings::delete_custom_theme,
+            commands::settings::export_theme,
+            commands::settings::import_theme,
             commands::dicts::list_dicts,
             commands::dicts::import_dicts,
             commands::dicts::remove_dict,

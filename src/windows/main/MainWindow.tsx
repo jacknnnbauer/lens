@@ -15,6 +15,7 @@ import { onMainLookup } from "../../ipc/capture";
 import { HistoryPage } from "../../routes/history/HistoryPage";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
 import { SettingsPage } from "../../routes/settings/SettingsPage";
+import { ThemeLibraryPage } from "../../routes/themes/ThemeLibraryPage";
 import { WordbookPage } from "../../routes/wordbook/WordbookPage";
 import { subscribeBatchEvents, useBatch } from "../../stores/batch";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
@@ -145,7 +146,7 @@ export function MainWindow() {
   }, [immersive, go]);
 
   // 设置页有自己的分类导航，不显示两侧栏；沉浸模式按设置隐藏
-  const inSettings = page === "settings";
+  const inSettings = page === "settings" || page === "themes";
   const hideSides = inSettings || (immersive && (immersivePrefs?.hideSidebars ?? true));
   const showNav = (layout?.showNav ?? false) && !hideSides;
   const showContext = (layout?.showContext ?? false) && !hideSides;
@@ -209,7 +210,8 @@ export function MainWindow() {
         </div>
         {page === "history" && <HistoryPage active onLookup={lookupWord} />}
         {page === "wordbook" && <WordbookPage active onLookup={lookupWord} />}
-        {inSettings && <SettingsPage onBack={focusSearch} />}
+        {page === "settings" && <SettingsPage onBack={focusSearch} onOpenThemes={() => go("themes")} />}
+        {page === "themes" && <ThemeLibraryPage onBack={() => go("settings")} />}
       </main>
 
       {showContext && (

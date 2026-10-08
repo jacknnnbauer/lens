@@ -1,7 +1,8 @@
 /*
  * 主题变量（SPEC 9.5）。前端所有颜色只能引用这里的变量。
- * <html data-theme="paper|light|dark" data-accent="blue|teal|amber|violet|rose">
- * v0.1 只有纸本 / 冷白 / 石墨；其余 8 套在 M8 加入。
+ * <html data-theme="paper|light|xuan|sepia|frost|eink|dark|midnight|moss|dusk|contrast" data-accent="blue|teal|amber|violet|rose">
+ * 11 套内置主题（SPEC 9.5）；强调色只对纸本 / 冷白 / 石墨生效，其余主题自带强调色。
+ * 自定义主题不在这里：由 applyTheme 把变量直接写到 <html> 的内联样式上。
  */
 
 :root {
@@ -57,7 +58,7 @@
   --warn: #F2A65A;
 }
 
-/* 墨水屏（SPEC 9.5；v0.1 只用于「黑白省墨」导出，主题库在 M8） */
+/* 墨水屏（也用于「黑白省墨」导出） */
 [data-theme="eink"] {
   color-scheme: light;
   --bg: #FFFFFF;
@@ -70,6 +71,111 @@
   --accent: #000000;
   --accent-ink: #FFFFFF;
   --warn: #000000;
+}
+
+/* 宣纸（自带强调色） */
+[data-theme="xuan"] {
+  color-scheme: light;
+  --bg: #F1EADB;
+  --panel: #FAF6EC;
+  --raised: #E9E0CC;
+  --line: #D9CDB4;
+  --text: #23201B;
+  --sub: #4F483D;
+  --faint: #6B6253;
+  --accent: #A93226;
+  --accent-ink: #FFFFFF;
+  --warn: #7A5A12;
+}
+
+/* 护眼棕（自带强调色） */
+[data-theme="sepia"] {
+  color-scheme: light;
+  --bg: #F3E9D2;
+  --panel: #F8F0DC;
+  --raised: #EADDC0;
+  --line: #D8C7A3;
+  --text: #3B2F22;
+  --sub: #5A4A37;
+  --faint: #6E5C46;
+  --accent: #8A4B1C;
+  --accent-ink: #FFFFFF;
+  --warn: #4F6419;
+}
+
+/* 霜蓝（自带强调色） */
+[data-theme="frost"] {
+  color-scheme: light;
+  --bg: #EEF2F6;
+  --panel: #FFFFFF;
+  --raised: #E3E9F0;
+  --line: #D3DCE6;
+  --text: #1B2430;
+  --sub: #44505F;
+  --faint: #5D6979;
+  --accent: #1F6E92;
+  --accent-ink: #FFFFFF;
+  --warn: #A6501A;
+}
+
+/* 午夜蓝（自带强调色） */
+[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg: #0E1424;
+  --panel: #151D31;
+  --raised: #1C2640;
+  --line: #27324D;
+  --text: #E6EAF2;
+  --sub: #A6B0C3;
+  --faint: #8893A8;
+  --accent: #E3B663;
+  --accent-ink: #1A1405;
+  --warn: #F08A7E;
+}
+
+/* 苔原（自带强调色） */
+[data-theme="moss"] {
+  color-scheme: dark;
+  --bg: #121A16;
+  --panel: #18231D;
+  --raised: #1F2D25;
+  --line: #2A3A31;
+  --text: #E4EBE2;
+  --sub: #A5B3A7;
+  --faint: #87968A;
+  --accent: #9FD49A;
+  --accent-ink: #0F1A10;
+  --warn: #E7B062;
+}
+
+/* 暮紫（自带强调色） */
+[data-theme="dusk"] {
+  color-scheme: dark;
+  --bg: #18151F;
+  --panel: #201C29;
+  --raised: #2A2535;
+  --line: #352F43;
+  --text: #ECE7F3;
+  --sub: #ADA5BD;
+  --faint: #8F87A0;
+  --accent: #F0A0B8;
+  --accent-ink: #2A0F18;
+  --warn: #F2C46B;
+}
+
+/* 高对比（自带强调色） */
+[data-theme="contrast"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --panel: #0A0A0A;
+  --raised: #1A1A1A;
+  --line: #7A7A7A;
+  --text: #FFFFFF;
+  --sub: #E6E6E6;
+  --faint: #CCCCCC;
+  --accent: #FFD400;
+  --accent-ink: #000000;
+  --warn: #5CE1E6;
 }
 
 /* 强调色：只覆盖 --accent，且只对纸本 / 冷白 / 石墨生效 */

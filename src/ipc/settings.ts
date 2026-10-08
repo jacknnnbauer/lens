@@ -1,6 +1,7 @@
 // settings 相关命令的类型化封装（SPEC 5.1、14）。
 
 import { invoke } from "@tauri-apps/api/core";
+import type { CustomTheme } from "../theme/themes";
 
 export interface Appearance {
   theme: string;
@@ -91,6 +92,7 @@ export interface Settings {
   copy: Copy;
   export: ExportPrefs;
   batch: BatchPrefs;
+  customThemes: CustomTheme[];
   activeProfile: string;
   [section: string]: unknown;
 }
@@ -104,6 +106,24 @@ export function getSettings(): Promise<Settings> {
 /** 按 JSON Merge Patch 合并，返回合并后的完整设置。 */
 export function setSettings(patch: DeepPartial<Settings>): Promise<Settings> {
   return invoke<Settings>("set_settings", { patch });
+}
+
+/** 新增或更新自定义主题（Rust 校验颜色格式），返回校验后的主题 */
+export function saveCustomTheme(theme: CustomTheme): Promise<CustomTheme> {
+  return invoke<CustomTheme>("save_custom_theme", { theme });
+}
+
+/** 删除自定义主题；正在使用它的设置回退到纸本 / 石墨。返回新的完整设置。 */
+export function deleteCustomTheme(id: string): Promise<Settings> {
+  return invoke<Settings>("delete_custom_theme", { id });
+}
+
+export function exportTheme(path: string, theme: CustomTheme): Promise<void> {
+  return invoke("export_theme", { path, theme });
+}
+
+export function importTheme(path: string): Promise<CustomTheme> {
+  return invoke<CustomTheme>("import_theme", { path });
 }
 
 export interface AppPaths {

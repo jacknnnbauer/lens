@@ -182,55 +182,47 @@ input[type="range"] {
   color: var(--sub);
 }
 
-.thumb {
-  height: 96px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: var(--bg);
-  color: var(--text);
-}
-
-.thumbWord {
-  font-family: var(--font-gloss);
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.thumbSearch {
-  height: 12px;
-  border: 1px solid var(--accent);
-  border-radius: 3px;
-  background: var(--panel);
-}
-
-.thumbCards {
-  flex: 1;
-  display: flex;
-  gap: 6px;
-}
-
-.thumbCards i {
-  flex: 1;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--panel);
-}
-
 .split {
   display: flex;
   overflow: hidden;
 }
 
-.split .thumb {
+.split > * {
   flex: 1;
   min-width: 0;
 }
 
-.split .thumb:last-child .thumbWord {
+.split > :last-child > :first-child {
   visibility: hidden;
+}
+
+/* 主题库入口 */
+.moreThemes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.linkBtn {
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.linkBtn:hover {
+  background: var(--hl);
 }
 
 /* 布局示意：[导航] 主区 [上下文] */

@@ -18,7 +18,16 @@ import { buildExportBody, buildVolumeBody, type ExportCard } from "../../export-
 import { isLang, setLang } from "../../i18n";
 import type { RenderJob } from "../../ipc/batch";
 import tokensCss from "../../theme/tokens.css?raw";
-import { THEMES } from "../../theme/themes";
+import { getSettings } from "../../ipc/settings";
+import { applyTheme, customCss, findTheme, isAccentId, type CustomTheme } from "../../theme/themes";
+
+/** 自定义主题要从设置里取颜色（导出窗口不常驻设置 store） */
+async function lookupTheme(theme: string): Promise<{ dark: boolean; custom?: CustomTheme }> {
+  if (!theme.startsWith("custom-")) return { dark: findTheme(theme)?.dark ?? false };
+  const customs = (await getSettings()).customThemes ?? [];
+  const info = findTheme(theme, customs);
+  return { dark: info?.dark ?? false, custom: info?.custom };
+}
 
 const RESOURCE_TIMEOUT_MS = 8000;
 
@@ -46,10 +55,10 @@ async function waitResources(container: HTMLElement) {
 }
 
 /** 把文档放进页面并等它渲染就绪（含对比度修正）。 */
-async function mount(body: string, theme: string, accent: string): Promise<HTMLElement> {
+async function mount(body: string, theme: string, accent: string): Promise<{ container: HTMLElement; custom?: CustomTheme }> {
   const html = document.documentElement;
-  html.dataset.theme = theme;
-  html.dataset.accent = accent;
+  const { dark, custom } = await lookupTheme(theme);
+  applyTheme(custom ? "paper" : theme, isAccentId(accent) ? accent : "blue", html, custom);
 
   let style = document.getElementById("lens-export-css");
   if (!style) {
@@ -73,22 +82,23 @@ async function mount(body: string, theme: string, accent: string): Promise<HTMLE
   const panel = parseColor(cs.getPropertyValue("--panel"))?.rgb;
   const raised = parseColor(cs.getPropertyValue("--raised"))?.rgb;
   if (panel && raised) {
-    const dark = THEMES.find((t) => t.id === theme)?.dark ?? false;
     for (const r of roots) adjustContrast(r, { panel, raised, dark });
   }
-  return container;
+  return { container, custom };
 }
 
 /** 序列化渲染结果（含对比度修正后的内联颜色）；主题变量与模板样式一并内嵌。 */
-function serialize(container: HTMLElement, title: string, theme: string, accent: string): string {
+function serialize(container: HTMLElement, title: string, theme: string, accent: string, custom?: CustomTheme): string {
   const body = (container as HTMLElement & { getHTML(o: object): string }).getHTML({ serializableShadowRoots: true });
+  const base = custom ? (custom.dark ? "dark" : "paper") : theme;
   return `<!doctype html>
-<html lang="zh-CN" data-theme="${theme}" data-accent="${accent}">
+<html lang="zh-CN" data-theme="${base}" data-accent="${accent}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title.replace(/</g, "&lt;")}</title>
 <style>${tokensCss}
+${custom ? customCss(custom) : ""}
 ${exportCss}</style>
 </head>
 <body>${body}</body>
@@ -103,11 +113,11 @@ function unmount() {
 
 async function renderSingle(job: ExportJob) {
   setLang(job.lang ?? "zh");
-  const container = await mount(job.body, job.theme, job.accent);
+  const { container, custom } = await mount(job.body, job.theme, job.accent);
   if (job.format === "pdf") {
     await invoke("export_print_pdf", { path: job.path, paper: job.paper });
   } else {
-    await invoke("export_save_html", { path: job.path, html: serialize(container, job.title, job.theme, job.accent) });
+    await invoke("export_save_html", { path: job.path, html: serialize(container, job.title, job.theme, job.accent, custom) });
   }
 }
 
@@ -142,11 +152,11 @@ async function renderBatch(job: RenderJob): Promise<string | null> {
       ? buildVolumeBody({ ...common, title: job.title, words })
       : buildExportBody({ ...common, word: words[0]?.word ?? job.title, cards: words[0]?.cards ?? [], context: words[0]?.context ?? null });
   const theme = job.style === "inkSaving" ? "eink" : job.style === "followTheme" ? job.theme : "paper";
-  const container = await mount(body, theme, job.accent);
+  const { container, custom } = await mount(body, theme, job.accent);
   if (job.pdfPath) {
     await invoke(job.mode === "volume" ? "export_print_pdf_outline" : "export_print_pdf", { path: job.pdfPath, paper: job.paper });
   }
-  return job.wantHtml ? serialize(container, `${job.title} · Lens 词镜`, theme, job.accent) : null;
+  return job.wantHtml ? serialize(container, `${job.title} · Lens 词镜`, theme, job.accent, custom) : null;
 }
 
 export function ExportRenderWindow() {

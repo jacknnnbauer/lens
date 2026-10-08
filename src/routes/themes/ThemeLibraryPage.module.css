@@ -1,0 +1,390 @@
+/* 主题库（画板 09）：左侧主题网格，右侧大预览 + 详情 / 编辑器（吸顶）。 */
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px 28px 64px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin-bottom: 18px;
+}
+
+.header h1 {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: 22px;
+}
+
+.back {
+  display: block;
+  margin: 0 0 6px -10px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sub {
+  margin: 0;
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.importBtn,
+.actions button {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.importBtn {
+  margin-left: auto;
+}
+
+.importBtn:hover,
+.actions button:hover:not(:disabled) {
+  background: var(--raised);
+}
+
+.actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.actions .primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.actions .primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.actions .danger {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.message {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.message[data-error] {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tile > :first-child {
+  border-radius: 10px;
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+}
+
+.tile[data-selected] > :first-child {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tile:focus-visible {
+  box-shadow: none;
+}
+
+.tile:focus-visible > :first-child {
+  box-shadow: var(--focus-ring);
+}
+
+.tileLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+}
+
+.tileLabel small {
+  font-size: 11px;
+  color: var(--sub);
+}
+
+.tileLabel .badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--hl);
+  color: var(--text);
+}
+
+.detail {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.detail h2 {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+.note {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ok {
+  margin: 0;
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.issues {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--warn);
+  font-size: 12px;
+}
+
+.issues code {
+  font-size: 12px;
+}
+
+/* 大预览：所有颜色来自预览元素自己的主题作用域 */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.pSearch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 14px;
+}
+
+.pBtn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-style: normal;
+  font-size: 12px;
+}
+
+.pCard {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.pCard p {
+  margin: 6px 0 0;
+}
+
+.pHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.pHead small {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--sub);
+}
+
+.pWord {
+  font-family: var(--font-gloss);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.pWord span {
+  margin-left: 6px;
+  color: var(--sub);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.pSense {
+  font-size: 14px;
+}
+
+.pSense em {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.pEx {
+  padding-left: 10px;
+  border-left: 2px solid var(--accent);
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.pFaint {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.pWarn {
+  color: var(--warn);
+  font-size: 12px;
+}
+
+/* 编辑器 */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.field input,
+.hex {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.colors {
+  display: grid;
+  gap: 6px;
+}
+
+.color {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.color input[type="color"] {
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hex {
+  padding: 4px 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.hex:invalid {
+  border-color: var(--warn);
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail {
+    position: static;
+  }
+}
+
+/* 编辑器比窗口高，不吸顶 */
+.detail[data-editing] {
+  position: static;
+}

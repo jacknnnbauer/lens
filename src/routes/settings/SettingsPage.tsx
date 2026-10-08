@@ -1,5 +1,5 @@
 // 设置页（SPEC 14、画板 06）：左侧分类、右侧分节，改动立即生效，300ms 防抖写回 settings.json。
-// 主题库（M8）随里程碑加入。
+// 完整的主题库（11 套内置 + 自定义）在单独的页面（routes/themes）。
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -8,7 +8,8 @@ import { useCaptureStatus } from "../../components/HotkeyNotice";
 import { htmlToMarkdown, sourceLine } from "../../copy/convert";
 import { appPaths, type AppPaths, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
-import { ACCENTS, THEMES, type ThemeId } from "../../theme/themes";
+import { ThemeThumb } from "../../components/ThemeThumb";
+import { ACCENTS, allThemes, findTheme, type CustomTheme } from "../../theme/themes";
 import { useAppliedTheme } from "../../theme/useApplyTheme";
 import { formatHotkey } from "./hotkey";
 import { scrollRoot } from "../../windows/main/scroll";
@@ -90,20 +91,6 @@ function Select<T extends string | number>({ label, value, options, onChange }: 
   );
 }
 
-/** 主题缩略图：直接用该主题的变量渲染（data-theme 作用在缩略图元素上） */
-function ThemeThumb({ theme, accent }: { theme: ThemeId; accent: string }) {
-  return (
-    <span className={styles.thumb} data-theme={theme} data-accent={accent} aria-hidden="true">
-      <span className={styles.thumbWord}>{tr("词镜 Aa")}</span>
-      <span className={styles.thumbSearch} />
-      <span className={styles.thumbCards}>
-        <i />
-        <i />
-      </span>
-    </span>
-  );
-}
-
 function HotkeyField({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [recording, setRecording] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -156,7 +143,11 @@ function HotkeyField({ value, onSave }: { value: string; onSave: (v: string) => 
   );
 }
 
-export function SettingsPage({ onBack }: { onBack: () => void }) {
+const NO_CUSTOM: CustomTheme[] = [];
+/** 外观里直接列出的主题；其余在主题库 */
+const QUICK_THEMES = ["paper", "light", "dark"];
+
+export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onOpenThemes: () => void }) {
   const settings = useSettings((s) => s.settings);
   const update = useSettings((s) => s.update);
   const updateNow = useSettings((s) => s.updateNow);
@@ -201,9 +192,16 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
   const setI = (p: Partial<Immersive>) => update({ immersive: p });
   const setC = (p: Partial<Copy>) => update({ copy: p });
   const setE = (p: Partial<ExportPrefs>) => update({ export: p });
-  const lightThemes = THEMES.filter((t) => !t.dark);
-  const darkThemes = THEMES.filter((t) => t.dark);
+  const customs = settings.customThemes ?? NO_CUSTOM;
+  const themes = allThemes(customs);
+  const quick = themes.filter((t) => QUICK_THEMES.includes(t.id));
+  const lightThemes = themes.filter((t) => !t.dark);
+  const darkThemes = themes.filter((t) => t.dark);
   const thumbAccent = a.accent;
+  const chosen = findTheme(a.theme, customs);
+  const otherChosen = !a.followSystem && chosen && !QUICK_THEMES.includes(chosen.id) ? chosen : null;
+  const appliedInfo = findTheme(appliedTheme, customs);
+  const themeName = (t: { name: string; custom?: unknown }) => (t.custom ? t.name : tr(t.name));
 
   return (
     <div className={styles.page}>
@@ -233,9 +231,9 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
           <fieldset className={styles.fieldset}>
             <legend>{tr("主题")}</legend>
             <div className={styles.cards4}>
-              {THEMES.map((t) => (
+              {quick.map((t) => (
                 <label key={t.id} className={styles.choice} data-checked={(!a.followSystem && a.theme === t.id) || undefined}>
-                  <ThemeThumb theme={t.id} accent={thumbAccent} />
+                  <ThemeThumb theme={t} accent={thumbAccent} />
                   <span className={styles.choiceLabel}>
                     <input type="radio" name="theme" checked={!a.followSystem && a.theme === t.id} onChange={() => setA({ theme: t.id, followSystem: false })} />
                     {t.dark ? tr("暗色") : tr("亮色")} · {tr(t.name)}
@@ -245,8 +243,8 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               ))}
               <label className={styles.choice} data-checked={a.followSystem || undefined}>
                 <span className={styles.split} aria-hidden="true">
-                  <ThemeThumb theme={(lightThemes.find((t) => t.id === a.lightTheme)?.id ?? "paper") as ThemeId} accent={thumbAccent} />
-                  <ThemeThumb theme={(darkThemes.find((t) => t.id === a.darkTheme)?.id ?? "dark") as ThemeId} accent={thumbAccent} />
+                  <ThemeThumb theme={lightThemes.find((t) => t.id === a.lightTheme) ?? lightThemes[0]} accent={thumbAccent} />
+                  <ThemeThumb theme={darkThemes.find((t) => t.id === a.darkTheme) ?? darkThemes[0]} accent={thumbAccent} />
                 </span>
                 <span className={styles.choiceLabel}>
                   <input type="radio" name="theme" checked={a.followSystem} onChange={() => setA({ followSystem: true })} />
@@ -260,7 +258,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
                 <select aria-label={tr("亮色时使用")} value={a.lightTheme} onChange={(e) => setA({ lightTheme: e.target.value })}>
                   {lightThemes.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {tr(t.name)}
+                      {themeName(t)}
                     </option>
                   ))}
                 </select>
@@ -268,13 +266,21 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
                 <select aria-label={tr("暗色时使用")} value={a.darkTheme} onChange={(e) => setA({ darkTheme: e.target.value })}>
                   {darkThemes.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {tr(t.name)}
+                      {themeName(t)}
                     </option>
                   ))}
                 </select>
                 {tr("。")}
               </p>
             )}
+            <div className={styles.moreThemes}>
+              <span>
+                {otherChosen ? tr("正在使用主题库中的「{name}」", { name: themeName(otherChosen) }) : tr("主题库还有宣纸、护眼棕、霜蓝、墨水屏、午夜蓝、苔原、暮紫、高对比等主题，也可以自己调色、导入导出。")}
+              </span>
+              <button type="button" className={styles.linkBtn} onClick={onOpenThemes}>
+                {tr("打开主题库 · {n} 套", { n: themes.length })}
+              </button>
+            </div>
           </fieldset>
 
           <fieldset className={styles.fieldset}>
@@ -283,12 +289,16 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
               {ACCENTS.map((ac) => (
                 <label key={ac.id} className={styles.accent}>
                   <input type="radio" name="accent" className="sr-only" checked={a.accent === ac.id} onChange={() => setA({ accent: ac.id })} />
-                  <span className={styles.dot} data-theme={appliedTheme} data-accent={ac.id} aria-hidden="true" />
+                  <span className={styles.dot} data-theme={appliedInfo?.accentable ? appliedTheme : appliedInfo?.dark ? "dark" : "paper"} data-accent={ac.id} aria-hidden="true" />
                   {tr(ac.name)}
                 </label>
               ))}
             </div>
-            <p className={styles.hint}>{tr("每种强调色在亮色、暗色主题下各有一套值，保证文字对比度。")}</p>
+            <p className={styles.hint}>
+              {appliedInfo && !appliedInfo.accentable
+                ? tr("当前主题「{name}」自带强调色，这里的选择只对纸本、冷白、石墨生效。", { name: themeName(appliedInfo) })
+                : tr("每种强调色在亮色、暗色主题下各有一套值，保证文字对比度。")}
+            </p>
           </fieldset>
 
           <div className={styles.grid2}>
@@ -383,7 +393,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
             <Select
               label={tr("沉浸时使用主题")}
               value={im.theme ?? ""}
-              options={[["", "跟随当前主题"], ...THEMES.map((t) => [t.id, t.name] as [string, string])]}
+              options={[["", "跟随当前主题"], ...themes.map((t) => [t.id, t.name] as [string, string])]}
               onChange={(v) => setI({ theme: v || null })}
             />
             <Toggle label={tr("启动时直接进入沉浸模式")} checked={im.onStartup} onChange={(v) => setI({ onStartup: v })} />

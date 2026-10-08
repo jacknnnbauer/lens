@@ -62,3 +62,62 @@ pub async fn app_paths(state: State<'_, AppState>) -> Result<AppPaths> {
         version: env!("CARGO_PKG_VERSION"),
     })
 }
+
+/// 新增或更新一套自定义主题（按 id），返回校验后的主题。
+#[tauri::command]
+pub async fn save_custom_theme(state: State<'_, AppState>, theme: crate::themes::CustomTheme) -> Result<crate::themes::CustomTheme> {
+    let theme = crate::themes::validate(theme)?;
+    let mut list = state.settings.get()?.custom_themes;
+    match list.iter_mut().find(|t| t.id == theme.id) {
+        Some(t) => *t = theme.clone(),
+        None => list.push(theme.clone()),
+    }
+    state.settings.patch(serde_json::json!({ "customThemes": list }))?;
+    Ok(theme)
+}
+
+/// 删除自定义主题；正在用它的地方退回纸本 / 石墨。
+#[tauri::command]
+pub async fn delete_custom_theme(state: State<'_, AppState>, id: String) -> Result<Settings> {
+    let s = state.settings.get()?;
+    let list: Vec<_> = s.custom_themes.into_iter().filter(|t| t.id != id).collect();
+    let fix = |cur: &str, fallback: &str| if cur == id { fallback.to_string() } else { cur.to_string() };
+    let a = &s.appearance;
+    let mut patch = serde_json::json!({
+        "customThemes": list,
+        "appearance": {
+            "theme": fix(&a.theme, "paper"),
+            "lightTheme": fix(&a.light_theme, "paper"),
+            "darkTheme": fix(&a.dark_theme, "dark"),
+        }
+    });
+    if s.immersive.theme.as_deref() == Some(id.as_str()) {
+        patch["immersive"] = serde_json::json!({ "theme": null });
+    }
+    state.settings.patch(patch)
+}
+
+/// 导出主题为 `.lens-theme`。
+#[tauri::command]
+pub async fn export_theme(path: PathBuf, theme: crate::themes::CustomTheme) -> Result<()> {
+    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    if ext.as_deref() != Some("lens-theme") {
+        return Err(crate::error::Error::Other(crate::i18n::t("主题文件扩展名应为 .lens-theme", "Theme files use the .lens-theme extension").into()));
+    }
+    let theme = crate::themes::validate(theme)?;
+    tauri::async_runtime::spawn_blocking(move || crate::themes::export(&path, &theme))
+        .await
+        .map_err(|e| crate::error::Error::Other(e.to_string()))?
+}
+
+/// 读入 `.lens-theme` 并加入自定义主题。
+#[tauri::command]
+pub async fn import_theme(state: State<'_, AppState>, path: PathBuf) -> Result<crate::themes::CustomTheme> {
+    let theme = tauri::async_runtime::spawn_blocking(move || crate::themes::import(&path))
+        .await
+        .map_err(|e| crate::error::Error::Other(e.to_string()))??;
+    let mut list = state.settings.get()?.custom_themes;
+    list.push(theme.clone());
+    state.settings.patch(serde_json::json!({ "customThemes": list }))?;
+    Ok(theme)
+}

@@ -1,0 +1,36 @@
+.thumb {
+  height: 96px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.word {
+  font-family: var(--font-gloss);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.search {
+  height: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--panel);
+}
+
+.cards {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.cards i {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+}

@@ -356,6 +356,12 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             <Toggle label={tr("显示右侧上下文栏")} checked={l.showContext} onChange={(v) => setL({ showContext: v })} />
             <Toggle label={tr("显示状态栏")} checked={l.showStatusBar} onChange={(v) => setL({ showStatusBar: v })} />
             <Toggle label={tr("词典跳转条")} checked={l.showJumpBar} onChange={(v) => setL({ showJumpBar: v })} />
+            <Toggle
+              label={tr("义项图谱（实验）")}
+              hint={tr("查词结果上方把几部词典的义项对齐，显示共识与差异")}
+              checked={l.showSenseAtlas}
+              onChange={(v) => setL({ showSenseAtlas: v })}
+            />
             <Toggle label={tr("启动时回到简洁单栏")} hint={tr("不管上次用的是哪种布局")} checked={l.startCompact} onChange={(v) => setL({ startCompact: v })} />
           </div>
         </section>

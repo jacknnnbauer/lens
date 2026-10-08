@@ -27,3 +27,33 @@ export function onLookupResult(cb: (e: LookupResultEvent) => void): Promise<Unli
 export function onLookupDone(cb: (e: LookupDoneEvent) => void): Promise<UnlistenFn> {
   return getCurrentWebviewWindow().listen<LookupDoneEvent>("lookup:done", (e) => cb(e.payload));
 }
+
+// —— 义项图谱（M8 实验） ——
+
+export interface AtlasSense {
+  /** 词典在 dicts 里的下标 */
+  dict: number;
+  /** 在该词典里的顺序 */
+  index: number;
+  text: string;
+  pos: string | null;
+  domain: string | null;
+}
+
+export interface AtlasCluster {
+  label: string;
+  senses: AtlasSense[];
+  dicts: number[];
+  domain: string | null;
+  /** 成员词性不一致时：[词典下标, 词性] */
+  posDiff: Array<[number, string]>;
+}
+
+export interface SenseAtlas {
+  dicts: Array<{ id: string; name: string; senses: number }>;
+  clusters: AtlasCluster[];
+}
+
+export function senseAtlas(word: string, dicts: Array<{ id: string; name: string; entries: string[] }>): Promise<SenseAtlas> {
+  return invoke<SenseAtlas>("sense_atlas", { word, dicts });
+}

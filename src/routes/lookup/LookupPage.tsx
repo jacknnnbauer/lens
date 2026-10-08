@@ -5,6 +5,7 @@ import { DictCard } from "../../components/DictCard";
 import { ExportDialog } from "../../components/ExportDialog";
 import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
+import { SenseAtlas } from "../../components/SenseAtlas";
 import { useDicts } from "../../stores/dicts";
 import { useLookup } from "../../stores/lookup";
 import { useSaveWord } from "../../stores/save";
@@ -52,6 +53,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const [exportOpen, setExportOpen] = useState(false);
   const canExportRef = useRef(false);
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
+  const showAtlas = useSettings((s) => s.settings?.layout.showSenseAtlas) ?? false;
   const updateSettings = useSettings((s) => s.update);
   const setDefaultFormat = (f: CopyFormat) => {
     updateSettings({ copy: { defaultFormat: f } });
@@ -222,6 +224,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           {error}
         </p>
       )}
+
+      {showAtlas && done && hitCount >= 2 && <SenseAtlas word={handle?.normalized || handle?.query || headword} cards={cards} onJump={jumpTo} />}
 
       {visible.map((c) => (
         <DictCard

@@ -75,3 +75,11 @@ pub async fn suggest(state: State<'_, AppState>, prefix: String, limit: usize) -
     let dicts = locals(profile_sources(&state)?);
     Ok(query::prefix_suggestions(&dicts, &prefix, limit.clamp(1, 50)))
 }
+
+/// 义项图谱（实验）：把各词典命中的词条对齐成义项组。前端在查词完成后把命中卡片的词条 HTML 传进来。
+#[tauri::command]
+pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) -> Result<crate::senses::SenseAtlas> {
+    tauri::async_runtime::spawn_blocking(move || crate::senses::build(&word, &dicts))
+        .await
+        .map_err(|e| crate::error::Error::Other(e.to_string()))
+}

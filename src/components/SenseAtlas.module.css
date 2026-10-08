@@ -1,0 +1,290 @@
+/* 义项图谱（画板 01）：结果上方一块面板，综合 / 逐典 / 对比三种视图。 */
+
+.atlas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.exp {
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--sub);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.summary {
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.tabs {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--raised);
+}
+
+.tabs button {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tabs button[aria-selected="true"] {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.link {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.hint {
+  margin: 0;
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.item + .item {
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+}
+
+.no {
+  flex: none;
+  min-width: 18px;
+  color: var(--faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.label:hover {
+  color: var(--accent);
+}
+
+.badges {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
+
+.badge {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--raised);
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.badge:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.consensus {
+  flex: none;
+  color: var(--faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.consensus[data-full] {
+  color: var(--accent);
+}
+
+.diff {
+  margin: -2px 0 6px 28px;
+  color: var(--warn);
+  font-size: 12px;
+}
+
+.members {
+  margin: 0 0 8px 28px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.members li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.members em {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.tag {
+  flex: none;
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.uniqueBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+
+.uniqueBox .members {
+  margin-left: 0;
+}
+
+/* 逐典 */
+.byDict {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.dictCol h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.dictCol h3 small {
+  color: var(--faint);
+  font-weight: 400;
+}
+
+.dictCol ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.ref {
+  display: inline-block;
+  min-width: 26px;
+  margin-right: 6px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.ref[data-unique] {
+  color: var(--faint);
+}
+
+/* 对比 */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.table thead th {
+  text-align: center;
+}
+
+.table tbody th {
+  max-width: 420px;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table td {
+  color: var(--faint);
+  text-align: center;
+}
+
+.table td[data-on] {
+  color: var(--accent);
+}

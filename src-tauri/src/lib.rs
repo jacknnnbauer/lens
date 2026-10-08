@@ -14,6 +14,7 @@ mod online;
 mod protocol;
 mod query;
 mod review;
+mod senses;
 mod settings;
 mod themes;
 
@@ -110,6 +111,7 @@ pub fn run() {
             commands::dicts::reorder_dicts,
             commands::dicts::list_profiles,
             commands::lookup::lookup,
+            commands::lookup::sense_atlas,
             commands::lookup::cancel_lookup,
             commands::lookup::suggest,
             commands::history::record_history,

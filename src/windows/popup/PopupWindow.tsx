@@ -85,10 +85,13 @@ export function PopupWindow() {
   const active = hits.find((c) => c.id === tab) ?? hits[0];
   const ctx = capture?.sentence ?? null;
 
+  // Tab / Shift+Tab：滚到下一本 / 上一本词典的卡片（复制等操作针对这本）
   const cycleTab = (dir: 1 | -1) => {
     if (hits.length === 0) return;
     const i = Math.max(0, hits.findIndex((c) => c.id === active?.id));
-    setTab(hits[(i + dir + hits.length) % hits.length].id);
+    const next = hits[(i + dir + hits.length) % hits.length].id;
+    setTab(next);
+    document.getElementById(`pcard-${next}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -186,33 +189,21 @@ export function PopupWindow() {
         </button>
       </label>
 
-      {hits.length > 0 && (
-        <div role="tablist" aria-label="词典" className={styles.tabs}>
-          {hits.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="tab"
-              id={`tab-${c.id}`}
-              aria-selected={c.id === active?.id}
-              aria-controls="popup-panel"
-              tabIndex={-1}
-              className={styles.tab}
-              onClick={() => setTab(c.id)}
-            >
-              {c.name}
-            </button>
-          ))}
-          <span className={styles.tabHint}>Tab</span>
-        </div>
-      )}
-
-      <div className={styles.body} id="popup-panel" role={active ? "tabpanel" : undefined} aria-labelledby={active ? `tab-${active.id}` : undefined}>
-        {active ? (
-          active.entries.map((e, i) => (
-            <div key={`${active.id}-${i}`} className={styles.entry}>
-              <DictBody html={e.html} onEntry={lookupWord} dictId={active.id} />
-            </div>
+      {/* 与简洁单栏一样：每本词典一张卡片，依次排列，不折叠 */}
+      <div className={styles.body}>
+        {hits.length > 0 ? (
+          hits.map((c) => (
+            <article key={c.id} id={`pcard-${c.id}`} className={styles.card} data-active={(c.id === active?.id && hits.length > 1) || undefined}>
+              <h2 className={styles.cardHead}>
+                {c.name}
+                {c.source !== "local" && <span className={styles.cardTag}>{c.source === "api" ? "在线" : "网页"}</span>}
+              </h2>
+              {c.entries.map((e, i) => (
+                <div key={`${c.id}-${i}`} className={styles.entry}>
+                  <DictBody html={e.html} onEntry={lookupWord} dictId={c.id} />
+                </div>
+              ))}
+            </article>
           ))
         ) : !handle ? (
           <p className={styles.note}>输入单词后按 Enter 查询。</p>

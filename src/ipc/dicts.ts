@@ -17,6 +17,11 @@ export function removeDict(id: string): Promise<boolean> {
   return invoke<boolean>("remove_dict", { id });
 }
 
+/** 调整词典顺序（所有场景配置组都按这个顺序） */
+export function reorderDicts(ids: string[]): Promise<void> {
+  return invoke("reorder_dicts", { ids });
+}
+
 export function listProfiles(): Promise<ProfileInfo[]> {
   return invoke<ProfileInfo[]>("list_profiles");
 }

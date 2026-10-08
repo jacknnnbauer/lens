@@ -22,6 +22,8 @@ export interface Layout {
   showStatusBar: boolean;
   showJumpBar: boolean;
   cardsExpanded: "first2" | "all" | "none";
+  /** 每次启动都回到简洁单栏 */
+  startCompact: boolean;
 }
 
 export interface Immersive {

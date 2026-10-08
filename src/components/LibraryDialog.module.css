@@ -114,6 +114,35 @@
   border-top: 1px solid var(--line);
 }
 
+.order {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.moveBtn {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.moveBtn:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.moveBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .info {
   flex: 1 1 auto;
   min-width: 0;

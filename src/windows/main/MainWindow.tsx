@@ -84,6 +84,16 @@ export function MainWindow() {
     [updateNow],
   );
 
+  // 启动时回到简洁单栏（设置 › 布局，默认开）
+  const startApplied = useRef(false);
+  useEffect(() => {
+    if (!layout || startApplied.current) return;
+    startApplied.current = true;
+    if (layout.startCompact) {
+      useSettings.getState().updateLayout({ preset: "compact", showNav: false, showContext: false, showStatusBar: false });
+    }
+  }, [layout]);
+
   // 标题栏按钮 / Ctrl+\：随时显示或隐藏左侧导航
   const toggleNav = useCallback(() => {
     const cur = useSettings.getState().settings?.layout.showNav ?? false;
@@ -175,7 +185,6 @@ export function MainWindow() {
             onOpenLibrary={() => setLibraryOpen(true)}
             showJumpBar={layout?.showJumpBar ?? true}
             showHeadword={showNav && !immersive}
-            expandMode={layout?.cardsExpanded ?? "first2"}
             actions={
               <>
                 <button type="button" className={styles.iconBtn} aria-label="生词本" title="生词本（Ctrl+B）" onClick={() => go("wordbook")}>

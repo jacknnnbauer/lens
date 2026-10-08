@@ -49,8 +49,10 @@ pub struct Layout {
     pub show_context: bool,
     pub show_status_bar: bool,
     pub show_jump_bar: bool,
-    /// 默认展开哪些卡片：first2 | all | none
+    /// 默认展开哪些卡片：first2 | all | none（卡片已改为始终展开，保留字段以兼容旧设置）
     pub cards_expanded: String,
+    /// 每次启动都回到简洁单栏
+    pub start_compact: bool,
 }
 
 impl Default for Layout {
@@ -63,6 +65,7 @@ impl Default for Layout {
             show_status_bar: false,
             show_jump_bar: true,
             cards_expanded: "first2".into(),
+            start_compact: true,
         }
     }
 }

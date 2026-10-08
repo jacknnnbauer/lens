@@ -17,7 +17,7 @@ interface Props {
 
 export function LibraryDialog({ open, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const { dicts, imports, error, importPaths, remove } = useDicts();
+  const { dicts, imports, error, importPaths, remove, move } = useDicts();
   const [confirming, setConfirming] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState<string | null>(null);
@@ -82,9 +82,28 @@ export function LibraryDialog({ open, onClose }: Props) {
         <p className={styles.empty}>还没有导入词典。支持 MDict（.mdx，同目录的 .mdd 自动带上）、StarDict（.ifo）和 Lens JSON。</p>
       ) : (
         <ul className={styles.list}>
-          {dicts.map((d) => (
-            <li key={d.id} className={styles.item}>
+          {dicts.map((d, index) => (
+            <li
+              key={d.id}
+              className={styles.item}
+              onKeyDown={(e) => {
+                // Alt+↑ / Alt+↓ 移动（画板 03）
+                if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+                e.preventDefault();
+                void move(d.id, e.key === "ArrowUp" ? -1 : 1).then(() =>
+                  requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`[data-move-up="${CSS.escape(d.id)}"]`)?.focus()),
+                );
+              }}
+            >
               <div className={styles.row}>
+                <span className={styles.order}>
+                  <button type="button" className={styles.moveBtn} data-move-up={d.id} aria-label={`上移 ${d.name}`} title="上移（Alt+↑）" disabled={index === 0} onClick={() => void move(d.id, -1)}>
+                    ↑
+                  </button>
+                  <button type="button" className={styles.moveBtn} aria-label={`下移 ${d.name}`} title="下移（Alt+↓）" disabled={index === dicts.length - 1} onClick={() => void move(d.id, 1)}>
+                    ↓
+                  </button>
+                </span>
                 <div className={styles.info}>
                   <span className={styles.name}>{d.name}</span>
                   <span className={styles.meta}>
@@ -131,7 +150,7 @@ export function LibraryDialog({ open, onClose }: Props) {
           ))}
         </ul>
       )}
-      <p className={styles.note}>移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。</p>
+      <p className={styles.note}>查词结果与导出按这里的顺序排列，可用 ↑ ↓ 或 Alt+↑ / Alt+↓ 调整。移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。</p>
     </dialog>
   );
 }

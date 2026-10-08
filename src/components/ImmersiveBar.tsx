@@ -29,7 +29,7 @@ function stepCard(dir: 1 | -1) {
   const target = cards[index];
   if (!target) return;
   target.scrollIntoView({ block: "start", behavior: "smooth" });
-  target.querySelector<HTMLButtonElement>("[data-card-toggle]")?.focus({ preventScroll: true });
+  target.querySelector<HTMLElement>("[data-card-toggle]")?.focus({ preventScroll: true });
 }
 
 /** 主窗口调用一次：把开关状态落实到 <html> 标记、窗口外观与快捷键上。 */

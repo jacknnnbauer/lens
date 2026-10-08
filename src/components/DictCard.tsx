@@ -1,4 +1,5 @@
-// 词典卡片（SPEC 9.3、画板 05）：标题行是一个按钮，Space/Enter 展开折叠；折叠时显示一行摘要。
+// 词典卡片（SPEC 9.3、画板 05）：始终展开，不折叠（再长也完整显示）。
+// 标题可获得焦点，Tab / Shift+Tab、J / K 在卡片之间跳转。
 
 import type { CopyFormat } from "../copy/convert";
 import { DictBody } from "../dict-render/DictBody";
@@ -6,14 +7,11 @@ import { openWebDict } from "../ipc/online";
 import type { Card } from "../stores/lookup";
 import styles from "./DictCard.module.css";
 import { CopyMenu } from "./CopyMenu";
-import { ChevronIcon } from "./icons";
 
 interface Props {
   card: Card;
-  expanded: boolean;
-  onToggle: () => void;
   onEntry: (word: string) => void;
-  onToggleKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  onToggleKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
   copyFormat: CopyFormat;
   onCopy: (format: CopyFormat) => void;
   onSetDefaultFormat: (format: CopyFormat) => void;
@@ -30,24 +28,15 @@ function fmtDate(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, copyFormat, onCopy, onSetDefaultFormat, onQueryOnline }: Props) {
-  const bodyId = `dict-body-${card.id}`;
-  const summary = card.entries[0]?.summary ?? "";
+export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, onSetDefaultFormat, onQueryOnline }: Props) {
   const pending = card.status === "pending";
 
   return (
     <article id={`dict-${card.id}`} className={styles.card} aria-busy={pending}>
       <div className={styles.header}>
-        <h2 className={styles.heading}>
-          <button
-            type="button"
-            className={styles.toggle}
-            aria-expanded={expanded}
-            aria-controls={bodyId}
-            data-card-toggle={card.id}
-            onClick={onToggle}
-            onKeyDown={onToggleKeyDown}
-          >
+        {/* 标题可聚焦，作为卡片间跳转的落点（不是按钮：卡片不折叠） */}
+        <h2 className={styles.heading} tabIndex={0} data-card-toggle={card.id} onKeyDown={onToggleKeyDown}>
+          <span className={styles.toggle}>
             <strong className={styles.name}>{card.name}</strong>
             {SOURCE_TAG[card.source] && <span className={styles.tag}>{SOURCE_TAG[card.source]}</span>}
             {card.cachedAt != null && (
@@ -55,12 +44,8 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, c
                 {card.stale ? "离线缓存" : "缓存"} · {fmtDate(card.cachedAt)}
               </span>
             )}
-            {!expanded && summary && <span className={styles.summary}>{summary}</span>}
             {card.entries.length > 1 && <span className={styles.count}>{card.entries.length} 条</span>}
-            <span className={styles.chevron}>
-              <ChevronIcon open={expanded} />
-            </span>
-          </button>
+          </span>
         </h2>
         {card.source !== "web" && (
           <CopyMenu
@@ -73,7 +58,7 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, c
         )}
       </div>
 
-      <div id={bodyId} hidden={!expanded}>
+      <div>
         {pending && (
           <div className={styles.skeleton} aria-label="正在查询">
             <span />
@@ -102,12 +87,11 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, c
             查询出错：{card.error}
           </p>
         )}
-        {expanded &&
-          card.entries.map((e, i) => (
-            <div key={i} className={styles.entry}>
-              <DictBody html={e.html} onEntry={onEntry} dictId={card.id} />
-            </div>
-          ))}
+        {card.entries.map((e, i) => (
+          <div key={i} className={styles.entry}>
+            <DictBody html={e.html} onEntry={onEntry} dictId={card.id} />
+          </div>
+        ))}
       </div>
     </article>
   );

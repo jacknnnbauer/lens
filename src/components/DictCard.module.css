@@ -16,6 +16,7 @@
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
+  border-radius: 14px 0 0 0;
   font: inherit;
 }
 
@@ -24,16 +25,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 14px 4px 14px 20px;
-  border: 0;
-  border-radius: 14px 0 0 14px;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.toggle[aria-expanded="true"] {
-  padding-bottom: 10px;
+  padding: 14px 4px 10px 20px;
 }
 
 .name {
@@ -48,15 +40,6 @@
   white-space: nowrap;
 }
 
-.summary {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-gloss);
-  color: var(--sub);
-}
 
 .count {
   font-size: 11px;
@@ -64,11 +47,6 @@
   white-space: nowrap;
 }
 
-.chevron {
-  display: flex;
-  margin-left: auto;
-  color: var(--sub);
-}
 
 .entry {
   padding: 0 20px 20px;

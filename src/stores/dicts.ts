@@ -1,7 +1,8 @@
 // 词典库：列表、导入进度、删除。
 
 import { create } from "zustand";
-import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict } from "../ipc/dicts";
+import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict, reorderDicts } from "../ipc/dicts";
+import { useLookup } from "./lookup";
 import type { DictInfo, IndexProgress, ProfileInfo } from "../ipc/types";
 
 interface DictsState {
@@ -14,6 +15,8 @@ interface DictsState {
   refresh: () => Promise<void>;
   importPaths: (paths: string[]) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** 上移（-1）/ 下移（+1）；当前查询随即按新顺序重查 */
+  move: (id: string, dir: -1 | 1) => Promise<void>;
 }
 
 export const useDicts = create<DictsState>((set, get) => ({
@@ -38,6 +41,25 @@ export const useDicts = create<DictsState>((set, get) => ({
       await importDicts(paths);
     } catch (e) {
       set({ error: String(e) });
+    }
+  },
+
+  move: async (id, dir) => {
+    const ids = get().dicts.map((d) => d.id);
+    const i = ids.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    // 先在界面上换位，再写库
+    const byId = new Map(get().dicts.map((d) => [d.id, d]));
+    set({ dicts: ids.flatMap((x) => byId.get(x) ?? []) });
+    try {
+      await reorderDicts(ids);
+      await get().refresh();
+      await useLookup.getState().rerun();
+    } catch (e) {
+      set({ error: String(e) });
+      await get().refresh();
     }
   },
 

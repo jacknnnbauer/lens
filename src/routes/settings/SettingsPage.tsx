@@ -38,7 +38,6 @@ const SHORTCUTS: Array<[string, string]> = [
   ["Ctrl+K", "聚焦搜索框"],
   ["↑ ↓", "候选 / 义项移动"],
   ["Tab / Shift+Tab", "下一本 / 上一本词典"],
-  ["Space", "展开 / 折叠当前词典"],
   ["Ctrl+S", "收藏（带语境句）"],
   ["Ctrl+Shift+C", "复制当前词典（默认格式）"],
   ["Ctrl+Shift+A", "合并复制所有展开的词典"],
@@ -338,16 +337,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
             <Toggle label="显示右侧上下文栏" checked={l.showContext} onChange={(v) => setL({ showContext: v })} />
             <Toggle label="显示状态栏" checked={l.showStatusBar} onChange={(v) => setL({ showStatusBar: v })} />
             <Toggle label="词典跳转条" checked={l.showJumpBar} onChange={(v) => setL({ showJumpBar: v })} />
-            <Select
-              label="卡片默认"
-              value={l.cardsExpanded}
-              options={[
-                ["first2", "前 2 本展开"],
-                ["all", "全部展开"],
-                ["none", "全部折叠"],
-              ]}
-              onChange={(v) => setL({ cardsExpanded: v })}
-            />
+            <Toggle label="启动时回到简洁单栏" hint="不管上次用的是哪种布局" checked={l.startCompact} onChange={(v) => setL({ startCompact: v })} />
           </div>
         </section>
 

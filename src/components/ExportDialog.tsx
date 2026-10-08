@@ -45,6 +45,8 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
   const [paper, setPaper] = useState<Paper>("a4");
   const [options, setOptions] = useState<ExportOptions>({ phonetics: true, examples: true, context: true, sourceDate: true });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** 本次导出里词典的先后（默认按词典库顺序，可在这里调整） */
+  const [order, setOrder] = useState<string[]>([]);
   const [context, setContext] = useState<ContextRow | null>(null);
   const [name, setName] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -62,6 +64,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
         setPaper(prefs.paper);
       }
       setSelected(new Set(hits.map((c) => c.id)));
+      setOrder(hits.map((c) => c.id));
       setName(`${safeFileName(word)}_${isoDate(new Date())}`);
       setPhase({ kind: "idle" });
       setContext(null);
@@ -73,7 +76,21 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const chosen = hits.filter((c) => selected.has(c.id));
+  const ordered = [...hits].sort((a, b) => {
+    const ia = order.indexOf(a.id);
+    const ib = order.indexOf(b.id);
+    return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib);
+  });
+  const chosen = ordered.filter((c) => selected.has(c.id));
+  const move = (id: string, dir: -1 | 1) =>
+    setOrder(() => {
+      const ids = ordered.map((c) => c.id);
+      const i = ids.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= ids.length) return ids;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      return ids;
+    });
   const ext = format === "pdf" ? "pdf" : "html";
 
   const doExport = async () => {
@@ -154,13 +171,21 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
 
           <fieldset>
             <legend>
-              包含的词典 <small>{chosen.length} / {hits.length} · 按查词顺序</small>
+              包含的词典 <small>{chosen.length} / {hits.length} · 可用 ↑ ↓ 调整先后</small>
             </legend>
             <div className={styles.dicts}>
-              {hits.map((c) => (
+              {ordered.map((c, i) => (
                 <label key={c.id}>
                   <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                   {c.name}
+                  <span className={styles.moves}>
+                    <button type="button" aria-label={`上移 ${c.name}`} disabled={i === 0} onClick={() => move(c.id, -1)}>
+                      ↑
+                    </button>
+                    <button type="button" aria-label={`下移 ${c.name}`} disabled={i === ordered.length - 1} onClick={() => move(c.id, 1)}>
+                      ↓
+                    </button>
+                  </span>
                   {c.source !== "local" && <small>在线</small>}
                 </label>
               ))}

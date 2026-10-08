@@ -24,7 +24,19 @@ struct LogGuard(#[allow(dead_code)] tracing_appender::non_blocking::WorkerGuard)
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let result = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    // 只允许一个实例：再次打开时把已有的主窗口拿到前台（必须最先注册）。
+    // 开发时用 LENS_DATA_DIR 隔开数据的实例不受限制，可与已安装的版本同时运行
+    if std::env::var_os("LENS_DATA_DIR").is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }));
+    }
+    let result = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(
@@ -88,6 +100,7 @@ pub fn run() {
             commands::dicts::list_dicts,
             commands::dicts::import_dicts,
             commands::dicts::remove_dict,
+            commands::dicts::reorder_dicts,
             commands::dicts::list_profiles,
             commands::lookup::lookup,
             commands::lookup::cancel_lookup,

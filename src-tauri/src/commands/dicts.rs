@@ -29,9 +29,13 @@ pub struct DictInfo {
     pub options: Option<OnlineOptions>,
 }
 
+/// 词典列表，按当前场景配置组里的顺序。
 #[tauri::command]
 pub async fn list_dicts(state: State<'_, AppState>) -> Result<Vec<DictInfo>> {
-    let rows = state.db.with_conn(dicts::list)?;
+    let mut rows = state.db.with_conn(dicts::list)?;
+    let profile = state.settings.get()?.active_profile;
+    let order = state.db.with_conn(|c| dicts::profile_order(c, &profile))?;
+    rows.sort_by_key(|r| order.iter().position(|id| id == &r.id).unwrap_or(usize::MAX));
     rows.into_iter()
         .map(|r| {
             let online = if r.kind == "online" { state.online.get(&r.id)? } else { None };
@@ -121,6 +125,12 @@ pub async fn remove_dict(state: State<'_, AppState>, id: String) -> Result<bool>
         return state.db.with_conn(|c| dicts::delete(c, &id));
     }
     import::remove_dict(&state.db, &state.dicts, &id)
+}
+
+/// 调整词典顺序（词典库里上移 / 下移）。
+#[tauri::command]
+pub async fn reorder_dicts(state: State<'_, AppState>, ids: Vec<String>) -> Result<()> {
+    state.db.with_conn(|c| dicts::reorder(c, &ids))
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -133,8 +133,31 @@
   border-top: 1px solid var(--line);
 }
 
-.dicts small {
+.moves {
+  display: flex;
+  gap: 2px;
   margin-left: auto;
+}
+
+.moves button {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.moves button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.dicts small {
   font-size: 12px;
   color: var(--faint);
 }

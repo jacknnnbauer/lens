@@ -163,6 +163,38 @@ pub fn rename(conn: &Connection, id: &str, name: &str) -> Result<()> {
     Ok(())
 }
 
+/// 场景配置组里所有词典（含停用的）的先后顺序。
+pub fn profile_order(conn: &Connection, profile_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT dict_id FROM profile_dict WHERE profile_id = ?1 ORDER BY sort, dict_id")?;
+    let ids = stmt.query_map(params![profile_id], |r| r.get(0))?;
+    Ok(ids.collect::<rusqlite::Result<Vec<String>>>()?)
+}
+
+/// 调整词典顺序：按 `ids` 的先后写进每个场景配置组（查词结果、导出都按这个顺序）。
+/// 不在 `ids` 里的词典排在后面，保持原有相对顺序。
+pub fn reorder(conn: &Connection, ids: &[String]) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    let profiles: Vec<String> = {
+        let mut stmt = tx.prepare("SELECT id FROM profile")?;
+        let rows = stmt.query_map([], |r| r.get(0))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    for p in profiles {
+        let mut order: Vec<String> = ids.to_vec();
+        for id in profile_order(&tx, &p)? {
+            if !order.contains(&id) {
+                order.push(id);
+            }
+        }
+        let mut stmt = tx.prepare("UPDATE profile_dict SET sort = ?3 WHERE profile_id = ?1 AND dict_id = ?2")?;
+        for (i, id) in order.iter().enumerate() {
+            stmt.execute(params![p, id, i as i64])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
+
 /// 删除词典（profile_dict 级联删除）。返回是否真的删掉了一行。
 pub fn delete(conn: &Connection, id: &str) -> Result<bool> {
     Ok(conn.execute("DELETE FROM dict WHERE id = ?1", params![id])? > 0)
@@ -177,4 +209,41 @@ pub fn profiles(conn: &Connection) -> Result<Vec<(String, String, i64)>> {
     )?;
     let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::migrations;
+
+    fn row(id: &str, at: i64) -> DictRow {
+        DictRow {
+            id: id.into(),
+            name: id.into(),
+            kind: "json".into(),
+            path: None,
+            category: None,
+            entry_count: None,
+            index_path: None,
+            index_state: IndexState::Ready,
+            created_at: at,
+            provider: None,
+            options: None,
+        }
+    }
+
+    #[test]
+    fn reorder_applies_to_every_profile() -> Result<()> {
+        let mut conn = Connection::open_in_memory()?;
+        migrations::apply(&mut conn)?;
+        for (i, id) in ["a", "b", "c"].iter().enumerate() {
+            insert(&conn, &row(id, i as i64))?;
+        }
+        assert_eq!(profile_order(&conn, "reading")?, ["a", "b", "c"]);
+        reorder(&conn, &["c".to_string(), "a".to_string()])?;
+        assert_eq!(profile_order(&conn, "reading")?, ["c", "a", "b"]);
+        assert_eq!(profile_order(&conn, "coding")?, ["c", "a", "b"]);
+        assert_eq!(enabled_for_profile(&conn, "translate")?, ["c", "a", "b"]);
+        Ok(())
+    }
 }

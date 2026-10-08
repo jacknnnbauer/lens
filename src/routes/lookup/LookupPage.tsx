@@ -6,7 +6,7 @@ import { ExportDialog } from "../../components/ExportDialog";
 import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { useDicts } from "../../stores/dicts";
-import { isExpanded, useLookup, type ExpandMode } from "../../stores/lookup";
+import { useLookup } from "../../stores/lookup";
 import { useSaveWord } from "../../stores/save";
 import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
@@ -31,18 +31,17 @@ interface Props {
   showJumpBar: boolean;
   /** 双栏/三栏：结果上方显示大号词头（画板 01） */
   showHeadword: boolean;
-  expandMode: ExpandMode;
 }
 
-function cardToggles(): HTMLButtonElement[] {
-  return Array.from(document.querySelectorAll<HTMLButtonElement>("[data-card-toggle]"));
+function cardToggles(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-card-toggle]"));
 }
 
 export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPage(
-  { actions, onOpenLibrary, showJumpBar, showHeadword, expandMode },
+  { actions, onOpenLibrary, showJumpBar, showHeadword },
   ref,
 ) {
-  const { handle, cards, done, suggestions, expanded, error, search, setExpanded, commit, queryOnline } = useLookup();
+  const { handle, cards, done, suggestions, error, search, commit, queryOnline } = useLookup();
   const dictCount = useDicts((s) => s.dicts.filter((d) => d.loaded).length);
   const dictsLoaded = useDicts((s) => s.loaded);
   const searchBox = useRef<SearchBoxHandle>(null);
@@ -123,15 +122,13 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   // 未收录的只在底部列名；本地已命中而没查的在线词典不显示
   const visible = cards.filter((c) => c.status !== "miss" && c.status !== "skipped");
   const missed = cards.filter((c) => c.status === "miss");
-  let hitRank = 0;
-  const ranks = new Map(visible.map((c) => [c.id, c.status === "hit" ? hitRank++ : Number.POSITIVE_INFINITY]));
   const allMissed = done && handle && visible.length === 0;
-  const hitCount = hitRank;
+  const hitCount = cards.filter((c) => c.status === "hit").length;
   const headword = cards.find((c) => c.status === "hit")?.entries[0]?.headword ?? "";
   canExportRef.current = anyHit;
 
   // Tab / Shift+Tab 在卡片之间跳转（SPEC 9.4），不进入词条内部的链接
-  const onToggleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+  const onToggleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key !== "Tab") return;
     const toggles = cardToggles();
     const i = toggles.indexOf(e.currentTarget);
@@ -144,7 +141,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     }
   };
 
-  const expandedHits = visible.filter((c) => c.status === "hit" && isExpanded(c, ranks.get(c.id) ?? Infinity, expanded, expandMode));
+  const expandedHits = visible.filter((c) => c.status === "hit");
   const copyKeyRef = useRef<(k: string) => void>(() => undefined);
   copyKeyRef.current = (k) => {
     if (k === "a") {
@@ -157,10 +154,9 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   };
 
   const jumpTo = (id: string) => {
-    setExpanded(id, true);
     const el = document.getElementById(`dict-${id}`);
     el?.scrollIntoView({ block: "start", behavior: "smooth" });
-    el?.querySelector<HTMLButtonElement>("[data-card-toggle]")?.focus({ preventScroll: true });
+    el?.querySelector<HTMLElement>("[data-card-toggle]")?.focus({ preventScroll: true });
   };
 
   return (
@@ -230,8 +226,6 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         <DictCard
           key={c.id}
           card={c}
-          expanded={c.status === "pending" || isExpanded(c, ranks.get(c.id) ?? Infinity, expanded, expandMode)}
-          onToggle={() => setExpanded(c.id, !isExpanded(c, ranks.get(c.id) ?? Infinity, expanded, expandMode))}
           onEntry={lookupWord}
           onToggleKeyDown={onToggleKeyDown}
           copyFormat={copyCfg.defaultFormat}
@@ -281,7 +275,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} word={headword || handle?.normalized || ""} cards={cards} />
 
-      {visible.length > 0 && <p className={styles.footHint}>标题栏按 Space 展开 / 折叠 · Ctrl+Shift+C 复制当前词典 · Ctrl+Shift+A 合并复制全部展开的词典</p>}
+      {visible.length > 0 && <p className={styles.footHint}>Tab / Shift+Tab 在词典之间跳转 · Ctrl+Shift+C 复制当前词典 · Ctrl+Shift+A 合并复制全部词典</p>}
     </div>
   );
 });

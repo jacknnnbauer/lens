@@ -87,6 +87,12 @@
 
 /* 派生变量放在最后，跟随当前 --accent */
 :root {
+  /* 滚动条：细、浅，悬停时加深（随主题文字色） */
+  --scrollbar: color-mix(in srgb, var(--text) 16%, transparent);
+  --scrollbar-hover: color-mix(in srgb, var(--text) 32%, transparent);
+  /* 自绘标题栏的关闭按钮悬停色（与系统一致，不随主题） */
+  --close-hover: #C42B1C;
+  --close-hover-ink: #FFFFFF;
   --hl: color-mix(in srgb, var(--accent) 14%, transparent);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
 }

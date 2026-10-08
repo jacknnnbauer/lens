@@ -161,7 +161,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
                 <label key={c.id}>
                   <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                   {c.name}
-                  <small>{c.source === "local" ? "离线" : "在线"}</small>
+                  {c.source !== "local" && <small>在线</small>}
                 </label>
               ))}
             </div>

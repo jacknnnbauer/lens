@@ -3,7 +3,7 @@
 .page {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: calc(100vh - var(--titlebar-h, 0px));
 }
 
 .nav {
@@ -14,7 +14,8 @@
   flex-direction: column;
   gap: 2px;
   padding: 20px 12px;
-  max-height: 100vh;
+  max-height: calc(100vh - var(--titlebar-h, 0px));
+  scrollbar-width: none;
   overflow-y: auto;
 }
 

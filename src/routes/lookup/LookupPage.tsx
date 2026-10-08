@@ -12,6 +12,7 @@ import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
 import type { CopyFormat } from "../../copy/convert";
 import { copyCard, copyMerged, DEFAULT_COPY, FORMAT_NAME } from "../../copy/copy";
+import { scrollRoot } from "../../windows/main/scroll";
 import styles from "./LookupPage.module.css";
 
 const IDLE_COMMIT_MS = 1500;
@@ -61,7 +62,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     (word: string) => {
       searchBox.current?.setValue(word);
       void search(word, { commit: true });
-      window.scrollTo({ top: 0 });
+      scrollRoot().scrollTo({ top: 0 });
     },
     [search],
   );

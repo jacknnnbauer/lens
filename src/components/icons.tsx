@@ -79,3 +79,45 @@ export const DownloadIcon = ({ size = 18 }) => (
     <path d="M5 19h14" />
   </svg>
 );
+
+/** 侧栏开关 */
+export const SidebarIcon = ({ size = 16 }) => (
+  <svg {...base(size)}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M9.5 4.5v15" />
+  </svg>
+);
+
+/** 沉浸模式：四角向外 */
+export const ImmersiveIcon = ({ size = 18 }) => (
+  <svg {...base(size)}>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+  </svg>
+);
+
+/** 窗口按钮：线宽 1，与系统标题栏一致 */
+const thin = (size: number): SVGProps<SVGSVGElement> => ({ ...base(size), viewBox: "0 0 10 10", strokeWidth: 1, strokeLinecap: "butt", strokeLinejoin: "miter" });
+
+export const MinimizeIcon = () => (
+  <svg {...thin(10)}>
+    <path d="M0 5.5h10" />
+  </svg>
+);
+
+export const MaximizeIcon = ({ restore = false }) =>
+  restore ? (
+    <svg {...thin(10)}>
+      <rect x="0.5" y="2.5" width="7" height="7" />
+      <path d="M2.5 2.5V0.5h7v7h-2" />
+    </svg>
+  ) : (
+    <svg {...thin(10)}>
+      <rect x="0.5" y="0.5" width="9" height="9" />
+    </svg>
+  );
+
+export const WindowCloseIcon = () => (
+  <svg {...thin(10)}>
+    <path d="M0 0l10 10M10 0L0 10" />
+  </svg>
+);

@@ -120,35 +120,9 @@
   color: var(--warn);
 }
 
-/* 沉浸模式（SPEC 9.2）：去掉卡片边框与复制按钮，词典之间只用小标题分隔 */
-:global(html[data-immersive-cards]) .card {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
-
-:global(html[data-immersive-cards]) .header > :not(.heading),
-:global(html[data-immersive-cards]) .tag {
+/* 沉浸模式（SPEC 9.2）：卡片与简洁单栏一样，只隐藏复制按钮 */
+:global(html[data-immersive-cards]) .header > :not(.heading) {
   display: none;
-}
-
-:global(html[data-immersive-cards]) .toggle {
-  padding-left: 0;
-  border-radius: 8px;
-}
-
-:global(html[data-immersive-cards]) .name {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  color: var(--faint);
-}
-
-:global(html[data-immersive-cards]) .entry,
-:global(html[data-immersive-cards]) .skeleton,
-:global(html[data-immersive-cards]) .error {
-  padding-left: 0;
-  padding-right: 0;
 }
 
 /* 在线词典：手动查询 / 网页模式的占位行 */

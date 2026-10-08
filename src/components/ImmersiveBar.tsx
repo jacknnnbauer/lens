@@ -1,4 +1,4 @@
-// 沉浸模式（SPEC 9.2、画板 12）：窗口外观（无边框 / 全屏）、F11 / Esc、J / K 翻词典，
+// 沉浸模式（SPEC 9.2、画板 12）：隐藏标题栏等界面（由主窗口按设置处理）、可选全屏、F11 / Esc、J / K 翻词典，
 // 以及鼠标停在顶部 48px 内 300ms 浮现、离开 1.5 秒隐藏的工具栏。
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -61,17 +61,16 @@ export function useImmersiveMode() {
     }
   }, [on, cards, width]);
 
-  // 无边框 / 全屏；退出时恢复。只在开关变化后改窗口，启动时不碰
-  const undecorate = !!prefs && (prefs.hideTitleBar || prefs.borderless);
+  // 全屏；退出时恢复。主窗口没有系统标题栏（自绘），隐藏标题栏由主窗口处理。只在开关变化后改窗口，启动时不碰
   const fullscreen = !!prefs?.fullscreen;
   const touched = useRef(false);
   useEffect(() => {
     if (!on && !touched.current) return;
     touched.current = true;
-    const w = getCurrentWindow();
-    void w.setDecorations(!(on && undecorate)).catch(() => undefined);
-    void w.setFullscreen(on && fullscreen).catch(() => undefined);
-  }, [on, undecorate, fullscreen]);
+    void getCurrentWindow()
+      .setFullscreen(on && fullscreen)
+      .catch(() => undefined);
+  }, [on, fullscreen]);
 
   // F11 进入 / 退出；Esc 退出（对话框、菜单、搜索框先处理自己的 Esc）；J / K 翻词典
   useEffect(() => {

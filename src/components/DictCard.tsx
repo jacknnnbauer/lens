@@ -21,7 +21,8 @@ interface Props {
   onQueryOnline: () => void;
 }
 
-const SOURCE_TAG = { local: "离线", api: "在线", web: "网页" } as const;
+/** 只标在线来源；本地词典是默认情况，不加标签 */
+const SOURCE_TAG = { local: null, api: "在线", web: "网页" } as const;
 
 function fmtDate(ms: number): string {
   const d = new Date(ms);
@@ -48,7 +49,7 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, c
             onKeyDown={onToggleKeyDown}
           >
             <strong className={styles.name}>{card.name}</strong>
-            <span className={styles.tag}>{SOURCE_TAG[card.source]}</span>
+            {SOURCE_TAG[card.source] && <span className={styles.tag}>{SOURCE_TAG[card.source]}</span>}
             {card.cachedAt != null && (
               <span className={styles.tag} data-stale={card.stale || undefined} title={card.stale ? `联网失败：${card.error ?? ""}` : undefined}>
                 {card.stale ? "离线缓存" : "缓存"} · {fmtDate(card.cachedAt)}

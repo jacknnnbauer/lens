@@ -1,0 +1,71 @@
+/* 自绘标题栏：颜色全部取主题变量，切换主题时一起变 */
+
+.bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: var(--titlebar-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  color: var(--sub);
+  font-size: 12px;
+  user-select: none;
+}
+
+.navBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--sub);
+  cursor: pointer;
+}
+
+.navBtn:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+}
+
+.controls {
+  display: flex;
+  height: 100%;
+}
+
+.ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--sub);
+  cursor: default;
+}
+
+.ctrl:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.close:hover {
+  background: var(--close-hover);
+  color: var(--close-hover-ink);
+}
+
+.navBtn:focus-visible,
+.ctrl:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}

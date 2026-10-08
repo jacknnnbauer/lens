@@ -1,11 +1,30 @@
-/* 网格：[左侧导航] 主区 [右侧栏]，状态栏横跨底部。页面整体随窗口滚动，两侧栏吸顶。 */
+/* 窗口：自绘标题栏 + 下方滚动容器（滚动条不会伸到标题栏旁边） */
+.frame {
+  --titlebar-h: 0px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.frame[data-titlebar] {
+  --titlebar-h: 32px;
+}
+
+.scroller {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 网格：[左侧导航] 主区 [右侧栏]，状态栏横跨底部。主区随容器滚动，两侧栏吸顶。 */
 .shell {
   --nav-w: 220px;
   --context-w: 280px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr auto;
-  min-height: 100vh;
+  min-height: 100%;
 }
 
 .shell[data-nav] {
@@ -24,11 +43,17 @@
   position: sticky;
   top: 0;
   align-self: start;
-  max-height: 100vh;
+  max-height: calc(100vh - var(--titlebar-h));
   overflow-y: auto;
   border-right: 1px solid var(--line);
   background: var(--panel);
-  min-height: 100vh;
+  min-height: calc(100vh - var(--titlebar-h));
+  /* 侧栏能滚但不显示滚动条 */
+  scrollbar-width: none;
+}
+
+.side::-webkit-scrollbar {
+  display: none;
 }
 
 .context {

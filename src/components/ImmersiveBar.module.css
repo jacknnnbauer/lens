@@ -2,7 +2,8 @@
 
 .zone {
   position: fixed;
-  top: 0;
+  /* 保留标题栏时让开它，不挡住窗口按钮 */
+  top: var(--titlebar-h, 0px);
   left: 0;
   right: 0;
   z-index: 20;

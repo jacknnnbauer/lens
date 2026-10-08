@@ -3,7 +3,10 @@ import { BatchChip, BatchDialog, BatchResumeNotice } from "../../components/batc
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ImmersiveBar, useImmersiveMode } from "../../components/ImmersiveBar";
 import { ContextPanel } from "../../components/ContextPanel";
-import { BookmarkIcon, ClockIcon, GearIcon, LibraryIcon } from "../../components/icons";
+import { BookmarkIcon, ClockIcon, GearIcon, ImmersiveIcon, LibraryIcon } from "../../components/icons";
+import { TitleBar } from "../../components/TitleBar";
+import { useImmersive } from "../../stores/immersive";
+import { SCROLL_ID, scrollRoot } from "./scroll";
 import { LibraryDialog } from "../../components/LibraryDialog";
 import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
@@ -81,6 +84,12 @@ export function MainWindow() {
     [updateNow],
   );
 
+  // 标题栏按钮 / Ctrl+\：随时显示或隐藏左侧导航
+  const toggleNav = useCallback(() => {
+    const cur = useSettings.getState().settings?.layout.showNav ?? false;
+    useSettings.getState().updateLayout({ showNav: !cur });
+  }, []);
+
   // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+B 生词本，Ctrl+, 设置，Ctrl+K 回到查词（SPEC 9.4）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -88,7 +97,13 @@ export function MainWindow() {
       if (e.key === ",") {
         e.preventDefault();
         go("settings");
-        window.scrollTo(0, 0);
+        scrollRoot().scrollTo(0, 0);
+        return;
+      }
+      if (e.key === "\\") {
+        // Ctrl+\ 显示 / 隐藏左侧导航
+        e.preventDefault();
+        toggleNav();
         return;
       }
       const n = Number(e.key);
@@ -111,7 +126,7 @@ export function MainWindow() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [profiles, switchProfile, go, focusSearch]);
+  }, [profiles, switchProfile, go, focusSearch, toggleNav]);
 
   // 进入沉浸模式时回到查词页
   useEffect(() => {
@@ -124,8 +139,12 @@ export function MainWindow() {
   const showNav = (layout?.showNav ?? false) && !hideSides;
   const showContext = (layout?.showContext ?? false) && !hideSides;
   const showStatus = (layout?.showStatusBar ?? false) && !(immersive && (immersivePrefs?.hideStatusBar ?? true));
+  const showTitleBar = !(immersive && (immersivePrefs?.hideTitleBar ?? true));
 
   return (
+    <div className={styles.frame} data-titlebar={showTitleBar || undefined}>
+    {showTitleBar && <TitleBar navShown={layout?.showNav ?? false} onToggleNav={toggleNav} />}
+    <div id={SCROLL_ID} className={styles.scroller}>
     <div className={styles.shell} data-nav={showNav || undefined} data-context={showContext || undefined}>
       {showNav && (
         <div className={styles.side}>
@@ -155,7 +174,7 @@ export function MainWindow() {
             ref={lookupPage}
             onOpenLibrary={() => setLibraryOpen(true)}
             showJumpBar={layout?.showJumpBar ?? true}
-            showHeadword={showNav || immersive}
+            showHeadword={showNav && !immersive}
             expandMode={layout?.cardsExpanded ?? "first2"}
             actions={
               <>
@@ -170,6 +189,9 @@ export function MainWindow() {
                 </button>
                 <button type="button" className={styles.iconBtn} aria-label="设置" title="设置（Ctrl+,）" onClick={() => go("settings")}>
                   <GearIcon />
+                </button>
+                <button type="button" className={styles.iconBtn} aria-label="沉浸模式" title="沉浸模式（F11）" onClick={() => useImmersive.getState().enter()}>
+                  <ImmersiveIcon />
                 </button>
               </>
             }
@@ -203,10 +225,12 @@ export function MainWindow() {
           onExport={() => lookupPage.current?.openExport()}
           onSettings={() => {
             go("settings");
-            window.scrollTo(0, 0);
+            scrollRoot().scrollTo(0, 0);
           }}
         />
       )}
+    </div>
+    </div>
     </div>
   );
 }

@@ -42,7 +42,11 @@ pub fn run() {
             tauri::async_runtime::spawn_blocking(move || responder.respond(protocol::handle(&app, &path)));
         })
         .setup(|app| {
-            let root = app.path().data_dir()?.join("Lens");
+            // LENS_DATA_DIR：开发时与已安装的版本隔开数据（配合 WEBVIEW2_USER_DATA_FOLDER）
+            let root = match std::env::var_os("LENS_DATA_DIR") {
+                Some(dir) => std::path::PathBuf::from(dir),
+                None => app.path().data_dir()?.join("Lens"),
+            };
             std::fs::create_dir_all(&root)?;
             let guard = logging::init(&root.join("logs"))?;
             logging::install_panic_hook();

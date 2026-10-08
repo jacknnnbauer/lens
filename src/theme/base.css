@@ -38,6 +38,33 @@ textarea {
   box-shadow: var(--focus-ring);
 }
 
+/* 细滚动条：轨道透明，滑块圆角、颜色浅，悬停加深。
+   不设 scrollbar-width / scrollbar-color：设了之后 Chromium 会忽略下面的 ::-webkit-scrollbar 样式 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background: var(--scrollbar) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  border-width: 2px;
+  background: var(--scrollbar-hover) padding-box;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
 ::selection {
   background: var(--hl);
 }

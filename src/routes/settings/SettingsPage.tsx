@@ -11,6 +11,7 @@ import { useSettings } from "../../stores/settings";
 import { ACCENTS, THEMES, type ThemeId } from "../../theme/themes";
 import { useAppliedTheme } from "../../theme/useApplyTheme";
 import { formatHotkey } from "./hotkey";
+import { scrollRoot } from "../../windows/main/scroll";
 import styles from "./SettingsPage.module.css";
 
 const SECTIONS = [
@@ -45,6 +46,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ["Ctrl+1 / 2 / 3", "切换场景配置组"],
   ["Ctrl+B / Ctrl+H / Ctrl+L", "生词本 / 历史 / 词典库"],
   ["F11 / Esc", "进入 / 退出沉浸模式"],
+  ["Ctrl+\\", "显示 / 隐藏左侧导航"],
   ["Ctrl+,", "设置"],
   ["Enter", "弹窗中：展开到主窗口"],
   ["Alt+← / Alt+→", "弹窗中：语境句向前 / 向后多带一句"],
@@ -173,14 +175,16 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
     if (!root) return;
     const onScroll = () => {
       const sections = Array.from(root.querySelectorAll<HTMLElement>("section[id^='set-']"));
-      const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
-      const line = window.innerHeight / 4;
+      const scroller = scrollRoot();
+      const atBottom = scroller.clientHeight + scroller.scrollTop >= scroller.scrollHeight - 4;
+      const line = scroller.getBoundingClientRect().top + scroller.clientHeight / 4;
       const hit = atBottom ? sections[sections.length - 1] : sections.filter((s) => s.getBoundingClientRect().top <= line).pop();
       setCurrent((hit ?? sections[0])?.id.replace(/^set-/, "") ?? "look");
     };
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const scroller = scrollRoot();
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
   }, [settings === null]);
 
   const copy = settings?.copy;
@@ -353,10 +357,10 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
             <span className={styles.hint}>只留下单词和释义；按 F11 进入，Esc 或 F11 退出</span>
           </div>
           <div className={styles.grid2}>
-            <Toggle label="隐藏标题栏（无边框窗口）" checked={im.hideTitleBar} onChange={(v) => setI({ hideTitleBar: v, borderless: v })} />
+            <Toggle label="隐藏标题栏" checked={im.hideTitleBar} onChange={(v) => setI({ hideTitleBar: v, borderless: v })} />
             <Toggle label="隐藏状态栏" checked={im.hideStatusBar} onChange={(v) => setI({ hideStatusBar: v })} />
             <Toggle label="隐藏左侧导航与右侧栏" checked={im.hideSidebars} onChange={(v) => setI({ hideSidebars: v })} />
-            <Toggle label="隐藏跳转条与复制按钮，卡片去边框" checked={im.hideCardChrome} onChange={(v) => setI({ hideCardChrome: v })} />
+            <Toggle label="隐藏跳转条与复制按钮" checked={im.hideCardChrome} onChange={(v) => setI({ hideCardChrome: v })} />
             <Toggle label="鼠标移到顶部时浮现工具栏" checked={im.revealOnHover} onChange={(v) => setI({ revealOnHover: v })} />
             <Select
               label="窗口方式"

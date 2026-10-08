@@ -175,7 +175,7 @@ pub struct Immersive {
     pub hide_title_bar: bool,
     pub hide_status_bar: bool,
     pub hide_sidebars: bool,
-    /// 隐藏跳转条与复制按钮，卡片去边框只留小标题
+    /// 隐藏跳转条与复制按钮（卡片样式与简洁单栏相同）
     pub hide_card_chrome: bool,
     pub borderless: bool,
     /// 鼠标在顶部停留时浮现工具栏

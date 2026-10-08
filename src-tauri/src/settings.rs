@@ -1,6 +1,6 @@
 //! `%APPDATA%/Lens/settings.json`（SPEC 第 14 节）。
 //!
-//! 目前只建模 `appearance`、`layout`、`immersive`、`capture`、`copy`、`export`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
+//! 目前只建模 `appearance`、`layout`、`immersive`、`capture`、`online`、`copy`、`export`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
 //! 这样用户手改的内容不会在保存时丢失。
 
 use std::fs;
@@ -83,6 +83,23 @@ pub struct Capture {
 impl Default for Capture {
     fn default() -> Self {
         Self { hotkey: "Ctrl+Alt+Space".into(), double_copy: true, ocr_fallback: false, timeout_ms: 150 }
+    }
+}
+
+/// 在线词典（SPEC 13、14）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Online {
+    /// 默认查询时机：always | localMiss | manual（每部词典可单独覆盖）
+    pub trigger: String,
+    pub timeout_ms: u64,
+    /// 缓存天数：0 = 不缓存，-1 = 永久
+    pub cache_days: i64,
+}
+
+impl Default for Online {
+    fn default() -> Self {
+        Self { trigger: "localMiss".into(), timeout_ms: 3000, cache_days: 30 }
     }
 }
 
@@ -174,6 +191,7 @@ pub struct Settings {
     pub layout: Layout,
     pub immersive: Immersive,
     pub capture: Capture,
+    pub online: Online,
     pub copy: Copy,
     pub export: Export,
     pub active_profile: String,
@@ -188,6 +206,7 @@ impl Default for Settings {
             layout: Layout::default(),
             immersive: Immersive::default(),
             capture: Capture::default(),
+            online: Online::default(),
             copy: Copy::default(),
             export: Export::default(),
             active_profile: "reading".into(),

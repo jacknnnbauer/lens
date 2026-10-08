@@ -5,7 +5,8 @@ import { create } from "zustand";
 import { prepareEntry, type PreparedEntry } from "../dict-render/prepare";
 import { recordHistory } from "../ipc/history";
 import { cancelLookup, lookup as ipcLookup, onLookupDone, onLookupResult } from "../ipc/lookup";
-import type { LookupDoneEvent, LookupHandle, LookupResultEvent, LookupStatus } from "../ipc/types";
+import { lookupOnline } from "../ipc/online";
+import type { DictBrief, LookupDoneEvent, LookupHandle, LookupResultEvent, LookupStatus } from "../ipc/types";
 
 const BUFFER_IDS = 4;
 
@@ -38,10 +39,16 @@ export interface CardEntry extends PreparedEntry {
 export interface Card {
   id: string;
   name: string;
+  /** local / api（在线接口）/ web（网页模式） */
+  source: DictBrief["source"];
   status: "pending" | LookupStatus;
   entries: CardEntry[];
   error: string | null;
   ms: number | null;
+  /** 在线结果来自缓存时的获取时间 */
+  cachedAt: number | null;
+  stale: boolean;
+  webUrl: string | null;
 }
 
 interface LookupState {
@@ -62,6 +69,8 @@ interface LookupState {
   rerun: () => Promise<void>;
   clear: () => void;
   setExpanded: (id: string, open: boolean) => void;
+  /** 查询时机为「手动」的在线词典：用户点击后查询 */
+  queryOnline: (id: string) => Promise<void>;
 }
 
 type Pending = { results: LookupResultEvent[]; done: LookupDoneEvent | null };
@@ -87,6 +96,9 @@ function applyResult(cards: Card[], e: LookupResultEvent): Card[] {
           status: e.status,
           error: e.error,
           ms: e.ms,
+          cachedAt: e.cachedAt ?? null,
+          stale: e.stale ?? false,
+          webUrl: e.webUrl ?? null,
           entries: e.entries.map((x) => ({ headword: x.headword, ...prepareEntry(x.body, e.dictId) })),
         }
       : c,
@@ -139,10 +151,14 @@ export const useLookup = create<LookupState>((set, get) => ({
       let cards: Card[] = handle.dicts.map((d) => ({
         id: d.id,
         name: d.name,
+        source: d.source,
         status: "pending",
         entries: [],
         error: null,
         ms: null,
+        cachedAt: null,
+        stale: false,
+        webUrl: null,
       }));
       const early = buffer.get(handle.requestId);
       buffer.delete(handle.requestId);
@@ -167,6 +183,21 @@ export const useLookup = create<LookupState>((set, get) => ({
   clear: () => set({ handle: null, cards: [], done: false, suggestions: [], expanded: {}, error: null }),
 
   setExpanded: (id, open) => set((s) => ({ expanded: { ...s.expanded, [id]: open } })),
+
+  queryOnline: async (id) => {
+    const handle = get().handle;
+    if (!handle) return;
+    set((s) => ({ cards: s.cards.map((c) => (c.id === id ? { ...c, status: "pending", error: null } : c)), expanded: { ...s.expanded, [id]: true } }));
+    try {
+      const e = await lookupOnline(handle.requestId, id, handle.normalized || handle.query);
+      if (get().handle?.requestId !== handle.requestId) return;
+      set((s) => ({ cards: applyResult(s.cards, e) }));
+      flushCommit(get());
+    } catch (err) {
+      if (get().handle?.requestId !== handle.requestId) return;
+      set((s) => ({ cards: s.cards.map((c) => (c.id === id ? { ...c, status: "error", error: String(err) } : c)) }));
+    }
+  },
 }));
 
 /** 订阅后端事件；返回取消订阅函数。整个窗口只调用一次。 */
@@ -197,6 +228,8 @@ export type ExpandMode = "first2" | "all" | "none";
 
 /** 卡片是否展开：用户手动设置优先，否则按 settings.layout.cardsExpanded。 */
 export function isExpanded(card: Card, hitRank: number, expanded: Record<string, boolean>, mode: ExpandMode = "first2"): boolean {
+  // 手动查询 / 网页模式 / 出错的卡片默认展开，按钮和错误原因才看得见
+  if (card.status === "manual" || card.status === "web" || card.status === "error") return expanded[card.id] ?? true;
   const byDefault = mode === "all" ? true : mode === "none" ? false : hitRank < 2;
   return expanded[card.id] ?? byDefault;
 }

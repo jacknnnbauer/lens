@@ -19,6 +19,8 @@ pub enum Error {
     AlreadyImported(String),
     #[error("数据库版本 {found} 高于本程序支持的 {supported}，请升级 Lens")]
     DbTooNew { found: i32, supported: i32 },
+    #[error("{0}")]
+    Online(String),
     #[error("内部状态锁已损坏")]
     LockPoisoned,
     #[error("{0}")]

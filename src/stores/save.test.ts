@@ -5,9 +5,13 @@ import { briefOf } from "./save";
 const card = (summary: string, status: Card["status"] = "hit"): Card => ({
   id: "d",
   name: "D",
+  source: "local",
   status,
   error: null,
   ms: 1,
+  cachedAt: null,
+  stale: false,
+  webUrl: null,
   entries: [{ headword: "x", html: "", summary }],
 });
 

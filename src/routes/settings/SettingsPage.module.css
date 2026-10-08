@@ -307,6 +307,23 @@ input[type="range"] {
   box-shadow: var(--focus-ring);
 }
 
+.radioRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.radioRow input {
+  margin-top: 4px;
+}
+
+.radioRow small {
+  display: block;
+  font-size: 12px;
+  color: var(--sub);
+}
+
 /* ── 开关行 ── */
 .grid2 {
   display: grid;

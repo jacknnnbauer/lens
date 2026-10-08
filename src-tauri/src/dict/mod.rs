@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::db::{dicts, Db};
 use crate::error::{Error, Result};
@@ -56,14 +56,14 @@ pub struct DictMeta {
     pub entry_count: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content", rename_all = "lowercase")]
 pub enum EntryBody {
     Html(String),
     Text(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RawEntry {
     pub headword: String,
     pub body: EntryBody,

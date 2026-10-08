@@ -1,0 +1,45 @@
+[
+  {
+    "word": "colour",
+    "phonetic": "/ˈkʌl.ə/",
+    "phonetics": [
+      { "text": "/ˈkʌl.ə/", "audio": "https://api.dictionaryapi.dev/media/pronunciations/en/colour-uk.mp3", "sourceUrl": "https://commons.wikimedia.org/w/index.php?curid=0" },
+      { "text": "/ˈkʌl.ɚ/", "audio": "" }
+    ],
+    "meanings": [
+      {
+        "partOfSpeech": "noun",
+        "definitions": [
+          { "definition": "The spectral composition of visible light.", "synonyms": [], "antonyms": [], "example": "The leaves change colour in autumn." },
+          { "definition": "Interest or variety; vividness.", "synonyms": [], "antonyms": [] }
+        ],
+        "synonyms": ["hue", "tint", "shade"],
+        "antonyms": []
+      },
+      {
+        "partOfSpeech": "verb",
+        "definitions": [
+          { "definition": "To give something colour.", "synonyms": [], "antonyms": [], "example": "She coloured the drawing with crayons." }
+        ],
+        "synonyms": [],
+        "antonyms": []
+      }
+    ],
+    "license": { "name": "CC BY-SA 3.0", "url": "https://creativecommons.org/licenses/by-sa/3.0" },
+    "sourceUrls": ["https://en.wiktionary.org/wiki/colour"]
+  },
+  {
+    "word": "colour",
+    "phonetics": [],
+    "meanings": [
+      {
+        "partOfSpeech": "adjective",
+        "definitions": [{ "definition": "Conveying colour, as opposed to shades of grey.", "synonyms": [], "antonyms": [] }],
+        "synonyms": [],
+        "antonyms": []
+      }
+    ],
+    "license": { "name": "CC BY-SA 3.0", "url": "https://creativecommons.org/licenses/by-sa/3.0" },
+    "sourceUrls": ["https://en.wiktionary.org/wiki/colour"]
+  }
+]

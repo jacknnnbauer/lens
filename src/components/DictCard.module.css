@@ -150,3 +150,32 @@
   padding-left: 0;
   padding-right: 0;
 }
+
+/* 在线词典：手动查询 / 网页模式的占位行 */
+.online {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0 20px 18px;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.onlineBtn {
+  padding: 5px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.onlineBtn:hover {
+  background: var(--hl);
+}
+
+.tag[data-stale] {
+  color: var(--warn);
+}

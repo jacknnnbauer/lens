@@ -1,4 +1,4 @@
-// 词典库（M4 前的简版）：已导入词典列表、导入（文件对话框）、导入进度、删除。
+// 词典库（简版）：已导入词典列表、导入（文件对话框）、导入进度、删除；在线词典的添加与设置（M6）。
 // 完整的词典库页（分组、排序、配置组）见画板 03，后续里程碑实现。
 
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { fileName, useDicts } from "../stores/dicts";
 import { CloseIcon, PlusIcon } from "./icons";
 import styles from "./LibraryDialog.module.css";
+import { AddOnlinePanel, OnlineSettings, onlineMeta } from "./OnlineDicts";
 
 const KIND_LABEL: Record<string, string> = { mdx: "MDict", stardict: "StarDict", json: "JSON", online: "在线" };
 
@@ -18,6 +19,8 @@ export function LibraryDialog({ open, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const { dicts, imports, error, importPaths, remove } = useDicts();
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState<string | null>(null);
 
   useEffect(() => {
     const d = dialog.current;
@@ -44,6 +47,9 @@ export function LibraryDialog({ open, onClose }: Props) {
         <h2 id="library-title" className={styles.title}>
           词典库
         </h2>
+        <button type="button" className={styles.ghost} aria-expanded={adding} onClick={() => setAdding((a) => !a)}>
+          添加在线词典
+        </button>
         <button type="button" className={styles.primary} onClick={() => void pick()}>
           <PlusIcon />
           导入词典…
@@ -52,6 +58,8 @@ export function LibraryDialog({ open, onClose }: Props) {
           <CloseIcon />
         </button>
       </header>
+
+      {adding && <AddOnlinePanel onDone={() => setAdding(false)} />}
 
       {(running.length > 0 || failed.length > 0) && (
         <ul className={styles.progress} aria-live="polite">
@@ -75,39 +83,55 @@ export function LibraryDialog({ open, onClose }: Props) {
       ) : (
         <ul className={styles.list}>
           {dicts.map((d) => (
-            <li key={d.id} className={styles.row}>
-              <div className={styles.info}>
-                <span className={styles.name}>{d.name}</span>
-                <span className={styles.meta}>
-                  {KIND_LABEL[d.kind] ?? d.kind}
-                  {d.entryCount != null && ` · ${d.entryCount.toLocaleString()} 条`}
-                  {!d.loaded && <span className={styles.failed}> · {d.indexState === "error" ? "索引失败" : "未能加载"}</span>}
-                </span>
-                {d.path && (
-                  <span className={styles.path} title={d.path}>
-                    {d.path}
+            <li key={d.id} className={styles.item}>
+              <div className={styles.row}>
+                <div className={styles.info}>
+                  <span className={styles.name}>{d.name}</span>
+                  <span className={styles.meta}>
+                    {KIND_LABEL[d.kind] ?? d.kind}
+                    {d.kind === "online" && ` · ${onlineMeta(d)}`}
+                    {d.entryCount != null && ` · ${d.entryCount.toLocaleString()} 条`}
+                    {!d.loaded && <span className={styles.failed}> · {d.indexState === "error" ? "索引失败" : "未能加载"}</span>}
+                  </span>
+                  {d.path && (
+                    <span className={styles.path} title={d.path}>
+                      {d.path}
+                    </span>
+                  )}
+                </div>
+                {confirming === d.id ? (
+                  <span className={styles.confirm}>
+                    <button type="button" className={styles.danger} onClick={() => void remove(d.id).then(() => setConfirming(null))}>
+                      确认移除
+                    </button>
+                    <button type="button" className={styles.ghost} onClick={() => setConfirming(null)}>
+                      取消
+                    </button>
+                  </span>
+                ) : (
+                  <span className={styles.confirm}>
+                    {d.kind === "online" && (
+                      <button
+                        type="button"
+                        className={styles.ghost}
+                        aria-expanded={settingsOpen === d.id}
+                        onClick={() => setSettingsOpen((o) => (o === d.id ? null : d.id))}
+                      >
+                        设置
+                      </button>
+                    )}
+                    <button type="button" className={styles.ghost} onClick={() => setConfirming(d.id)} aria-label={`移除 ${d.name}`}>
+                      移除
+                    </button>
                   </span>
                 )}
               </div>
-              {confirming === d.id ? (
-                <span className={styles.confirm}>
-                  <button type="button" className={styles.danger} onClick={() => void remove(d.id).then(() => setConfirming(null))}>
-                    确认移除
-                  </button>
-                  <button type="button" className={styles.ghost} onClick={() => setConfirming(null)}>
-                    取消
-                  </button>
-                </span>
-              ) : (
-                <button type="button" className={styles.ghost} onClick={() => setConfirming(d.id)} aria-label={`移除 ${d.name}`}>
-                  移除
-                </button>
-              )}
+              {settingsOpen === d.id && <OnlineSettings dict={d} />}
             </li>
           ))}
         </ul>
       )}
-      <p className={styles.note}>移除只删除 Lens 的索引，不会删除你的词典文件。</p>
+      <p className={styles.note}>移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。</p>
     </dialog>
   );
 }

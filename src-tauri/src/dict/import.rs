@@ -94,6 +94,8 @@ pub fn import_dict(db: &Db, registry: &DictRegistry, path: &Path) -> Result<Dict
         index_path: Some(fst_path.to_string_lossy().into_owned()),
         index_state: IndexState::Building,
         created_at: now_ms(),
+        provider: None,
+        options: None,
     };
     db.with_conn(|c| dicts::insert(c, &row))?;
 

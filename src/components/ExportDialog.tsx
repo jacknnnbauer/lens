@@ -91,6 +91,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
         chosen.map(async (c) => ({
           id: c.id,
           name: c.name,
+          online: c.source !== "local",
           // HTML 要单文件可用：把词典 CSS 与图片内联；PDF 由导出窗口直接加载 lens:// 资源
           entries: format === "html" ? await Promise.all(c.entries.map((e) => inlineEntry(e.html))) : c.entries.map((e) => e.html),
         })),
@@ -160,7 +161,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
                 <label key={c.id}>
                   <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                   {c.name}
-                  <small>离线</small>
+                  <small>{c.source === "local" ? "离线" : "在线"}</small>
                 </label>
               ))}
             </div>

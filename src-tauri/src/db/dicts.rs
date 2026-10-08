@@ -45,6 +45,10 @@ pub struct DictRow {
     pub index_path: Option<String>,
     pub index_state: IndexState,
     pub created_at: i64,
+    /// 在线词典的 provider id（freedict / mw / oxford / web）
+    pub provider: Option<String>,
+    /// 每部词典的选项（JSON），见 migrations/0002_online.sql
+    pub options: Option<String>,
 }
 
 impl DictRow {
@@ -70,6 +74,8 @@ impl DictRow {
                 index_path: r.get("index_path")?,
                 index_state: IndexState::Pending,
                 created_at: r.get("created_at")?,
+                provider: r.get("provider")?,
+                options: r.get("options")?,
             },
             r.get("index_state")?,
         ))
@@ -77,13 +83,13 @@ impl DictRow {
 }
 
 const COLUMNS: &str =
-    "id, name, kind, path, category, entry_count, index_path, index_state, created_at";
+    "id, name, kind, path, category, entry_count, index_path, index_state, created_at, provider, options";
 
 /// 插入词典，并追加到每个场景配置组的末尾（默认启用）。
 pub fn insert(conn: &Connection, row: &DictRow) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     tx.execute(
-        &format!("INSERT INTO dict ({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"),
+        &format!("INSERT INTO dict ({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"),
         params![
             row.id,
             row.name,
@@ -93,7 +99,9 @@ pub fn insert(conn: &Connection, row: &DictRow) -> Result<()> {
             row.entry_count,
             row.index_path,
             row.index_state.as_str(),
-            row.created_at
+            row.created_at,
+            row.provider,
+            row.options
         ],
     )?;
     tx.execute(
@@ -143,6 +151,16 @@ pub fn enabled_for_profile(conn: &Connection, profile_id: &str) -> Result<Vec<St
     )?;
     let ids = stmt.query_map(params![profile_id], |r| r.get(0))?;
     Ok(ids.collect::<rusqlite::Result<Vec<String>>>()?)
+}
+
+pub fn set_options(conn: &Connection, id: &str, options: &str) -> Result<()> {
+    conn.execute("UPDATE dict SET options = ?2 WHERE id = ?1", params![id, options])?;
+    Ok(())
+}
+
+pub fn rename(conn: &Connection, id: &str, name: &str) -> Result<()> {
+    conn.execute("UPDATE dict SET name = ?2 WHERE id = ?1", params![id, name])?;
+    Ok(())
 }
 
 /// 删除词典（profile_dict 级联删除）。返回是否真的删掉了一行。

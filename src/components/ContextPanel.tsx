@@ -4,7 +4,15 @@
 import { useLookup } from "../stores/lookup";
 import styles from "./ContextPanel.module.css";
 
-const STATUS_LABEL = { pending: "查询中…", hit: "命中", miss: "未收录", error: "出错" } as const;
+const STATUS_LABEL = {
+  pending: "查询中…",
+  hit: "命中",
+  miss: "未收录",
+  error: "出错",
+  manual: "待手动查询",
+  web: "网页",
+  skipped: "本地已命中，未查",
+} as const;
 
 export function ContextPanel() {
   const handle = useLookup((s) => s.handle);

@@ -46,6 +46,14 @@ export interface Capture {
   timeoutMs: number;
 }
 
+export interface Online {
+  /** 默认查询时机，每部词典可在词典库里覆盖 */
+  trigger: "always" | "localMiss" | "manual";
+  timeoutMs: number;
+  /** 0 = 不缓存，-1 = 永久 */
+  cacheDays: number;
+}
+
 export interface Copy {
   defaultFormat: "md" | "html" | "text";
   appendSource: boolean;
@@ -61,12 +69,13 @@ export interface ExportPrefs {
   dir: string | null;
 }
 
-/** 目前建模到 appearance、layout、immersive、capture、copy、export；其他分组由 Rust 原样保留，接入时再补类型。 */
+/** 目前建模到 appearance、layout、immersive、capture、online、copy、export；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   appearance: Appearance;
   layout: Layout;
   immersive: Immersive;
   capture: Capture;
+  online: Online;
   copy: Copy;
   export: ExportPrefs;
   activeProfile: string;

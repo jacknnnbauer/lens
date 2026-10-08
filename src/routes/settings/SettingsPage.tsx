@@ -1,5 +1,5 @@
 // 设置页（SPEC 14、画板 06）：左侧分类、右侧分节，改动立即生效，300ms 防抖写回 settings.json。
-// 在线词典（M6）与主题库（M8）随各自里程碑加入。
+// 主题库（M8）随里程碑加入。
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -17,6 +17,7 @@ const SECTIONS = [
   { id: "look", name: "外观" },
   { id: "layout", name: "布局" },
   { id: "immersive", name: "沉浸模式" },
+  { id: "online", name: "在线词典" },
   { id: "copy", name: "复制" },
   { id: "export", name: "导出" },
   { id: "shortcuts", name: "快捷键" },
@@ -385,6 +386,52 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
             <Toggle label="启动时直接进入沉浸模式" checked={im.onStartup} onChange={(v) => setI({ onStartup: v })} />
           </div>
           <p className={styles.hint}>只想去掉状态栏，不需要完整的沉浸模式？用上面「布局」里的「显示状态栏」开关即可。</p>
+        </section>
+
+        <section id="set-online" className={styles.section} aria-labelledby="h-online">
+          <h2 id="h-online">在线词典</h2>
+          <fieldset className={styles.fieldset}>
+            <legend>默认查询时机（可在词典库里给每部词典单独设置）</legend>
+            {(
+              [
+                ["always", "每次都查", "结果最全，会多发网络请求"],
+                ["localMiss", "本地词典没有结果时才查", "推荐：快，而且尽量少联网"],
+                ["manual", "手动点击才查", "卡片上显示「查询」按钮"],
+              ] as const
+            ).map(([id, name, hint]) => (
+              <label key={id} className={styles.radioRow}>
+                <input type="radio" name="online-trigger" checked={settings.online.trigger === id} onChange={() => update({ online: { trigger: id } })} />
+                <span>
+                  {name}
+                  <small>{hint}</small>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <div className={styles.grid2}>
+            <Select
+              label="请求超时"
+              value={settings.online.timeoutMs}
+              options={[
+                [3000, "3 秒"],
+                [5000, "5 秒"],
+                [10000, "10 秒"],
+              ]}
+              onChange={(v) => update({ online: { timeoutMs: v } })}
+            />
+            <Select
+              label="结果缓存"
+              value={settings.online.cacheDays}
+              options={[
+                [7, "7 天"],
+                [30, "30 天"],
+                [-1, "永久"],
+                [0, "不缓存"],
+              ]}
+              onChange={(v) => update({ online: { cacheDays: v } })}
+            />
+          </div>
+          <p className={styles.hint}>超时不会拖慢本地词典的结果。联网失败时显示过期的缓存，并标注获取时间。添加在线词典、填写 API Key 在「词典库」（Ctrl+L）。</p>
         </section>
 
         <section id="set-copy" className={styles.section} aria-labelledby="h-copy">

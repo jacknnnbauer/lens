@@ -110,7 +110,7 @@
   padding: 10px 16px 10px 20px;
 }
 
-.row + .row {
+.item + .item {
   border-top: 1px solid var(--line);
 }
 

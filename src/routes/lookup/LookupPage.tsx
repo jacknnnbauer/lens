@@ -41,7 +41,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   { actions, onOpenLibrary, showJumpBar, showHeadword, expandMode },
   ref,
 ) {
-  const { handle, cards, done, suggestions, expanded, error, search, setExpanded, commit } = useLookup();
+  const { handle, cards, done, suggestions, expanded, error, search, setExpanded, commit, queryOnline } = useLookup();
   const dictCount = useDicts((s) => s.dicts.filter((d) => d.loaded).length);
   const dictsLoaded = useDicts((s) => s.loaded);
   const searchBox = useRef<SearchBoxHandle>(null);
@@ -119,7 +119,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     };
   }, []);
 
-  const visible = cards.filter((c) => c.status !== "miss");
+  // 未收录的只在底部列名；本地已命中而没查的在线词典不显示
+  const visible = cards.filter((c) => c.status !== "miss" && c.status !== "skipped");
   const missed = cards.filter((c) => c.status === "miss");
   let hitRank = 0;
   const ranks = new Map(visible.map((c) => [c.id, c.status === "hit" ? hitRank++ : Number.POSITIVE_INFINITY]));
@@ -235,6 +236,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           copyFormat={copyCfg.defaultFormat}
           onCopy={(f) => void copyCard(c, f, copyCfg)}
           onSetDefaultFormat={setDefaultFormat}
+          onQueryOnline={() => void queryOnline(c.id)}
         />
       ))}
 

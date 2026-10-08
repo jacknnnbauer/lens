@@ -5,6 +5,7 @@ use crate::app_state::AppState;
 use crate::db::dicts;
 use crate::dict::import;
 use crate::error::Result;
+use crate::online::{self, cache, credentials, KeyKind, OnlineMode, OnlineOptions};
 
 pub const EVENT_INDEX_PROGRESS: &str = "dict:index-progress";
 
@@ -20,6 +21,12 @@ pub struct DictInfo {
     pub index_state: &'static str,
     /// 是否已成功加载、可以查词
     pub loaded: bool,
+    /// 在线词典：provider id、模式、需要的凭据、是否已填 Key、选项
+    pub provider: Option<String>,
+    pub mode: Option<OnlineMode>,
+    pub key_kind: Option<KeyKind>,
+    pub has_key: bool,
+    pub options: Option<OnlineOptions>,
 }
 
 #[tauri::command]
@@ -27,8 +34,15 @@ pub async fn list_dicts(state: State<'_, AppState>) -> Result<Vec<DictInfo>> {
     let rows = state.db.with_conn(dicts::list)?;
     rows.into_iter()
         .map(|r| {
+            let online = if r.kind == "online" { state.online.get(&r.id)? } else { None };
+            let info = r.provider.as_deref().and_then(online::catalog_entry);
             Ok(DictInfo {
-                loaded: state.dicts.get(&r.id)?.is_some(),
+                loaded: state.dicts.get(&r.id)?.is_some() || online.is_some(),
+                mode: info.map(|i| i.mode),
+                key_kind: info.map(|i| i.key_kind),
+                has_key: info.is_some_and(|i| i.key_kind != KeyKind::None) && super::online::has_key(&r.id),
+                options: (r.kind == "online").then(|| OnlineOptions::parse(r.options.as_deref())),
+                provider: r.provider,
                 index_state: r.index_state.as_str(),
                 id: r.id,
                 name: r.name,
@@ -98,6 +112,14 @@ pub async fn import_dicts(app: AppHandle, paths: Vec<String>) -> Result<()> {
 #[tauri::command]
 pub async fn remove_dict(state: State<'_, AppState>, id: String) -> Result<bool> {
     state.res_cache.evict_dict(&id);
+    if state.online.remove(&id)?.is_some() {
+        // 在线词典：连同缓存与凭据一起删
+        state.db.with_conn(|c| cache::delete_dict(c, &id))?;
+        if let Err(e) = credentials::delete(&id) {
+            tracing::warn!(error = %e, "删除在线词典凭据失败");
+        }
+        return state.db.with_conn(|c| dicts::delete(c, &id));
+    }
     import::remove_dict(&state.db, &state.dicts, &id)
 }
 

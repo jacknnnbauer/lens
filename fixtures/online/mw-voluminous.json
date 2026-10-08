@@ -1,0 +1,39 @@
+[
+  {
+    "meta": {
+      "id": "voluminous",
+      "uuid": "0d01b967-971f-4ec5-8fe0-10513d29c39b",
+      "sort": "220130400",
+      "src": "collegiate",
+      "section": "alpha",
+      "stems": ["voluminous", "voluminously", "voluminousness", "voluminousnesses"],
+      "offensive": false
+    },
+    "hwi": { "hw": "vo*lu*mi*nous", "prs": [{ "mw": "və-ˈlü-mə-nəs", "sound": { "audio": "volumi02", "ref": "c", "stat": "1" } }] },
+    "fl": "adjective",
+    "def": [
+      {
+        "sseq": [
+          [
+            ["sense", {
+              "sn": "1 a",
+              "dt": [["text", "{bc}having or marked by great {a_link|volume} or bulk {bc}{sx|large||} "], ["vis", [{ "t": "long {wi}voluminous{/wi} tresses" }]]],
+              "sdsense": { "sd": "also", "dt": [["text", "{bc}{sx|full||} "], ["vis", [{ "t": "a {wi}voluminous{/wi} skirt" }]]] }
+            }],
+            ["sense", { "sn": "b", "dt": [["text", "{bc}{sx|numerous||} "]] }]
+          ],
+          [
+            ["sense", { "sn": "2 a", "dt": [["text", "{bc}filling or capable of filling a large volume or several {a_link|volumes} "]] }]
+          ]
+        ]
+      }
+    ],
+    "shortdef": ["having or marked by great volume or bulk : large", "numerous"]
+  },
+  {
+    "meta": { "id": "voluminousness", "stems": ["voluminousness"], "offensive": false },
+    "hwi": { "hw": "vo*lu*mi*nous*ness" },
+    "fl": "noun",
+    "shortdef": []
+  }
+]

@@ -2,6 +2,7 @@
 
 import type { CopyFormat } from "../copy/convert";
 import { DictBody } from "../dict-render/DictBody";
+import { openWebDict } from "../ipc/online";
 import type { Card } from "../stores/lookup";
 import styles from "./DictCard.module.css";
 import { CopyMenu } from "./CopyMenu";
@@ -16,9 +17,19 @@ interface Props {
   copyFormat: CopyFormat;
   onCopy: (format: CopyFormat) => void;
   onSetDefaultFormat: (format: CopyFormat) => void;
+  /** 在线词典「手动」查询 */
+  onQueryOnline: () => void;
 }
 
-export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, copyFormat, onCopy, onSetDefaultFormat }: Props) {
+const SOURCE_TAG = { local: "离线", api: "在线", web: "网页" } as const;
+
+function fmtDate(ms: number): string {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, copyFormat, onCopy, onSetDefaultFormat, onQueryOnline }: Props) {
   const bodyId = `dict-body-${card.id}`;
   const summary = card.entries[0]?.summary ?? "";
   const pending = card.status === "pending";
@@ -37,7 +48,12 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, c
             onKeyDown={onToggleKeyDown}
           >
             <strong className={styles.name}>{card.name}</strong>
-            <span className={styles.tag}>离线</span>
+            <span className={styles.tag}>{SOURCE_TAG[card.source]}</span>
+            {card.cachedAt != null && (
+              <span className={styles.tag} data-stale={card.stale || undefined} title={card.stale ? `联网失败：${card.error ?? ""}` : undefined}>
+                {card.stale ? "离线缓存" : "缓存"} · {fmtDate(card.cachedAt)}
+              </span>
+            )}
             {!expanded && summary && <span className={styles.summary}>{summary}</span>}
             {card.entries.length > 1 && <span className={styles.count}>{card.entries.length} 条</span>}
             <span className={styles.chevron}>
@@ -45,13 +61,15 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, c
             </span>
           </button>
         </h2>
-        <CopyMenu
-          label={`「${card.name}」`}
-          defaultFormat={copyFormat}
-          disabled={card.status !== "hit"}
-          onCopy={onCopy}
-          onSetDefault={onSetDefaultFormat}
-        />
+        {card.source !== "web" && (
+          <CopyMenu
+            label={`「${card.name}」`}
+            defaultFormat={copyFormat}
+            disabled={card.status !== "hit"}
+            onCopy={onCopy}
+            onSetDefault={onSetDefaultFormat}
+          />
+        )}
       </div>
 
       <div id={bodyId} hidden={!expanded}>
@@ -61,6 +79,22 @@ export function DictCard({ card, expanded, onToggle, onEntry, onToggleKeyDown, c
             <span />
             <span />
           </div>
+        )}
+        {card.status === "manual" && (
+          <p className={styles.online}>
+            这部在线词典设为手动查询。
+            <button type="button" className={styles.onlineBtn} onClick={onQueryOnline}>
+              查询
+            </button>
+          </p>
+        )}
+        {card.status === "web" && card.webUrl && (
+          <p className={styles.online}>
+            网页词典在单独的只读窗口里打开原页面。
+            <button type="button" className={styles.onlineBtn} onClick={() => void openWebDict(card.webUrl ?? "", card.name)}>
+              打开网页 ↗
+            </button>
+          </p>
         )}
         {card.status === "error" && (
           <p className={styles.error} role="alert">

@@ -11,6 +11,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::app_state::AppState;
 use crate::audio;
+use crate::online;
 use crate::error::{Error, Result};
 
 pub const SCHEME: &str = "lens";
@@ -122,13 +123,37 @@ fn load(app: &AppHandle, dict_id: &str, path: &str) -> Result<Option<Arc<Vec<u8>
     if let Some(hit) = state.res_cache.get(&key) {
         return Ok(Some(hit));
     }
-    let Some(dict) = state.dicts.get(dict_id)? else { return Ok(None) };
-    let Some(bytes) = dict.source.resource(path)? else { return Ok(None) };
+    let bytes = match state.dicts.get(dict_id)? {
+        Some(dict) => dict.source.resource(path)?,
+        None => match state.online.get(dict_id)? {
+            Some(dict) => remote_media(state.online.client(), &dict, path)?,
+            None => None,
+        },
+    };
+    let Some(bytes) = bytes else { return Ok(None) };
     // WebView2 不支持 Speex，转成 WAV（缓存的是转码结果）
     let bytes = if is_spx(path) { audio::spx_to_wav(&bytes)? } else { bytes };
     let bytes = Arc::new(bytes);
     state.res_cache.put(key, bytes.clone());
     Ok(Some(bytes))
+}
+
+/// 在线词典的发音：只转发 provider 声明的主机（本函数在 spawn_blocking 线程里调用）。
+fn remote_media(client: &reqwest::Client, dict: &online::OnlineDict, path: &str) -> Result<Option<Vec<u8>>> {
+    let Some(url) = online::remote_media_url(dict, path) else { return Ok(None) };
+    tauri::async_runtime::block_on(async {
+        let res = client
+            .get(url)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+            .map_err(|e| Error::Online(format!("下载发音失败：{e}")))?;
+        if !res.status().is_success() {
+            return Ok(None);
+        }
+        let bytes = res.bytes().await.map_err(|e| Error::Online(format!("下载发音失败：{e}")))?;
+        Ok(Some(bytes.to_vec()))
+    })
 }
 
 fn response(status: StatusCode, mime: &str, body: Vec<u8>) -> Response<Vec<u8>> {

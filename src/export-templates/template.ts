@@ -21,6 +21,8 @@ export interface ExportOptions {
 export interface ExportCard {
   id: string;
   name: string;
+  /** 在线词典标「在线」，缺省为离线 */
+  online?: boolean;
   /** 已清洗、改写过的词条 HTML（prepare.ts 的输出） */
   entries: string[];
 }
@@ -90,7 +92,7 @@ function cardsLayout(input: ExportInput): string {
   const meta = input.options.sourceDate ? `<span class="meta">Lens 词镜 · ${isoDate(input.date)}</span>` : "";
   const tags = input.cards.map((c) => `<span>${escapeHtml(c.name)}</span>`).join("");
   const cards = input.cards
-    .map((c) => `<article class="card"><header><strong>${escapeHtml(c.name)}</strong><span>离线</span></header>${entriesHtml(c, input)}</article>`)
+    .map((c) => `<article class="card"><header><strong>${escapeHtml(c.name)}</strong><span>${c.online ? "在线" : "离线"}</span></header>${entriesHtml(c, input)}</article>`)
     .join("");
   return `<div class="wordbox"><h1>${escapeHtml(input.word)}</h1>${meta}</div><div class="dict-tags">${tags}</div>${cards}${contextHtml(input, "语境句")}`;
 }
@@ -101,7 +103,7 @@ function documentLayout(input: ExportInput): string {
   const sections = input.cards
     .map(
       (c, i) =>
-        `<section class="section"><h2><span><span class="no">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(c.name)}</span><span class="kind">离线</span></h2>${entriesHtml(c, input)}</section>`,
+        `<section class="section"><h2><span><span class="no">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(c.name)}</span><span class="kind">${c.online ? "在线" : "离线"}</span></h2>${entriesHtml(c, input)}</section>`,
     )
     .join("");
   return `<header class="doc-head">${row}<h1>${escapeHtml(input.word)}</h1>${dicts}</header>${sections}${contextHtml(input, "我的语境")}`;

@@ -57,6 +57,21 @@
   --warn: #F2A65A;
 }
 
+/* 墨水屏（SPEC 9.5；v0.1 只用于「黑白省墨」导出，主题库在 M8） */
+[data-theme="eink"] {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --panel: #FFFFFF;
+  --raised: #F0F0F0;
+  --line: #9E9E9E;
+  --text: #000000;
+  --sub: #2B2B2B;
+  --faint: #4D4D4D;
+  --accent: #000000;
+  --accent-ink: #FFFFFF;
+  --warn: #000000;
+}
+
 /* 强调色：只覆盖 --accent，且只对纸本 / 冷白 / 石墨生效 */
 :is([data-theme="paper"], [data-theme="light"])[data-accent="blue"]   { --accent: #2F5FD0; }
 :is([data-theme="paper"], [data-theme="light"])[data-accent="teal"]   { --accent: #0F7A6E; }

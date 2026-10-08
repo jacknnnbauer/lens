@@ -1,8 +1,9 @@
 // 查词页 · 简洁单栏（画板 05）：搜索行 → 词典跳转条 → 词典卡片。
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { DictCard } from "../../components/DictCard";
-import { StarIcon } from "../../components/icons";
+import { ExportDialog } from "../../components/ExportDialog";
+import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { useDicts } from "../../stores/dicts";
 import { isExpanded, useLookup, type ExpandMode } from "../../stores/lookup";
@@ -45,6 +46,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards);
   const saveRef = useRef(save);
   saveRef.current = save;
+  const [exportOpen, setExportOpen] = useState(false);
+  const canExportRef = useRef(false);
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
   const updateSettings = useSettings((s) => s.update);
   const setDefaultFormat = (f: CopyFormat) => {
@@ -82,6 +85,10 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
       } else if (k === "s") {
         e.preventDefault();
         void saveRef.current();
+      } else if (k === "e") {
+        // Ctrl+E 导出当前词（SPEC 9.4）
+        e.preventDefault();
+        if (canExportRef.current) setExportOpen(true);
       }
     };
     // Ctrl+Shift+C 复制当前词典（焦点所在卡片，否则第一部展开的），Ctrl+Shift+A 合并复制所有展开的
@@ -107,6 +114,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const allMissed = done && handle && visible.length === 0;
   const hitCount = hitRank;
   const headword = cards.find((c) => c.status === "hit")?.entries[0]?.headword ?? "";
+  canExportRef.current = anyHit;
 
   // Tab / Shift+Tab 在卡片之间跳转（SPEC 9.4），不进入词条内部的链接
   const onToggleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -155,6 +163,16 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           onClick={() => void save()}
         >
           <StarIcon filled={saved} />
+        </button>
+        <button
+          type="button"
+          className={styles.star}
+          aria-label="导出 PDF 或 HTML（Ctrl+E）"
+          title="导出 PDF 或 HTML · Ctrl+E"
+          disabled={!anyHit}
+          onClick={() => setExportOpen(true)}
+        >
+          <DownloadIcon />
         </button>
         {actions}
       </div>
@@ -245,6 +263,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           )}
         </section>
       )}
+
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} word={headword || handle?.normalized || ""} cards={cards} />
 
       {visible.length > 0 && <p className={styles.footHint}>标题栏按 Space 展开 / 折叠 · Ctrl+Shift+C 复制当前词典 · Ctrl+Shift+A 合并复制全部展开的词典</p>}
     </div>

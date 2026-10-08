@@ -8,7 +8,7 @@ import { useAppliedTheme } from "../theme/useApplyTheme";
 import { adjustContrast, parseColor, type RGB } from "./contrast";
 
 // 主题变量穿透 Shadow 边界继承；词典自带 CSS 写在后面，可以覆盖这里的默认值
-const BASE_CSS = `
+export const BASE_CSS = `
 :host { display: block; color: var(--text); font-family: var(--font-gloss); font-size: var(--gloss-size, 17px);
   line-height: 1.65; overflow-wrap: anywhere; }
 .lens-plain { white-space: pre-wrap; }

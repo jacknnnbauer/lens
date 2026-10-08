@@ -2,11 +2,12 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "主窗口与迷你弹窗",
-  "windows": ["main", "popup"],
+  "windows": ["main", "popup", "export"],
   "permissions": [
     "core:default",
     "opener:default",
     "dialog:allow-open",
+    "dialog:allow-save",
     "core:window:allow-start-dragging"
   ]
 }

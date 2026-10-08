@@ -39,12 +39,20 @@ export interface Copy {
   mdImagesAsLinks: boolean;
 }
 
-/** 目前建模到 appearance、layout、capture、copy；其他分组由 Rust 原样保留，接入时再补类型。 */
+export interface ExportPrefs {
+  layout: "cards" | "document";
+  style: "paperWhite" | "followTheme" | "inkSaving";
+  paper: "a4" | "letter";
+  dir: string | null;
+}
+
+/** 目前建模到 appearance、layout、capture、copy、export；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   appearance: Appearance;
   layout: Layout;
   capture: Capture;
   copy: Copy;
+  export: ExportPrefs;
   activeProfile: string;
   [section: string]: unknown;
 }

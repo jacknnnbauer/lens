@@ -159,6 +159,28 @@ pub fn clear(conn: &Connection, before: Option<i64>) -> Result<usize> {
     Ok(n)
 }
 
+/// 某个词最近一次捕获的语境句。
+pub fn latest_context(conn: &Connection, lemma: &str) -> Result<Option<ContextRow>> {
+    Ok(conn
+        .query_row(
+            "SELECT id, sentence, hl_start, hl_end, app, window_title, url FROM context
+             WHERE lemma = ?1 ORDER BY created_at DESC, id DESC LIMIT 1",
+            params![lemma],
+            |r| {
+                Ok(ContextRow {
+                    id: r.get(0)?,
+                    sentence: r.get(1)?,
+                    hl_start: r.get(2)?,
+                    hl_end: r.get(3)?,
+                    app: r.get(4)?,
+                    window_title: r.get(5)?,
+                    url: r.get(6)?,
+                })
+            },
+        )
+        .optional()?)
+}
+
 /// 某个词查过几次。
 pub fn lookup_count(conn: &Connection, lemma: &str) -> Result<i64> {
     Ok(conn.query_row("SELECT COUNT(*) FROM history WHERE lemma = ?1", params![lemma], |r| r.get(0))?)
@@ -217,6 +239,8 @@ mod tests {
             assert_eq!(cx.url.as_deref(), Some("https://example.com/a"));
             assert_eq!(u.lookups, 1);
 
+            assert_eq!(latest_context(c, "ubiquitous")?.map(|x| x.id), Some(cid));
+            assert!(latest_context(c, "ran")?.is_none());
             let ranged = list(c, &HistoryFilter { from: Some(15_000), to: Some(25_000), limit: 50, ..Default::default() })?;
             assert_eq!(ranged.len(), 1);
             // % 和 _ 按字面匹配，不当通配符

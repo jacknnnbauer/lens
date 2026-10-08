@@ -1,6 +1,6 @@
 //! `%APPDATA%/Lens/settings.json`（SPEC 第 14 节）。
 //!
-//! 目前只建模 `appearance`、`layout`、`capture`、`copy`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
+//! 目前只建模 `appearance`、`layout`、`capture`、`copy`、`export`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
 //! 这样用户手改的内容不会在保存时丢失。
 
 use std::fs;
@@ -110,6 +110,26 @@ impl Default for Copy {
     }
 }
 
+/// 单词导出（SPEC 11、14）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Export {
+    /// cards | document
+    pub layout: String,
+    /// paperWhite | followTheme | inkSaving
+    pub style: String,
+    /// a4 | letter
+    pub paper: String,
+    /// 上次导出的目录
+    pub dir: Option<String>,
+}
+
+impl Default for Export {
+    fn default() -> Self {
+        Self { layout: "cards".into(), style: "paperWhite".into(), paper: "a4".into(), dir: None }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -117,6 +137,7 @@ pub struct Settings {
     pub layout: Layout,
     pub capture: Capture,
     pub copy: Copy,
+    pub export: Export,
     pub active_profile: String,
     #[serde(flatten)]
     pub rest: Map<String, Value>,
@@ -129,6 +150,7 @@ impl Default for Settings {
             layout: Layout::default(),
             capture: Capture::default(),
             copy: Copy::default(),
+            export: Export::default(),
             active_profile: "reading".into(),
             rest: Map::new(),
         }
@@ -210,7 +232,7 @@ mod tests {
     fn patch_persists_and_keeps_unknown_sections() -> Result<()> {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("settings.json");
-        fs::write(&path, r#"{"appearance":{"theme":"light"},"export":{"paper":"letter"}}"#)?;
+        fs::write(&path, r#"{"appearance":{"theme":"light"},"batch":{"maxWords":500}}"#)?;
 
         let store = SettingsStore::load(path.clone())?;
         assert_eq!(store.get()?.appearance.theme, "light");
@@ -220,7 +242,7 @@ mod tests {
         let reloaded = SettingsStore::load(path)?.get()?;
         assert_eq!(reloaded.appearance.theme, "dark");
         assert_eq!(reloaded.appearance.accent, "teal");
-        assert_eq!(reloaded.rest["export"]["paper"], "letter");
+        assert_eq!(reloaded.rest["batch"]["maxWords"], 500);
         Ok(())
     }
 

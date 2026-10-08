@@ -2130,6 +2130,7 @@ dependencies = [
  "tracing-subscriber",
  "unicode-normalization",
  "uuid",
+ "webview2-com",
  "windows",
 ]
 

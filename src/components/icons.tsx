@@ -71,3 +71,11 @@ export const BookmarkIcon = ({ size = 18 }) => (
     <path d="M6 4h12v16l-6-4-6 4z" />
   </svg>
 );
+
+export const DownloadIcon = ({ size = 18 }) => (
+  <svg {...base(size)}>
+    <path d="M12 4v11" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M5 19h14" />
+  </svg>
+);

@@ -47,6 +47,7 @@ pub async fn list_words(
         tag,
         search: search.filter(|s| !s.trim().is_empty()),
         sort,
+        id: None,
         limit: limit.unwrap_or(200),
         offset: offset.unwrap_or(0),
     };
@@ -85,4 +86,39 @@ pub async fn list_tags(state: State<'_, AppState>) -> Result<Vec<TagCount>> {
 #[tauri::command]
 pub async fn wordbook_stats(state: State<'_, AppState>) -> Result<WordbookStats> {
     state.db.with_conn(|c| words::stats(c, now_ms()))
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewItem {
+    pub word: Word,
+    /// 评分 1..4 各自的下次到期时间（毫秒时间戳）
+    pub next_due: [i64; 4],
+}
+
+/// `day_start`：本地今天 0 点（毫秒），由前端给出，用来算「今天」的新词额度。
+#[tauri::command]
+pub async fn review_counts(state: State<'_, AppState>, day_start: i64) -> Result<crate::db::review::ReviewCounts> {
+    state.db.with_conn(|c| crate::db::review::counts(c, now_ms(), day_start))
+}
+
+#[tauri::command]
+pub async fn review_queue(state: State<'_, AppState>, day_start: i64, limit: Option<i64>) -> Result<Vec<ReviewItem>> {
+    let now = now_ms();
+    state.db.with_conn(|c| {
+        let ids = crate::db::review::queue(c, now, day_start, limit.unwrap_or(200))?;
+        let mut out = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(word) = words::get(c, id)? {
+                out.push(ReviewItem { next_due: crate::db::review::preview(c, id, now)?, word });
+            }
+        }
+        Ok(out)
+    })
+}
+
+/// 评分（1 忘了 · 2 模糊 · 3 记得 · 4 简单），返回下次到期时间。
+#[tauri::command]
+pub async fn review_rate(state: State<'_, AppState>, id: i64, rating: u8) -> Result<i64> {
+    state.db.with_conn(|c| crate::db::review::rate(c, id, rating, now_ms()))
 }

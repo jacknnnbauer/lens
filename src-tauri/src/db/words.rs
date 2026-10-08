@@ -1,5 +1,5 @@
 //! 生词本（SPEC 6 `word` / `word_context` / `tag` / `word_tag`、M4）。
-//! 熟悉度 0..5：0 = 新词，1–4 = 学习中，5 = 已掌握。复习调度（due_at）在 M8 接 FSRS。
+//! 熟悉度 0..5：0 = 新词，1–4 = 学习中，5 = 已掌握。复习后由 FSRS 状态推出（db::review），也可手动改。
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
@@ -29,6 +29,8 @@ pub struct Word {
     pub brief: Option<String>,
     pub familiarity: i64,
     pub due_at: Option<i64>,
+    /// 复习次数（0 = 还没开始复习）
+    pub reps: i64,
     pub created_at: i64,
     pub tags: Vec<String>,
     /// 全部语境句，新的在前
@@ -42,8 +44,10 @@ pub struct WordFilter {
     pub status: Option<String>,
     pub tag: Option<String>,
     pub search: Option<String>,
-    /// added（默认，新的在前）| alpha | familiarity
+    /// added（默认，新的在前）| alpha | familiarity | due（下次复习，最早的在前；没开始复习的在后）
     pub sort: Option<String>,
+    /// 只取这一个词
+    pub id: Option<i64>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -197,21 +201,23 @@ pub fn list(conn: &Connection, f: &WordFilter) -> Result<Vec<Word>> {
     let order = match f.sort.as_deref() {
         Some("alpha") => "w.lemma ASC",
         Some("familiarity") => "w.familiarity ASC, w.created_at DESC",
+        Some("due") => "w.due_at IS NULL, w.due_at ASC, w.created_at DESC",
         _ => "w.created_at DESC, w.id DESC",
     };
     let sql = format!(
         "SELECT w.id, w.lemma, w.brief, w.familiarity, w.due_at, w.created_at,
-                (SELECT COUNT(*) FROM history h WHERE h.lemma = w.lemma)
+                (SELECT COUNT(*) FROM history h WHERE h.lemma = w.lemma), w.reps
          FROM word w
          WHERE w.familiarity BETWEEN ?1 AND ?2
            AND (?3 IS NULL OR EXISTS (SELECT 1 FROM word_tag wt JOIN tag t ON t.id = wt.tag_id
                                        WHERE wt.word_id = w.id AND t.name = ?3))
            AND (?4 IS NULL OR w.lemma LIKE ?4 ESCAPE '\\' OR lower(coalesce(w.brief, '')) LIKE ?4 ESCAPE '\\')
+           AND (?7 IS NULL OR w.id = ?7)
          ORDER BY {order} LIMIT ?5 OFFSET ?6"
     );
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(
-        params![fmin, fmax, f.tag, like, f.limit.clamp(1, 1000), f.offset.max(0)],
+        params![fmin, fmax, f.tag, like, f.limit.clamp(1, 1000), f.offset.max(0), f.id],
         |r| {
             Ok((
                 r.get::<_, i64>(0)?,
@@ -221,12 +227,13 @@ pub fn list(conn: &Connection, f: &WordFilter) -> Result<Vec<Word>> {
                 r.get::<_, Option<i64>>(4)?,
                 r.get::<_, i64>(5)?,
                 r.get::<_, i64>(6)?,
+                r.get::<_, i64>(7)?,
             ))
         },
     )?;
     let base = rows.collect::<rusqlite::Result<Vec<_>>>()?;
     base.into_iter()
-        .map(|(id, lemma, brief, familiarity, due_at, created_at, lookups)| {
+        .map(|(id, lemma, brief, familiarity, due_at, created_at, lookups, reps)| {
             Ok(Word {
                 tags: tags_of(conn, id)?,
                 contexts: contexts_of(conn, id)?,
@@ -235,11 +242,16 @@ pub fn list(conn: &Connection, f: &WordFilter) -> Result<Vec<Word>> {
                 brief,
                 familiarity,
                 due_at,
+                reps,
                 created_at,
                 lookups,
             })
         })
         .collect()
+}
+
+pub fn get(conn: &Connection, id: i64) -> Result<Option<Word>> {
+    Ok(list(conn, &WordFilter { id: Some(id), limit: 1, ..Default::default() })?.into_iter().next())
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

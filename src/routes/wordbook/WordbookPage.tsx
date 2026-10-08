@@ -1,17 +1,18 @@
 // 生词本（SPEC M4、画板 04）：收藏的词、语境句与来源、标签、熟悉度、语境卡。
-// 复习调度（今日待复习、评分）在 M8 接 FSRS。
+// 复习（M8）：「开始复习」进入 ReviewSession，调度由 Rust 的 FSRS 完成。
 
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useState } from "react";
-import type { ContextRow } from "../../ipc/history";
 import {
   deleteWord,
   listTags,
   listWords,
+  reviewCounts,
   saveWord,
   unlinkWordContext,
   updateWord,
   wordbookStats,
+  type ReviewCounts,
   type TagCount,
   type Word,
   type WordbookStats,
@@ -20,6 +21,8 @@ import {
 } from "../../ipc/words";
 import { useBatch } from "../../stores/batch";
 import { toast } from "../../stores/toast";
+import { formatInterval, ReviewSession, startOfToday } from "./ReviewSession";
+import { Sentence } from "./Sentence";
 import styles from "./WordbookPage.module.css";
 import { tr } from "../../i18n";
 
@@ -34,16 +37,6 @@ const STATUSES: Array<{ id: WordStatus | undefined; name: string }> = [
 interface Props {
   onLookup: (word: string) => void;
   active: boolean;
-}
-
-function Sentence({ ctx }: { ctx: ContextRow }) {
-  return (
-    <>
-      {ctx.sentence.slice(0, ctx.hlStart)}
-      <mark>{ctx.sentence.slice(ctx.hlStart, ctx.hlEnd)}</mark>
-      {ctx.sentence.slice(ctx.hlEnd)}
-    </>
-  );
 }
 
 function BackLink({ url }: { url: string | null }) {
@@ -207,13 +200,16 @@ export function WordbookPage({ onLookup, active }: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const [showFrequent, setShowFrequent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [counts, setCounts] = useState<ReviewCounts | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const [w, t, s] = await Promise.all([listWords({ ...query, search, limit: 500 }), listTags(), wordbookStats()]);
+      const [w, t, s, rc] = await Promise.all([listWords({ ...query, search, limit: 500 }), listTags(), wordbookStats(), reviewCounts(startOfToday())]);
       setWords(w);
       setTags(t);
       setStats(s);
+      setCounts(rc);
       setError(null);
     } catch (e) {
       setError(String(e));
@@ -221,10 +217,10 @@ export function WordbookPage({ onLookup, active }: Props) {
   }, [query, search]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || reviewing) return;
     const t = setTimeout(() => void reload(), search ? SEARCH_DEBOUNCE_MS : 0);
     return () => clearTimeout(t);
-  }, [active, reload, search]);
+  }, [active, reload, search, reviewing]);
 
   const setFamiliarity = async (w: Word, v: number) => {
     setWords((prev) => prev.map((x) => (x.id === w.id ? { ...x, familiarity: v } : x)));
@@ -240,6 +236,16 @@ export function WordbookPage({ onLookup, active }: Props) {
     toast(tr("已收藏「{word}」", { word: lemma }));
     void reload();
   };
+
+  if (reviewing) {
+    return (
+      <div className={styles.column}>
+        <ReviewSession onExit={() => setReviewing(false)} onLookup={onLookup} />
+      </div>
+    );
+  }
+
+  const toReview = counts ? counts.due + counts.new : 0;
 
   return (
     <div className={styles.column}>
@@ -260,6 +266,9 @@ export function WordbookPage({ onLookup, active }: Props) {
         <button type="button" className={styles.ghost} onClick={() => useBatch.getState().openDialog("wordbook")}>
           {tr("批量导出…")}
         </button>
+        <button type="button" className={styles.reviewBtn} disabled={toReview === 0} onClick={() => setReviewing(true)}>
+          {tr("开始复习 · {n}", { n: toReview })}
+        </button>
       </header>
 
       {stats && (
@@ -268,6 +277,16 @@ export function WordbookPage({ onLookup, active }: Props) {
             <span>{tr("已收藏")}</span>
             <strong>{stats.total}</strong>
           </div>
+          {counts && (
+            <div className={styles.stat}>
+              <span>{tr("今日待复习")}</span>
+              <strong>
+                {counts.due}
+                <small>{tr("+ {n} 个新词", { n: counts.new })}</small>
+                {counts.doneToday > 0 && <small>{tr("今天已复习 {n} 次", { n: counts.doneToday })}</small>}
+              </strong>
+            </div>
+          )}
           <div className={styles.stat}>
             <span>{tr("本周在阅读中再遇")}</span>
             <strong>
@@ -318,6 +337,7 @@ export function WordbookPage({ onLookup, active }: Props) {
             <option value="added">{tr("最近收藏")}</option>
             <option value="alpha">{tr("字母")}</option>
             <option value="familiarity">{tr("熟悉度")}</option>
+            <option value="due">{tr("下次复习")}</option>
           </select>
         </label>
       </div>
@@ -377,6 +397,7 @@ export function WordbookPage({ onLookup, active }: Props) {
                     ))}
                     {w.lookups > 0 && <span>{tr("查过 {n} 次", { n: w.lookups })}</span>}
                     {w.contexts.length > 1 && <span>{tr("{n} 个语境", { n: w.contexts.length })}</span>}
+                    {w.dueAt !== null && <span>{w.dueAt <= Date.now() ? tr("该复习了") : tr("{t}后复习", { t: formatInterval(w.dueAt - Date.now()) })}</span>}
                     {ctx && <BackLink url={ctx.url} />}
                   </div>
                 </div>

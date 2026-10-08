@@ -431,3 +431,20 @@
   font-size: 12px;
   color: var(--faint);
 }
+
+.reviewBtn {
+  padding: 6px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.reviewBtn:disabled {
+  border-color: var(--line);
+  background: var(--raised);
+  color: var(--faint);
+  cursor: default;
+}

@@ -13,6 +13,7 @@ mod logging;
 mod online;
 mod protocol;
 mod query;
+mod review;
 mod settings;
 mod themes;
 
@@ -124,6 +125,9 @@ pub fn run() {
             commands::words::unlink_word_context,
             commands::words::list_tags,
             commands::words::wordbook_stats,
+            commands::words::review_counts,
+            commands::words::review_queue,
+            commands::words::review_rate,
             commands::export::export_prepare,
             commands::export::export_print_pdf,
             commands::export::export_save_html,

@@ -13,7 +13,10 @@ export interface Word {
   brief: string | null;
   /** 0 新词 · 1–4 学习中 · 5 已掌握 */
   familiarity: number;
+  /** 下次复习（毫秒时间戳）；没开始复习为 null */
   dueAt: number | null;
+  /** 复习次数 */
+  reps: number;
   createdAt: number;
   tags: string[];
   /** 新的在前 */
@@ -27,7 +30,7 @@ export interface WordQuery {
   status?: WordStatus;
   tag?: string;
   search?: string;
-  sort?: "added" | "alpha" | "familiarity";
+  sort?: "added" | "alpha" | "familiarity" | "due";
   limit?: number;
   offset?: number;
 }
@@ -73,4 +76,31 @@ export function listTags(): Promise<TagCount[]> {
 
 export function wordbookStats(): Promise<WordbookStats> {
   return invoke<WordbookStats>("wordbook_stats");
+}
+
+export interface ReviewCounts {
+  /** 到期的复习（含学习中） */
+  due: number;
+  /** 今天还可以引入的新词 */
+  new: number;
+  doneToday: number;
+}
+
+export interface ReviewItem {
+  word: Word;
+  /** 评分 1..4 各自的下次到期时间 */
+  nextDue: [number, number, number, number];
+}
+
+export function reviewCounts(dayStart: number): Promise<ReviewCounts> {
+  return invoke<ReviewCounts>("review_counts", { dayStart });
+}
+
+export function reviewQueue(dayStart: number, limit?: number): Promise<ReviewItem[]> {
+  return invoke<ReviewItem[]>("review_queue", { dayStart, limit: limit ?? null });
+}
+
+/** 1 忘了 · 2 模糊 · 3 记得 · 4 简单；返回下次到期时间 */
+export function reviewRate(id: number, rating: number): Promise<number> {
+  return invoke<number>("review_rate", { id, rating });
 }

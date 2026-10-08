@@ -1,0 +1,218 @@
+/* 复习（画板 04 右侧）：居中一张大卡片，下面四个评分按钮。 */
+
+.session {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exit,
+.linkBtn {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.progress {
+  color: var(--sub);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  margin: 0;
+  color: var(--warn);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 260px;
+  padding: 28px 32px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.card > span,
+.back > span {
+  display: block;
+}
+
+.quote {
+  font-family: var(--font-gloss);
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.quote mark,
+.more mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--hl);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.bare {
+  font-family: var(--font-gloss);
+  font-size: 34px;
+  font-weight: 600;
+}
+
+.source {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.flipHint {
+  margin-top: auto;
+  color: var(--faint);
+  font-size: 13px;
+}
+
+.back {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.word {
+  font-family: var(--font-gloss);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.brief {
+  font-size: var(--gloss-size, 17px);
+  line-height: 1.6;
+}
+
+.more {
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.ratings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rating,
+.flip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rating:hover:not(:disabled),
+.flip:hover {
+  background: var(--raised);
+}
+
+.rating:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.rating small {
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.rating[data-rating="1"] {
+  border-color: var(--warn);
+}
+
+.rating[data-rating="3"] {
+  border-color: var(--accent);
+}
+
+.flip {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
+}
+
+kbd {
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--sub);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.tools {
+  display: flex;
+  justify-content: center;
+}
+
+.finished {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 24px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.finishedTitle {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0;
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.primary {
+  margin-top: 8px;
+  padding: 6px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}

@@ -31,5 +31,14 @@ export function useApplyTheme(): { theme: ThemeId; accent: AccentId } | null {
     }
   }, [theme, accent]);
 
+  // 释义字号与字体（设置 › 外观）
+  const glossSize = appearance?.glossFontSize;
+  const glossFont = appearance?.glossFont;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (glossSize) root.style.setProperty("--gloss-size", `${glossSize}px`);
+    if (glossFont) root.dataset.glossFont = glossFont;
+  }, [glossSize, glossFont]);
+
   return resolved;
 }

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type Page = "lookup" | "history" | "wordbook";
+export type Page = "lookup" | "history" | "wordbook" | "settings";
 
 export const useRoute = create<{ page: Page; go: (page: Page) => void }>((set) => ({
   page: "lookup",

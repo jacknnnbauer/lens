@@ -78,6 +78,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_settings,
             commands::settings::set_settings,
+            commands::settings::app_paths,
             commands::dicts::list_dicts,
             commands::dicts::import_dicts,
             commands::dicts::remove_dict,

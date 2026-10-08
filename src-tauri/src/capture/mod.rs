@@ -13,8 +13,9 @@ pub mod uia;
 #[cfg(windows)]
 mod win;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
@@ -118,6 +119,9 @@ pub struct CaptureService {
     jobs: Mutex<Sender<Job>>,
     next_id: std::sync::atomic::AtomicU64,
     pub status: Mutex<CaptureStatus>,
+    double_copy: Arc<AtomicBool>,
+    #[cfg_attr(not(windows), allow(dead_code))]
+    hook_installed: AtomicBool,
 }
 
 fn clip_query(s: &str) -> String {
@@ -134,37 +138,53 @@ pub fn start(app: AppHandle, double_copy: bool) -> Result<CaptureService> {
         .spawn(move || worker(worker_app, rx))
         .map_err(|e| Error::Other(format!("无法创建取词线程：{e}")))?;
 
-    #[cfg(windows)]
-    if double_copy {
-        let (htx, hrx) = mpsc::channel::<hook::CPress>();
-        hook::spawn(htx)?;
-        let app = app.clone();
-        std::thread::Builder::new()
-            .name("lens-double-copy".into())
-            .spawn(move || {
-                // 确认每次 C 键确实是复制，再按时间判定是否「两次」
-                let mut last = 0u32;
-                while let Ok(press) = hrx.recv() {
-                    if !hook::confirm_copy(press) {
-                        continue;
-                    }
-                    let (hit, next) = hook::double_copy_step(last, press.time);
-                    last = next;
-                    if hit {
-                        on_trigger(&app, Trigger::DoubleCopy);
-                    }
-                }
-            })
-            .map_err(|e| Error::Other(format!("无法创建线程：{e}")))?;
-    }
-    #[cfg(not(windows))]
-    let _ = double_copy;
-
-    Ok(CaptureService {
+    let service = CaptureService {
         jobs: Mutex::new(tx),
         next_id: std::sync::atomic::AtomicU64::new(1),
-        status: Mutex::new(CaptureStatus { double_copy, ..Default::default() }),
-    })
+        status: Mutex::new(CaptureStatus::default()),
+        double_copy: Arc::new(AtomicBool::new(false)),
+        hook_installed: AtomicBool::new(false),
+    };
+    service.set_double_copy(&app, double_copy)?;
+    Ok(service)
+}
+
+impl CaptureService {
+    /// 开关 Ctrl+C+C。钩子第一次开启时才安装；关闭时钩子留着但不再触发（低级钩子开销很小，
+    /// 反复装卸反而容易被系统摘掉），重启后按设置决定是否安装。
+    pub fn set_double_copy(&self, app: &AppHandle, enabled: bool) -> Result<()> {
+        self.double_copy.store(enabled, Ordering::Relaxed);
+        #[cfg(windows)]
+        if enabled && !self.hook_installed.swap(true, Ordering::Relaxed) {
+            let (htx, hrx) = mpsc::channel::<hook::CPress>();
+            hook::spawn(htx)?;
+            let app = app.clone();
+            let flag = Arc::clone(&self.double_copy);
+            std::thread::Builder::new()
+                .name("lens-double-copy".into())
+                .spawn(move || {
+                    // 确认每次 C 键确实是复制，再按时间判定是否「两次」
+                    let mut last = 0u32;
+                    while let Ok(press) = hrx.recv() {
+                        if !flag.load(Ordering::Relaxed) || !hook::confirm_copy(press) {
+                            continue;
+                        }
+                        let (hit, next) = hook::double_copy_step(last, press.time);
+                        last = next;
+                        if hit {
+                            on_trigger(&app, Trigger::DoubleCopy);
+                        }
+                    }
+                })
+                .map_err(|e| Error::Other(format!("无法创建线程：{e}")))?;
+        }
+        #[cfg(not(windows))]
+        let _ = app;
+        if let Ok(mut s) = self.status.lock() {
+            s.double_copy = enabled;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(windows)]

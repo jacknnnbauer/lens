@@ -1,5 +1,5 @@
 // 全局快捷键注册失败（常见：被其他程序占用）时的提示条，可直接换一个快捷键。
-// 完整的快捷键设置在 M5 设置页。
+// 完整的快捷键设置在设置页。
 
 import { useEffect, useState } from "react";
 import { captureStatus, onCaptureStatus, type CaptureStatus } from "../ipc/capture";

@@ -90,3 +90,8 @@
   --hl: color-mix(in srgb, var(--accent) 14%, transparent);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
 }
+
+/* 释义字体（设置 › 外观）：无衬线时改用界面字体 */
+:root[data-gloss-font="sans"] {
+  --font-gloss: var(--font-ui);
+}

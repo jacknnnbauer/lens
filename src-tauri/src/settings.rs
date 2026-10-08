@@ -1,6 +1,6 @@
 //! `%APPDATA%/Lens/settings.json`（SPEC 第 14 节）。
 //!
-//! 目前只建模 `appearance`、`layout`、`capture`、`copy`、`export`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
+//! 目前只建模 `appearance`、`layout`、`immersive`、`capture`、`copy`、`export`；其余分组在各自里程碑接入前原样保留在 `rest` 里，
 //! 这样用户手改的内容不会在保存时丢失。
 
 use std::fs;
@@ -130,11 +130,49 @@ impl Default for Export {
     }
 }
 
+/// 沉浸模式（SPEC 9.2、14）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Immersive {
+    pub hide_title_bar: bool,
+    pub hide_status_bar: bool,
+    pub hide_sidebars: bool,
+    /// 隐藏跳转条与复制按钮，卡片去边框只留小标题
+    pub hide_card_chrome: bool,
+    pub borderless: bool,
+    /// 鼠标在顶部停留时浮现工具栏
+    pub reveal_on_hover: bool,
+    pub fullscreen: bool,
+    /// 正文宽度：600 | 720 | 900
+    pub width: u32,
+    /// 沉浸时单独使用的主题；None = 跟随当前主题
+    pub theme: Option<String>,
+    pub on_startup: bool,
+}
+
+impl Default for Immersive {
+    fn default() -> Self {
+        Self {
+            hide_title_bar: true,
+            hide_status_bar: true,
+            hide_sidebars: true,
+            hide_card_chrome: true,
+            borderless: true,
+            reveal_on_hover: true,
+            fullscreen: false,
+            width: 720,
+            theme: None,
+            on_startup: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub appearance: Appearance,
     pub layout: Layout,
+    pub immersive: Immersive,
     pub capture: Capture,
     pub copy: Copy,
     pub export: Export,
@@ -148,6 +186,7 @@ impl Default for Settings {
         Self {
             appearance: Appearance::default(),
             layout: Layout::default(),
+            immersive: Immersive::default(),
             capture: Capture::default(),
             copy: Copy::default(),
             export: Export::default(),
@@ -257,6 +296,18 @@ mod tests {
         assert!(l.show_jump_bar && !l.show_nav, "未写的字段取默认值");
         let l = store.patch(json!({ "layout": { "showNav": true } }))?.layout;
         assert_eq!((l.preset.as_str(), l.show_nav), ("three-column", true));
+        Ok(())
+    }
+
+    #[test]
+    fn immersive_theme_can_be_cleared() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let store = SettingsStore::load(dir.path().join("settings.json"))?;
+        let i = store.patch(json!({ "immersive": { "theme": "dark", "width": 900 } }))?.immersive;
+        assert_eq!((i.theme.as_deref(), i.width), (Some("dark"), 900));
+        // null 在 Merge Patch 里表示删除，回到默认「跟随当前主题」
+        let i = store.patch(json!({ "immersive": { "theme": null } }))?.immersive;
+        assert_eq!((i.theme, i.width), (None, 900));
         Ok(())
     }
 

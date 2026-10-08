@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppearanceMenu } from "../../components/AppearanceMenu";
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ContextPanel } from "../../components/ContextPanel";
-import { BookmarkIcon, ClockIcon, LibraryIcon } from "../../components/icons";
+import { BookmarkIcon, ClockIcon, GearIcon, LibraryIcon } from "../../components/icons";
 import { LibraryDialog } from "../../components/LibraryDialog";
 import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
@@ -10,6 +9,7 @@ import { Toast } from "../../components/Toast";
 import { onMainLookup } from "../../ipc/capture";
 import { HistoryPage } from "../../routes/history/HistoryPage";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
+import { SettingsPage } from "../../routes/settings/SettingsPage";
 import { WordbookPage } from "../../routes/wordbook/WordbookPage";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
@@ -25,12 +25,11 @@ import styles from "./MainWindow.module.css";
 export function MainWindow() {
   const loadSettings = useSettings((s) => s.load);
   const settingsError = useSettings((s) => s.error);
-  const glossFontSize = useSettings((s) => s.settings?.appearance.glossFontSize);
   const layout = useSettings((s) => s.settings?.layout);
   const updateNow = useSettings((s) => s.updateNow);
   const refreshDicts = useDicts((s) => s.refresh);
   const profiles = useDicts((s) => s.profiles);
-  const resolved = useApplyTheme();
+  useApplyTheme();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const lookupPage = useRef<LookupPageHandle>(null);
   const capture = useCaptureStatus();
@@ -66,10 +65,6 @@ export function MainWindow() {
     };
   }, [loadSettings, refreshDicts]);
 
-  useEffect(() => {
-    if (glossFontSize) document.documentElement.style.setProperty("--gloss-size", `${glossFontSize}px`);
-  }, [glossFontSize]);
-
   // 切换场景配置组：先立即保存（后端查词时读取），再用同一个词重新查
   const switchProfile = useCallback(
     async (id: string) => {
@@ -79,10 +74,16 @@ export function MainWindow() {
     [updateNow],
   );
 
-  // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+B 生词本，Ctrl+K 回到查词（SPEC 9.4）
+  // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+B 生词本，Ctrl+, 设置，Ctrl+K 回到查词（SPEC 9.4）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (e.key === ",") {
+        e.preventDefault();
+        go("settings");
+        window.scrollTo(0, 0);
+        return;
+      }
       const n = Number(e.key);
       if (n >= 1 && n <= 9 && profiles[n - 1]) {
         e.preventDefault();
@@ -105,8 +106,10 @@ export function MainWindow() {
     return () => window.removeEventListener("keydown", onKey);
   }, [profiles, switchProfile, go, focusSearch]);
 
-  const showNav = layout?.showNav ?? false;
-  const showContext = layout?.showContext ?? false;
+  // 设置页有自己的分类导航，不显示两侧栏
+  const inSettings = page === "settings";
+  const showNav = (layout?.showNav ?? false) && !inSettings;
+  const showContext = (layout?.showContext ?? false) && !inSettings;
 
   return (
     <div className={styles.shell} data-nav={showNav || undefined} data-context={showContext || undefined}>
@@ -117,6 +120,7 @@ export function MainWindow() {
             onOpenHistory={() => go("history")}
             onOpenWordbook={() => go("wordbook")}
             onOpenLibrary={() => setLibraryOpen(true)}
+            onOpenSettings={() => go("settings")}
             onSwitchProfile={(id) => void switchProfile(id)}
             onLookup={lookupWord}
           />
@@ -148,13 +152,16 @@ export function MainWindow() {
                 <button type="button" className={styles.iconBtn} aria-label="词典库" title="词典库（Ctrl+L）" onClick={() => setLibraryOpen(true)}>
                   <LibraryIcon />
                 </button>
-                <AppearanceMenu resolvedTheme={resolved?.theme} />
+                <button type="button" className={styles.iconBtn} aria-label="设置" title="设置（Ctrl+,）" onClick={() => go("settings")}>
+                  <GearIcon />
+                </button>
               </>
             }
           />
         </div>
         {page === "history" && <HistoryPage active onLookup={lookupWord} />}
         {page === "wordbook" && <WordbookPage active onLookup={lookupWord} />}
+        {inSettings && <SettingsPage onBack={focusSearch} />}
       </main>
 
       {showContext && (

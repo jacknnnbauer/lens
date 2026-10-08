@@ -20,7 +20,6 @@ const BLUR_HIDE_MS = 300;
 
 export function PopupWindow() {
   const loadSettings = useSettings((s) => s.load);
-  const glossFontSize = useSettings((s) => s.settings?.appearance.glossFontSize);
   const { handle, cards, done, suggestions, search } = useLookup();
   useApplyTheme();
 
@@ -45,10 +44,6 @@ export function PopupWindow() {
     },
     [search],
   );
-
-  useEffect(() => {
-    if (glossFontSize) document.documentElement.style.setProperty("--gloss-size", `${glossFontSize}px`);
-  }, [glossFontSize]);
 
   // 订阅：查询结果、取词、补发的 URL、窗口失焦
   useEffect(() => {

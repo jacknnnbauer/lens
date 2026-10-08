@@ -24,6 +24,21 @@ export interface Layout {
   cardsExpanded: "first2" | "all" | "none";
 }
 
+export interface Immersive {
+  hideTitleBar: boolean;
+  hideStatusBar: boolean;
+  hideSidebars: boolean;
+  /** 隐藏跳转条与复制按钮，卡片去边框只留小标题 */
+  hideCardChrome: boolean;
+  borderless: boolean;
+  revealOnHover: boolean;
+  fullscreen: boolean;
+  width: 600 | 720 | 900;
+  /** null = 跟随当前主题 */
+  theme: string | null;
+  onStartup: boolean;
+}
+
 export interface Capture {
   hotkey: string;
   doubleCopy: boolean;
@@ -46,10 +61,11 @@ export interface ExportPrefs {
   dir: string | null;
 }
 
-/** 目前建模到 appearance、layout、capture、copy、export；其他分组由 Rust 原样保留，接入时再补类型。 */
+/** 目前建模到 appearance、layout、immersive、capture、copy、export；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   appearance: Appearance;
   layout: Layout;
+  immersive: Immersive;
   capture: Capture;
   copy: Copy;
   export: ExportPrefs;
@@ -66,4 +82,15 @@ export function getSettings(): Promise<Settings> {
 /** 按 JSON Merge Patch 合并，返回合并后的完整设置。 */
 export function setSettings(patch: DeepPartial<Settings>): Promise<Settings> {
   return invoke<Settings>("set_settings", { patch });
+}
+
+export interface AppPaths {
+  data: string;
+  settings: string;
+  logs: string;
+  version: string;
+}
+
+export function appPaths(): Promise<AppPaths> {
+  return invoke<AppPaths>("app_paths");
 }

@@ -1,5 +1,4 @@
 // 左侧导航（画板 01）：页面入口、场景配置组（Ctrl+1/2/3）、本次会话最近查询。
-// 设置页随 M5 加入。
 
 import { useDicts } from "../stores/dicts";
 import { useLookup } from "../stores/lookup";
@@ -12,11 +11,12 @@ interface Props {
   onOpenHistory: () => void;
   onOpenWordbook: () => void;
   onOpenLibrary: () => void;
+  onOpenSettings: () => void;
   onSwitchProfile: (id: string) => void;
   onLookup: (word: string) => void;
 }
 
-export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLibrary, onSwitchProfile, onLookup }: Props) {
+export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLibrary, onOpenSettings, onSwitchProfile, onLookup }: Props) {
   const page = useRoute((s) => s.page);
   const profiles = useDicts((s) => s.profiles);
   const active = useSettings((s) => s.settings?.activeProfile);
@@ -36,6 +36,9 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLi
         </button>
         <button type="button" className={styles.item} onClick={onOpenLibrary}>
           词典库<kbd>Ctrl+L</kbd>
+        </button>
+        <button type="button" className={styles.item} onClick={onOpenSettings}>
+          设置<kbd>Ctrl+,</kbd>
         </button>
       </div>
 

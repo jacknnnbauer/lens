@@ -102,8 +102,15 @@ pub fn run() {
             }
             app.manage(service);
             app.manage(batch::BatchManager::default());
+            // 主窗口配置为先隐藏：取消最大化、缩到屏幕以内并居中之后再显示，
+            // 避免一打开就铺满整个屏幕（无边框窗口铺满时看起来像沉浸模式）
             if let Some(main) = app.get_webview_window("main") {
+                if main.is_maximized().unwrap_or(false) {
+                    let _ = main.unmaximize();
+                }
                 fit_to_work_area(&main);
+                let _ = main.show();
+                let _ = main.set_focus();
             }
             Ok(())
         })
@@ -179,18 +186,17 @@ pub fn run() {
 }
 
 /// 默认 1100×760 在小屏（如 1280×720 的 150% 缩放笔记本）上比屏幕还大，又没有系统边框，
-/// 看起来像全屏。启动时把主窗口缩到工作区的 80% × 85% 以内并居中。
+/// 看起来像全屏。启动时把主窗口缩到工作区的 80% × 85% 以内，并居中。
 fn fit_to_work_area(window: &tauri::WebviewWindow) {
     let (Ok(Some(monitor)), Ok(size)) = (window.current_monitor(), window.outer_size()) else { return };
     let area = monitor.work_area();
     let max_w = (f64::from(area.size.width) * 0.8) as u32;
     let max_h = (f64::from(area.size.height) * 0.85) as u32;
-    if size.width <= max_w && size.height <= max_h {
-        return;
-    }
     let w = size.width.min(max_w);
     let h = size.height.min(max_h);
-    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    if w != size.width || h != size.height {
+        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    }
     let x = area.position.x + ((area.size.width - w) / 2) as i32;
     let y = area.position.y + ((area.size.height - h) / 2) as i32;
     let _ = window.set_position(tauri::PhysicalPosition::new(x, y));

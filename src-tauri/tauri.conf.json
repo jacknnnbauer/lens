@@ -14,8 +14,9 @@
       {
         "label": "main",
         "title": "词镜 Lens",
-        "width": 1100,
-        "height": 760,
+        "width": 960,
+        "height": 640,
+        "visible": false,
         "minWidth": 640,
         "minHeight": 480,
         "center": true,

@@ -52,6 +52,13 @@ pub fn run() {
                 })
                 .build(),
         )
+        // 关掉主窗口就退出整个程序：隐藏的弹窗 / 导出窗口不能让进程残留，
+        // 否则再次打开会被单实例转给这个已没有主窗口的进程，看起来「点了打不开」
+        .on_window_event(|window, event| {
+            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                window.app_handle().exit(0);
+            }
+        })
         .register_asynchronous_uri_scheme_protocol(protocol::SCHEME, |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_string();
@@ -95,6 +102,9 @@ pub fn run() {
             }
             app.manage(service);
             app.manage(batch::BatchManager::default());
+            if let Some(main) = app.get_webview_window("main") {
+                fit_to_work_area(&main);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -166,4 +176,22 @@ pub fn run() {
         eprintln!("Lens 启动失败：{e}");
         std::process::exit(1);
     }
+}
+
+/// 默认 1100×760 在小屏（如 1280×720 的 150% 缩放笔记本）上比屏幕还大，又没有系统边框，
+/// 看起来像全屏。启动时把主窗口缩到工作区的 80% × 85% 以内并居中。
+fn fit_to_work_area(window: &tauri::WebviewWindow) {
+    let (Ok(Some(monitor)), Ok(size)) = (window.current_monitor(), window.outer_size()) else { return };
+    let area = monitor.work_area();
+    let max_w = (f64::from(area.size.width) * 0.8) as u32;
+    let max_h = (f64::from(area.size.height) * 0.85) as u32;
+    if size.width <= max_w && size.height <= max_h {
+        return;
+    }
+    let w = size.width.min(max_w);
+    let h = size.height.min(max_h);
+    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    let x = area.position.x + ((area.size.width - w) / 2) as i32;
+    let y = area.position.y + ((area.size.height - h) / 2) as i32;
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
 }

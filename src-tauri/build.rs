@@ -1,4 +1,9 @@
 fn main() {
+    // 一旦输出了任何 rerun-if-changed，cargo 只按这些路径决定是否重跑构建脚本；
+    // 图标和配置也要列上，否则换图标后 exe 里嵌的还是旧图标
+    println!("cargo:rerun-if-changed=icons");
+    println!("cargo:rerun-if-changed=tauri.conf.json");
+    println!("cargo:rerun-if-changed=capabilities");
     build_speex();
     tauri_build::build()
 }

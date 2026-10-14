@@ -12,6 +12,8 @@ const DEBOUNCE_MS = 100;
 export interface SearchBoxHandle {
   focus: () => void;
   setValue: (v: string) => void;
+  /** 从页面别处开始打字：用这个字符替换原来的词，光标放在末尾，照常联想与查询 */
+  startTyping: (ch: string) => void;
 }
 
 interface Props {
@@ -41,12 +43,19 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
       setValue(v);
       setOpen(false);
     },
+    startTyping: (ch) => {
+      input.current?.focus();
+      onChange(ch);
+      requestAnimationFrame(() => input.current?.setSelectionRange(ch.length, ch.length));
+    },
   }));
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const runNow = (q: string) => {
     clearTimeout(timer.current);
+    // 让还在路上的候选请求作废：Enter 之后下拉框不能再弹出来
+    suggestSeq.current++;
     setOpen(false);
     setActive(-1);
     onSearch(q, true);

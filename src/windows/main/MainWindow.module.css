@@ -11,10 +11,18 @@
 }
 
 .scroller {
+  /* 定位上下文：里面 position:absolute 的元素（如 .sr-only 单选框）不能跑到文档根上把整页撑高，
+     否则会多出一条外层滚动条，滚到底时标题栏也被卷走 */
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* 主窗口只有 #lens-scroll 一个滚动区 */
+:global(html):has(.frame) {
+  overflow: hidden;
 }
 
 /* 网格：[左侧导航] 主区 [右侧栏]，状态栏横跨底部。主区随容器滚动，两侧栏吸顶。 */

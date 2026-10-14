@@ -7,7 +7,9 @@ import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { SenseAtlas } from "../../components/SenseAtlas";
 import { useDicts } from "../../stores/dicts";
+import { useImmersive } from "../../stores/immersive";
 import { useLookup } from "../../stores/lookup";
+import { useRoute } from "../../stores/route";
 import { useSaveWord } from "../../stores/save";
 import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
@@ -81,6 +83,30 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
   // 历史只记明确发起的查询（Enter、选候选、点词条链接、划词），打字过程中的 n / nu / nua 不记
   const anyHit = cards.some((c) => c.status === "hit");
+
+  // 在查词页上不必先按 Ctrl+K：焦点不在输入框时，直接打字会落进搜索框（替换掉上一个词），Enter 回到搜索框并全选
+  useEffect(() => {
+    const onType = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return;
+      if (useRoute.getState().page !== "lookup" || useImmersive.getState().on) return;
+      if (document.querySelector("dialog[open]")) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const printable = e.key.length === 1 && e.key !== " ";
+      if (e.key === "Enter") {
+        // 按钮、链接上的 Enter 照常生效
+        if (t && /^(BUTTON|A|SUMMARY)$/.test(t.tagName)) return;
+        e.preventDefault();
+        searchBox.current?.focus();
+      } else if (printable) {
+        // 这个键由搜索框接手（替换掉原来的词）；之后焦点已在输入框里，后续按键照常输入
+        e.preventDefault();
+        searchBox.current?.startTyping(e.key);
+      }
+    };
+    window.addEventListener("keydown", onType);
+    return () => window.removeEventListener("keydown", onType);
+  }, []);
 
   // Ctrl+K 聚焦搜索框，Ctrl+S 收藏（SPEC 9.4）
   useEffect(() => {

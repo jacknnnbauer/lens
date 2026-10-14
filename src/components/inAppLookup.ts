@@ -1,10 +1,10 @@
-// Lens 窗口内查词（设置 › 取词 › 窗口内查词）：在释义、例句、语境句里双击 / 单击 / 划选一个词，弹出查词小窗。
+// Lens 窗口内查词（设置 › 取词 › 窗口内查词）：在释义、例句、语境句里双击 / 单击 / 划选一个词就查它。
+// 主窗口里直接跳到查词页查这个词；查词小窗里则在小窗原地换词。所在句子都存为语境句。
 // 参考 Obsidian 插件 MDX Vocab Lookup 的三种触发方式。只在标了 data-word-lookup 的阅读区生效，
 // 按钮、链接、输入框照常工作。词典正文在 Shadow DOM 里，选区与坐标都要按各自的 shadowRoot 取。
 
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSettings } from "../stores/settings";
 
 export type InAppTrigger = "dblclick" | "click" | "drag" | "off";
@@ -85,21 +85,30 @@ function acceptable(text: string, phrase: boolean): boolean {
   return t.length <= MAX_WORD && !/\s/.test(t);
 }
 
-async function fire(range: Range, text: string, inPopup: boolean) {
+type OnLookup = ((word: string, contextId: number | null) => void) | null;
+
+async function fire(range: Range, text: string, onLookup: OnLookup) {
   const para = paragraphOf(range);
-  let anchor: { x: number; y: number; h: number } | null = null;
-  if (!inPopup) {
-    const rect = range.getBoundingClientRect();
-    const pos = await getCurrentWindow().innerPosition();
-    const dpr = window.devicePixelRatio || 1;
-    anchor = { x: pos.x + rect.left * dpr, y: pos.y + rect.top * dpr, h: rect.height * dpr };
+  const word = text.trim();
+  if (onLookup) {
+    // 主窗口：先存语境句，再在主窗口查（收藏时带上句子）
+    const contextId = para
+      ? await invoke<number | null>("save_in_app_context", { text: word, paragraph: para.paragraph, sel16: para.sel16 }).catch(() => null)
+      : null;
+    onLookup(word, contextId);
+    return;
   }
-  await invoke("lookup_in_popup", { text: text.trim(), paragraph: para?.paragraph ?? null, sel16: para?.sel16 ?? null, anchor }).catch(() => undefined);
+  // 查词小窗：原地换词
+  await invoke("lookup_in_popup", { text: word, paragraph: para?.paragraph ?? null, sel16: para?.sel16 ?? null, anchor: null }).catch(() => undefined);
 }
 
-/** 主窗口与查词小窗各调用一次 */
-export function useInAppLookup(inPopup: boolean) {
+/** 主窗口传查词回调；查词小窗传 null */
+export function useInAppLookup(onLookup: OnLookup) {
   const trigger = (useSettings((s) => s.settings?.capture?.inAppTrigger) ?? "dblclick") as InAppTrigger;
+
+  const onLookupRef = useRef(onLookup);
+  onLookupRef.current = onLookup;
+  const inPopup = onLookup === null;
 
   useEffect(() => {
     if (trigger === "off") return;
@@ -112,7 +121,7 @@ export function useInAppLookup(inPopup: boolean) {
         if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
         const text = sel.toString();
         if (!acceptable(text, phrase)) return;
-        void fire(sel.getRangeAt(0), text, inPopup);
+        void fire(sel.getRangeAt(0), text, onLookupRef.current);
       }, 0);
     };
     const onDbl = (e: MouseEvent) => {
@@ -131,7 +140,7 @@ export function useInAppLookup(inPopup: boolean) {
       const range = wordRangeAt(rootOf(e), e.clientX, e.clientY);
       if (!range) return;
       const text = range.toString();
-      if (acceptable(text, false)) void fire(range, text, inPopup);
+      if (acceptable(text, false)) void fire(range, text, onLookupRef.current);
     };
     const [type, fn] = trigger === "dblclick" ? (["dblclick", onDbl] as const) : trigger === "drag" ? (["mouseup", onUp] as const) : (["click", onClick] as const);
     document.addEventListener(type, fn);

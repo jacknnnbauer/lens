@@ -186,6 +186,7 @@ pub fn run() {
             commands::popup::write_clipboard,
             commands::popup::open_in_main,
             commands::popup::lookup_in_popup,
+            commands::popup::save_in_app_context,
         ])
         .run(tauri::generate_context!());
 

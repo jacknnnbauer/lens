@@ -21,7 +21,7 @@ import { tr } from "../../i18n";
 const BLUR_HIDE_MS = 300;
 
 export function PopupWindow() {
-  useInAppLookup(true);
+  useInAppLookup(null);
   const loadSettings = useSettings((s) => s.load);
   const { handle, cards, done, suggestions, search } = useLookup();
   useApplyTheme();

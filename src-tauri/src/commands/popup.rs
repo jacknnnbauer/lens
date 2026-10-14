@@ -62,3 +62,9 @@ pub async fn lookup_in_popup(
     let anchor = anchor.map(|a| crate::capture::Anchor { x: a.x, y: a.y, h: a.h });
     crate::capture::show_in_app(&app, &text, paragraph.as_deref(), sel16, anchor, title)
 }
+
+/// 主窗口内划词：存语境句，返回 id，供随后的查询与收藏引用。
+#[tauri::command]
+pub async fn save_in_app_context(app: AppHandle, text: String, paragraph: String, sel16: (usize, usize)) -> Result<Option<i64>> {
+    Ok(crate::capture::save_in_app_context(&app, &text, &paragraph, sel16))
+}

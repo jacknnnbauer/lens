@@ -368,6 +368,12 @@ pub fn place(anchor: Anchor, size: (f64, f64), work: (f64, f64, f64, f64)) -> (f
     (x.round(), y.round())
 }
 
+/// 主窗口内划词：只把所在句子存成语境句，返回 id（查词在主窗口里进行）。
+pub fn save_in_app_context(app: &AppHandle, text: &str, paragraph: &str, sel16: (usize, usize)) -> Option<i64> {
+    let ctx = sentence::extract(paragraph, sel16)?;
+    store_context(app, &clip_query(text), &ctx, "lens", Some("Lens"), Some("词镜 Lens"))
+}
+
 /// Lens 窗口内划词（设置 › 取词 › 窗口内查词）：前端已经知道词和所在段落，不走 UIA / 剪贴板，直接弹出查词小窗。
 /// `paragraph` + `sel16`（词在段落里的 UTF-16 区间）用来取语境句；`anchor` 为屏幕物理像素，None 时不移动小窗（在小窗里点词）。
 pub fn show_in_app(app: &AppHandle, text: &str, paragraph: Option<&str>, sel16: Option<(usize, usize)>, anchor: Option<Anchor>, title: &str) -> Result<()> {

@@ -20,7 +20,8 @@ import styles from "./LookupPage.module.css";
 import { tr } from "../../i18n";
 
 export interface LookupPageHandle {
-  lookupWord: (word: string) => void;
+  /** contextId：窗口内划词时存下的语境句，收藏时带上 */
+  lookupWord: (word: string, contextId?: number | null) => void;
   focusSearch: () => void;
   /** 打开导出对话框（沉浸模式工具栏用）；没有命中时不打开 */
   openExport: () => void;
@@ -61,9 +62,9 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   };
 
   const lookupWord = useCallback(
-    (word: string) => {
+    (word: string, contextId?: number | null) => {
       searchBox.current?.setValue(word);
-      void search(word, { commit: true });
+      void search(word, { commit: true, contextId: contextId ?? null });
       scrollRoot().scrollTo({ top: 0 });
     },
     [search],

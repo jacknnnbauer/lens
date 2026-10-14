@@ -40,7 +40,6 @@ export function MainWindow() {
   const profiles = useDicts((s) => s.profiles);
   useApplyTheme();
   const immersive = useImmersiveMode();
-  useInAppLookup(false);
   const immersivePrefs = useSettings((s) => s.settings?.immersive);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const lookupPage = useRef<LookupPageHandle>(null);
@@ -49,12 +48,14 @@ export function MainWindow() {
   const go = useRoute((s) => s.go);
   // 从其他页面查一个词：切回查词页（查词页一直挂载，只是隐藏）
   const lookupWord = useCallback(
-    (w: string) => {
+    (w: string, contextId?: number | null) => {
       go("lookup");
-      lookupPage.current?.lookupWord(w);
+      lookupPage.current?.lookupWord(w, contextId);
     },
     [go],
   );
+  // 主窗口里划词：直接在主窗口查这个词（不弹小窗）
+  useInAppLookup(lookupWord);
   const focusSearch = useCallback(() => {
     go("lookup");
     requestAnimationFrame(() => lookupPage.current?.focusSearch());

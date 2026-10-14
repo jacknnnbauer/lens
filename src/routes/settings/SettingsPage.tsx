@@ -8,6 +8,8 @@ import { useCaptureStatus } from "../../components/HotkeyNotice";
 import { htmlToMarkdown, sourceLine } from "../../copy/convert";
 import { appPaths, type AppPaths, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
+import { exportStyleChoices, PAPER_CHOICES } from "../../components/ExportStyleOptions";
+import type { ExportStyle, Paper } from "../../export-templates/template";
 import { ThemeThumb } from "../../components/ThemeThumb";
 import { ACCENTS, allThemes, findTheme, type CustomTheme } from "../../theme/themes";
 import { useAppliedTheme } from "../../theme/useApplyTheme";
@@ -30,9 +32,9 @@ const SECTIONS = [
 ] as const;
 
 const PRESETS: Array<{ id: LayoutPreset; name: string; hint: string; regions: Partial<Layout> }> = [
-  { id: "three-column", name: "三栏", hint: "导航 + 结果 + 上下文", regions: { showNav: true, showContext: true, showStatusBar: true } },
   { id: "compact", name: "简洁单栏", hint: "搜索框 + 词典卡片流", regions: { showNav: false, showContext: false, showStatusBar: false } },
   { id: "two-column", name: "双栏", hint: "导航 + 结果", regions: { showNav: true, showContext: false, showStatusBar: true } },
+  { id: "three-column", name: "三栏", hint: "导航 + 结果 + 上下文", regions: { showNav: true, showContext: true, showStatusBar: true } },
 ];
 
 /** 应用内快捷键（SPEC 9.4），只读说明 */
@@ -502,21 +504,14 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             <Select
               label={tr("样式")}
               value={ex.style}
-              options={[
-                ["paperWhite", "纸本（白底打印版）"],
-                ["followTheme", "跟随当前主题"],
-                ["inkSaving", "黑白省墨"],
-              ]}
-              onChange={(v) => setE({ style: v })}
+              options={exportStyleChoices(customs)}
+              onChange={(v) => setE({ style: v as ExportStyle })}
             />
             <Select
               label={tr("纸张")}
-              value={ex.paper}
-              options={[
-                ["a4", "A4 纵向"],
-                ["letter", "Letter 纵向"],
-              ]}
-              onChange={(v) => setE({ paper: v })}
+              value={ex.paper === "letter" ? "a4" : ex.paper}
+              options={PAPER_CHOICES}
+              onChange={(v) => setE({ paper: v as Paper })}
             />
             <div className={styles.row}>
               <span>

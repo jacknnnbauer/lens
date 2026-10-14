@@ -17,8 +17,6 @@ import { scrollRoot } from "../../windows/main/scroll";
 import styles from "./LookupPage.module.css";
 import { tr } from "../../i18n";
 
-const IDLE_COMMIT_MS = 1500;
-
 export interface LookupPageHandle {
   lookupWord: (word: string) => void;
   focusSearch: () => void;
@@ -43,7 +41,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   { actions, onOpenLibrary, showJumpBar, showHeadword },
   ref,
 ) {
-  const { handle, cards, done, suggestions, error, search, commit, queryOnline } = useLookup();
+  const { handle, cards, done, suggestions, error, search, queryOnline } = useLookup();
   const dictCount = useDicts((s) => s.dicts.filter((d) => d.loaded).length);
   const dictsLoaded = useDicts((s) => s.loaded);
   const searchBox = useRef<SearchBoxHandle>(null);
@@ -81,13 +79,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     [lookupWord],
   );
 
-  // 只是打字时：结果有命中、且停留 1.5 秒没再改，才记入历史
+  // 历史只记明确发起的查询（Enter、选候选、点词条链接、划词），打字过程中的 n / nu / nua 不记
   const anyHit = cards.some((c) => c.status === "hit");
-  useEffect(() => {
-    if (!handle || !done || !anyHit) return;
-    const t = setTimeout(commit, IDLE_COMMIT_MS);
-    return () => clearTimeout(t);
-  }, [handle, done, anyHit, commit]);
 
   // Ctrl+K 聚焦搜索框，Ctrl+S 收藏（SPEC 9.4）
   useEffect(() => {

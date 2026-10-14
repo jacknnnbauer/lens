@@ -691,4 +691,8 @@ export const en: Record<string, string> = {
   "展开": "Expand",
   "收起独有义项": "Hide single-dictionary senses",
   "独有义项 {n} 条": "{n} senses found in only one dictionary",
+  // ── 0.3.0 ──
+  "主题 · {name}": "Theme · {name}",
+  "按主题配色": "Theme colors",
+  "A3 纵向": "A3 portrait",
 };

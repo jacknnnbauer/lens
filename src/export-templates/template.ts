@@ -7,8 +7,18 @@ import { tr } from "../i18n";
 import type { ContextRow } from "../ipc/history";
 
 export type ExportLayout = "cards" | "document";
-export type ExportStyle = "paperWhite" | "followTheme" | "inkSaving";
-export type Paper = "a4" | "letter";
+/** 纸本白底 / 跟随当前主题 / 黑白省墨 / 指定某套主题（内置或自定义） */
+export type ExportStyle = "paperWhite" | "followTheme" | "inkSaving" | `theme:${string}`;
+/** letter 只为兼容旧设置，界面只提供 A4 / A3 */
+export type Paper = "a4" | "a3" | "letter";
+
+/** 导出文档实际使用的主题 id */
+export function exportTheme(style: ExportStyle, appliedTheme: string): string {
+  if (style === "inkSaving") return "eink";
+  if (style === "followTheme") return appliedTheme;
+  if (style.startsWith("theme:")) return style.slice(6) || "paper";
+  return "paper";
+}
 
 export const COPYRIGHT = "由 Lens 词镜导出。释义内容版权归各词典所有，仅供个人学习使用。";
 
@@ -114,7 +124,8 @@ function wordInner(input: ExportInput): string {
 }
 
 function styleAttr(style: ExportStyle): string {
-  return style === "inkSaving" ? "ink" : style;
+  if (style === "inkSaving") return "ink";
+  return style.startsWith("theme:") ? "theme" : style;
 }
 
 /** 导出文档的 <body> 内容。 */

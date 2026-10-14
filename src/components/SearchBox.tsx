@@ -1,5 +1,5 @@
 // 搜索框（SPEC 9.4）：100ms 防抖查词 + 前缀候选下拉。
-// ↑↓ 选候选、Enter 立即查、Esc 先关下拉再清空；Tab 交给页面跳到第一张卡片。
+// ↑↓ 选候选、Enter 立即查并全选（接着输入即替换）、Esc 先关下拉再清空；Tab 交给页面跳到第一张卡片。
 
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { suggest } from "../ipc/lookup";
@@ -87,6 +87,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
       e.preventDefault();
       if (open && active >= 0) pick(items[active]);
       else runNow(value);
+      // 查完全选，直接输入下一个词就会替换掉
+      requestAnimationFrame(() => input.current?.select());
     } else if (e.key === "Escape") {
       e.preventDefault();
       if (open) setOpen(false);

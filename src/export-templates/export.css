@@ -7,12 +7,12 @@ body {
   color: var(--text);
 }
 
+/* 纵向排列用普通块 + margin，不用 flex：Chromium 打印时，跨页的 flex 子项高度按分页前计算，
+   后面的卡片 / 页脚会压到它溢出的内容上（卡片重叠） */
 .lens-export {
   max-width: 760px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: block;
   font-family: var(--font-ui);
   font-size: 14px;
   line-height: 1.5;
@@ -20,9 +20,21 @@ body {
   print-color-adjust: exact;
 }
 
+.lens-export > * + *,
+.vol-word > * + * {
+  margin-top: 14px;
+}
+
 @media screen {
   .lens-export {
     padding: 40px 24px;
+  }
+}
+
+/* 打印用满纸张宽度（A3 时不留大片空白；A4 本来就比 760px 窄） */
+@media print {
+  .lens-export {
+    max-width: none;
   }
 }
 
@@ -235,9 +247,7 @@ body {
 }
 
 .vol-word {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: block;
   break-before: page;
 }
 

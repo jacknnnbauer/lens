@@ -8,7 +8,7 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -261,15 +261,21 @@ async fn run(app: &AppHandle, batch_id: &str, ctl: &Arc<Control>) -> Result<()> 
     Ok(())
 }
 
-/// 等导出窗口就绪：不存在就新建；`recycle` 为真时先销毁再建（释放 WebView2 内存）。
-async fn ensure_render_window(app: &AppHandle, recycle: bool) -> Result<()> {
+/// 因内存重建渲染窗口的最小间隔（词数）
+const MIN_WORDS_PER_RECYCLE: usize = 25;
+/// 渲染窗口池上限
+const MAX_RENDER_WORKERS: usize = 4;
+
+/// 等导出窗口 `label` 就绪：不存在就新建；`recycle` 为真时先销毁再建（释放 WebView2 内存）。
+async fn ensure_render_window(app: &AppHandle, label: &str, recycle: bool) -> Result<()> {
     let manager = app.state::<BatchManager>();
     if recycle {
-        if let Some(w) = app.get_webview_window(export::EXPORT) {
+        if let Some(w) = app.get_webview_window(label) {
+            manager.forget_ready(label);
             w.destroy()?;
             // 等窗口真正关闭
             for _ in 0..50 {
-                if app.get_webview_window(export::EXPORT).is_none() {
+                if app.get_webview_window(label).is_none() {
                     break;
                 }
                 tokio::time::sleep(Duration::from_millis(50)).await;
@@ -277,20 +283,28 @@ async fn ensure_render_window(app: &AppHandle, recycle: bool) -> Result<()> {
         }
     }
     let mut ready = manager.ready_receiver();
-    if export::ensure_window(app)? {
-        match tokio::time::timeout(WINDOW_READY_TIMEOUT, ready.changed()).await {
-            Ok(Ok(())) => {}
-            _ => return Err(Error::Other(crate::i18n::t("渲染窗口启动超时", "The render window took too long to start").into())),
+    if export::ensure_window_labeled(app, label)? {
+        manager.forget_ready(label);
+    }
+    // 新建的窗口（或单词导出建好、还没报到的窗口）要等它自己报告就绪
+    let wait = async {
+        while !manager.is_ready(label) {
+            if ready.changed().await.is_err() {
+                break;
+            }
         }
+    };
+    if tokio::time::timeout(WINDOW_READY_TIMEOUT, wait).await.is_err() {
+        return Err(Error::Other(crate::i18n::t("渲染窗口启动超时", "The render window took too long to start").into()));
     }
     Ok(())
 }
 
-async fn render(app: &AppHandle, job: RenderJob, timeout: Duration) -> Result<RenderReply> {
+async fn render(app: &AppHandle, label: &str, job: RenderJob, timeout: Duration) -> Result<RenderReply> {
     let manager = app.state::<BatchManager>();
     let job_id = job.job_id.clone();
     let rx = manager.expect_reply(&job_id)?;
-    if let Err(e) = app.emit_to(export::EXPORT, EVENT_RENDER, job) {
+    if let Err(e) = app.emit_to(label, EVENT_RENDER, job) {
         manager.forget_reply(&job_id);
         return Err(Error::Other(crate::tf!("无法发送渲染任务：{}", "Could not send the render job: {}", e)));
     }
@@ -344,14 +358,10 @@ async fn render_stage(
     word_rx: &mut mpsc::Receiver<WordResult>,
     write_tx: &mpsc::Sender<WriteJob>,
 ) -> Result<()> {
+    if !req.merge {
+        return render_pool(app, req, cfg, ctl, shared, tmp_dir, word_rx, write_tx).await;
+    }
     let state = app.state::<AppState>();
-    let recycle_every = cfg.render_recycle_every.max(1);
-    // 内存上限按开始时的基线算：进程树里还有主窗口、弹窗与 GPU 进程，基线本身可能就接近上限
-    let baseline = tauri::async_runtime::spawn_blocking(sys::process_tree_mb).await.unwrap_or(0);
-    let mut mem_limit = cfg.mem_limit_mb.max(baseline + 400);
-    tracing::info!(baseline, mem_limit, "批量导出内存基线");
-    let mut since_recycle = 0usize;
-    let mut need_recycle = false;
     let mut volume: Vec<WordResult> = Vec::new();
     let total = state.db.with_conn(|c| dbb::counts(c, &shared.batch_id))?.total as usize;
     let volume_size = cfg.merge_volume_size.max(1);
@@ -383,47 +393,6 @@ async fn render_stage(
                 set_item(&state, shared, r.seq, dbb::FAILED, Some(&no_result_note(&r)), None);
                 continue;
             }
-            if !req.merge {
-                set_item(&state, shared, r.seq, dbb::RENDERING, None, None);
-                let mem = shared.mem_mb.load(Ordering::Relaxed);
-                let recycle = need_recycle || since_recycle >= recycle_every || mem > mem_limit;
-                if recycle && since_recycle > 0 {
-                    shared.recycles.fetch_add(1, Ordering::Relaxed);
-                    tracing::info!(since_recycle, mem, "重建渲染窗口");
-                }
-                ensure_render_window(app, recycle && since_recycle > 0).await?;
-                if recycle {
-                    since_recycle = 0;
-                    need_recycle = false;
-                    // WebView2 的浏览器进程不会把内存全还回来：重建后水位仍高时抬高上限，避免每个词都重建
-                    let after = tauri::async_runtime::spawn_blocking(sys::process_tree_mb).await.unwrap_or(0);
-                    if after + 400 > mem_limit {
-                        mem_limit = after + 400;
-                        tracing::info!(after, mem_limit, "重建后内存仍高，调高重建阈值");
-                    }
-                }
-                let pdf = req.pdf.then(|| tmp_dir.join(format!("{}.pdf", r.seq)));
-                let words = vec![RenderWord { word: r.word.clone(), cards: r.cards, context: r.context }];
-                let job = job_base(req, "word", r.word.clone(), words, pdf.clone());
-                since_recycle += 1;
-                match render(app, job, RENDER_TIMEOUT).await {
-                    Ok(RenderReply { ok: true, html, .. }) => {
-                        let job = WriteJob::Word { seq: r.seq, word: r.word, notes: r.notes, pdf, html };
-                        if write_tx.send(job).await.is_err() {
-                            break;
-                        }
-                    }
-                    Ok(RenderReply { error, .. }) => {
-                        set_item(&state, shared, r.seq, dbb::FAILED, Some(&crate::tf!("渲染失败：{}", "Rendering failed: {}", error.unwrap_or_default())), None);
-                    }
-                    Err(e) => {
-                        // 窗口没回应：下一个词前重建
-                        need_recycle = true;
-                        set_item(&state, shared, r.seq, dbb::FAILED, Some(&e.to_string()), None);
-                    }
-                }
-                continue;
-            }
             set_item(&state, shared, r.seq, dbb::RENDERING, None, None);
             volume.push(r);
         }
@@ -439,7 +408,7 @@ async fn render_stage(
             let title = if volumes_total > 1 { crate::tf!("{} · 第 {} 卷", "{} · Volume {}", req.label, volume_no) } else { req.label.clone() };
             // 查词并发完成顺序不定，卷内按输入顺序排
             volume.sort_by_key(|r| r.seq);
-            ensure_render_window(app, true).await?;
+            ensure_render_window(app, export::EXPORT, true).await?;
             shared.recycles.fetch_add(u32::from(volume_no > 1), Ordering::Relaxed);
             let pdf = req.pdf.then(|| tmp_dir.join(format!("volume-{volume_no}.pdf")));
             let seqs: Vec<(i64, Vec<String>)> = volume.iter().map(|r| (r.seq, r.notes.clone())).collect();
@@ -448,7 +417,7 @@ async fn render_stage(
                 .map(|r| RenderWord { word: r.word, cards: r.cards, context: r.context })
                 .collect();
             let job = job_base(req, "volume", title, words, pdf.clone());
-            match render(app, job, VOLUME_TIMEOUT).await {
+            match render(app, export::EXPORT, job, VOLUME_TIMEOUT).await {
                 Ok(RenderReply { ok: true, html, .. }) => {
                     if write_tx.send(WriteJob::Volume { seqs, stem, pdf, html }).await.is_err() {
                         break;
@@ -469,6 +438,120 @@ async fn render_stage(
         }
         if end {
             break;
+        }
+    }
+    Ok(())
+}
+
+/// 「每个词一个文件」：几个渲染窗口同时取词渲染、打印（WebView2 打印 PDF 每个文件约 2 秒起，串行很慢）。
+#[allow(clippy::too_many_arguments)]
+async fn render_pool(
+    app: &AppHandle,
+    req: &BatchRequest,
+    cfg: &crate::settings::Batch,
+    ctl: &Arc<Control>,
+    shared: &Arc<Shared>,
+    tmp_dir: &Path,
+    word_rx: &mut mpsc::Receiver<WordResult>,
+    write_tx: &mpsc::Sender<WriteJob>,
+) -> Result<()> {
+    let workers = cfg.render_workers.clamp(1, MAX_RENDER_WORKERS);
+    // 内存上限按开始时的基线算：进程树里还有主窗口、弹窗与 GPU 进程，基线本身可能就接近上限；每多一个窗口多留一些
+    let baseline = tauri::async_runtime::spawn_blocking(sys::process_tree_mb).await.unwrap_or(0);
+    let extra = 250 * (workers as u64 - 1);
+    let mem_limit = AtomicU64::new(cfg.mem_limit_mb.max(baseline + 400 + extra));
+    tracing::info!(baseline, mem_limit = mem_limit.load(Ordering::Relaxed), workers, "批量导出内存基线");
+    let rx = tokio::sync::Mutex::new(word_rx);
+    let results = futures_util::future::join_all(
+        (0..workers).map(|i| render_worker(app, req, cfg, ctl, shared, tmp_dir, &rx, write_tx, &mem_limit, export::pool_label(i))),
+    )
+    .await;
+    // 多出来的窗口用完就关，0 号（单词导出也用）留着
+    for i in 1..workers {
+        if let Some(w) = app.get_webview_window(&export::pool_label(i)) {
+            app.state::<BatchManager>().forget_ready(w.label());
+            let _ = w.destroy();
+        }
+    }
+    results.into_iter().collect::<Result<Vec<()>>>().map(|_| ())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn render_worker(
+    app: &AppHandle,
+    req: &BatchRequest,
+    cfg: &crate::settings::Batch,
+    ctl: &Arc<Control>,
+    shared: &Arc<Shared>,
+    tmp_dir: &Path,
+    rx: &tokio::sync::Mutex<&mut mpsc::Receiver<WordResult>>,
+    write_tx: &mpsc::Sender<WriteJob>,
+    mem_limit: &AtomicU64,
+    label: String,
+) -> Result<()> {
+    let state = app.state::<AppState>();
+    let recycle_every = cfg.render_recycle_every.max(1);
+    let mut since_recycle = 0usize;
+    let mut need_recycle = false;
+    loop {
+        // 取下一个词：锁只在取的时候持有
+        let next = rx.lock().await.recv().await;
+        let Some(r) = next else { break };
+        shared.render_queue.fetch_sub(1, Ordering::Relaxed);
+        if ctl.is_cancelled() {
+            // 取消：已查到的不再渲染，条目退回待处理
+            set_item(&state, shared, r.seq, dbb::PENDING, None, None);
+            continue;
+        }
+        if r.cards.is_empty() {
+            set_item(&state, shared, r.seq, dbb::FAILED, Some(&no_result_note(&r)), None);
+            continue;
+        }
+        set_item(&state, shared, r.seq, dbb::RENDERING, None, None);
+        let mem = shared.mem_mb.load(Ordering::Relaxed);
+        // 内存触发的重建至少隔 MIN_WORDS_PER_RECYCLE 个词：WebView2 重建后很快又涨回原水位，
+        // 不设下限就会每个词都重建一次（每次 1–2 秒）
+        let over_mem = mem > mem_limit.load(Ordering::Relaxed) && since_recycle >= MIN_WORDS_PER_RECYCLE;
+        let recycle = need_recycle || since_recycle >= recycle_every || over_mem;
+        if recycle && since_recycle > 0 {
+            shared.recycles.fetch_add(1, Ordering::Relaxed);
+            tracing::info!(window = %label, since_recycle, mem, "重建渲染窗口");
+        }
+        if over_mem {
+            // 这个水位是常态：下次超过它一截再重建
+            mem_limit.fetch_max(mem + 200, Ordering::Relaxed);
+        }
+        if let Err(e) = ensure_render_window(app, &label, recycle && since_recycle > 0).await {
+            set_item(&state, shared, r.seq, dbb::FAILED, Some(&e.to_string()), None);
+            need_recycle = true;
+            continue;
+        }
+        if recycle {
+            since_recycle = 0;
+            need_recycle = false;
+        }
+        let pdf = req.pdf.then(|| tmp_dir.join(format!("{}.pdf", r.seq)));
+        let words = vec![RenderWord { word: r.word.clone(), cards: r.cards, context: r.context }];
+        let job = job_base(req, "word", r.word.clone(), words, pdf.clone());
+        since_recycle += 1;
+        let t0 = std::time::Instant::now();
+        let rendered = render(app, &label, job, RENDER_TIMEOUT).await;
+        tracing::debug!(window = %label, word = %r.word, ms = t0.elapsed().as_millis() as u64, "渲染完成");
+        match rendered {
+            Ok(RenderReply { ok: true, html, .. }) => {
+                let job = WriteJob::Word { seq: r.seq, word: r.word, notes: r.notes, pdf, html };
+                if write_tx.send(job).await.is_err() {
+                    break;
+                }
+            }
+            Ok(RenderReply { error, .. }) => {
+                set_item(&state, shared, r.seq, dbb::FAILED, Some(&crate::tf!("渲染失败：{}", "Rendering failed: {}", error.unwrap_or_default())), None);
+            }
+            Err(e) => {
+                // 窗口没回应：下一个词前重建
+                need_recycle = true;
+                set_item(&state, shared, r.seq, dbb::FAILED, Some(&e.to_string()), None);
+            }
         }
     }
     Ok(())

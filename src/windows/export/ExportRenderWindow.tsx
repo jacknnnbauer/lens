@@ -14,7 +14,7 @@ import { prepareEntry } from "../../dict-render/prepare";
 import { inlineEntry } from "../../export/resources";
 import type { ExportJob } from "../../export/run";
 import exportCss from "../../export-templates/export.css?raw";
-import { buildExportBody, buildVolumeBody, type ExportCard } from "../../export-templates/template";
+import { buildExportBody, buildVolumeBody, exportTheme, type ExportCard } from "../../export-templates/template";
 import { isLang, setLang } from "../../i18n";
 import type { RenderJob } from "../../ipc/batch";
 import tokensCss from "../../theme/tokens.css?raw";
@@ -151,7 +151,7 @@ async function renderBatch(job: RenderJob): Promise<string | null> {
     job.mode === "volume"
       ? buildVolumeBody({ ...common, title: job.title, words })
       : buildExportBody({ ...common, word: words[0]?.word ?? job.title, cards: words[0]?.cards ?? [], context: words[0]?.context ?? null });
-  const theme = job.style === "inkSaving" ? "eink" : job.style === "followTheme" ? job.theme : "paper";
+  const theme = exportTheme(job.style, job.theme);
   const { container, custom } = await mount(body, theme, job.accent);
   if (job.pdfPath) {
     await invoke(job.mode === "volume" ? "export_print_pdf_outline" : "export_print_pdf", { path: job.pdfPath, paper: job.paper });
@@ -182,9 +182,9 @@ export function ExportRenderWindow() {
         await invoke("batch_render_done", { jobId: job.jobId, ok: false, error: String(err), html: null });
       }
     });
-    // 告诉主窗口与批量导出流水线：已就绪，可以接任务
+    // 告诉主窗口与批量导出流水线：已就绪，可以接任务。批量导出的窗口池（export-1…）只报给流水线
     void Promise.all([single, batch]).then(() => {
-      void emitTo("main", "export:ready", null);
+      if (win.label === "export") void emitTo("main", "export:ready", null);
       void invoke("batch_window_ready");
     });
     return () => {

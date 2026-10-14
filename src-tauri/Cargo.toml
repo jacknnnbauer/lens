@@ -1,6 +1,6 @@
 [package]
 name = "lens"
-version = "0.2.0"
+version = "0.3.0"
 description = "词镜 Lens：本地优先、键盘优先的桌面查词工具"
 edition = "2021"
 
@@ -38,6 +38,7 @@ tokio = { version = "1.53.2", features = ["sync", "rt", "time"] }
 ogg = "0.9.2"
 icu_segmenter = "2.3.0"
 tauri-plugin-global-shortcut = "2.4.0"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 async-trait = "0.1.92"
 url = "2.5.8"
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "native-tls", "gzip"] }

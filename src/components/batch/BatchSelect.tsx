@@ -15,6 +15,7 @@ import { useAppliedTheme } from "../../theme/useApplyTheme";
 import styles from "./Batch.module.css";
 import { isStopword } from "./stopwords";
 import { VirtualList } from "./VirtualList";
+import { ExportStyleOptions, PaperOptions } from "../ExportStyleOptions";
 import { getLang, tr } from "../../i18n";
 
 const ROW = 36;
@@ -434,16 +435,13 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
             <label className={styles.field}>
               <span>{tr("样式")}</span>
               <select value={style} onChange={(e) => setStyle(e.target.value as ExportStyle)}>
-                <option value="paperWhite">{tr("纸本（白底）")}</option>
-                <option value="followTheme">{tr("跟随当前主题")}</option>
-                <option value="inkSaving">{tr("黑白省墨")}</option>
+                <ExportStyleOptions />
               </select>
             </label>
             <label className={styles.field}>
               <span>{tr("纸张")}</span>
-              <select value={paper} disabled={!pdf} onChange={(e) => setPaper(e.target.value as Paper)}>
-                <option value="a4">A4</option>
-                <option value="letter">Letter</option>
+              <select value={paper === "letter" ? "a4" : paper} disabled={!pdf} onChange={(e) => setPaper(e.target.value as Paper)}>
+                <PaperOptions />
               </select>
             </label>
           </div>

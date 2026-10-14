@@ -1,6 +1,7 @@
 // settings 相关命令的类型化封装（SPEC 5.1、14）。
 
 import { invoke } from "@tauri-apps/api/core";
+import type { ExportStyle, Paper } from "../export-templates/template";
 import type { CustomTheme } from "../theme/themes";
 
 export interface Appearance {
@@ -77,8 +78,8 @@ export interface Copy {
 
 export interface ExportPrefs {
   layout: "cards" | "document";
-  style: "paperWhite" | "followTheme" | "inkSaving";
-  paper: "a4" | "letter";
+  style: ExportStyle;
+  paper: Paper;
   dir: string | null;
 }
 

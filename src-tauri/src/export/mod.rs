@@ -17,6 +17,8 @@ pub const EXPORT: &str = "export";
 #[serde(rename_all = "lowercase")]
 pub enum Paper {
     A4,
+    A3,
+    /// 旧设置可能存着 letter，界面上已不再提供
     Letter,
 }
 
@@ -25,6 +27,7 @@ impl Paper {
     pub fn inches(self) -> (f64, f64) {
         match self {
             Paper::A4 => (8.27, 11.69),
+            Paper::A3 => (11.69, 16.54),
             Paper::Letter => (8.5, 11.0),
         }
     }
@@ -35,10 +38,19 @@ const MARGIN_IN: f64 = 0.5;
 
 /// 确保导出窗口存在（首次导出时创建，之后常驻隐藏）。返回是否为新建。
 pub fn ensure_window(app: &AppHandle) -> Result<bool> {
-    if app.get_webview_window(EXPORT).is_some() {
+    ensure_window_labeled(app, EXPORT)
+}
+
+/// 批量导出的渲染窗口池：第 0 个就是 `export`，其余为 `export-1`、`export-2`…
+pub fn pool_label(i: usize) -> String {
+    if i == 0 { EXPORT.to_string() } else { format!("{EXPORT}-{i}") }
+}
+
+pub fn ensure_window_labeled(app: &AppHandle, label: &str) -> Result<bool> {
+    if app.get_webview_window(label).is_some() {
         return Ok(false);
     }
-    WebviewWindowBuilder::new(app, EXPORT, WebviewUrl::App("index.html".into()))
+    WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title("词镜 Lens · 导出")
         .inner_size(900.0, 1200.0)
         .visible(false)
@@ -214,6 +226,7 @@ mod tests {
     #[test]
     fn paper_sizes() {
         assert_eq!(Paper::A4.inches(), (8.27, 11.69));
+        assert_eq!(Paper::A3.inches(), (11.69, 16.54));
         assert_eq!(Paper::Letter.inches().0, 8.5);
     }
 }

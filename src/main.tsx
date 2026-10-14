@@ -30,7 +30,7 @@ try {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      {label === "export" ? (
+      {label === "export" || label.startsWith("export-") ? (
         // 导出窗口的语言跟随每个导出任务
         <ExportRenderWindow />
       ) : (

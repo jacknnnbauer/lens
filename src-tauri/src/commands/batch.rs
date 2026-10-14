@@ -56,8 +56,18 @@ pub struct Preflight {
 
 /// 开始导出前：创建目录并试写。
 fn check_writable(dir: &std::path::Path) -> std::result::Result<(), String> {
+    require_absolute(dir)?;
     std::fs::create_dir_all(dir).map_err(|e| crate::tf!("无法创建目录：{}", "Could not create the folder: {}", e))?;
     probe_write(dir)
+}
+
+/// 相对路径会落到程序的工作目录里（如安装目录），一律拒绝
+fn require_absolute(dir: &std::path::Path) -> std::result::Result<(), String> {
+    if dir.is_absolute() {
+        Ok(())
+    } else {
+        Err(crate::i18n::t("保存位置需要是完整路径（从盘符开始）", "The save location must be a full path, starting with the drive letter").into())
+    }
 }
 
 fn probe_write(dir: &std::path::Path) -> std::result::Result<(), String> {
@@ -70,6 +80,7 @@ fn probe_write(dir: &std::path::Path) -> std::result::Result<(), String> {
 /// 预检只试写，不创建目录（目录名随词数变化，预检时建会留下一堆空目录）：
 /// 目录不存在时试写最近一级已存在的上级目录。
 fn check_writable_no_create(dir: &std::path::Path) -> std::result::Result<(), String> {
+    require_absolute(dir)?;
     let mut probe = dir.to_path_buf();
     while !probe.exists() {
         probe = probe.parent().ok_or_else(|| crate::i18n::t("目录无效", "Invalid folder").to_string())?.to_path_buf();
@@ -269,8 +280,8 @@ pub async fn batch_render_done(manager: State<'_, BatchManager>, job_id: String,
 
 /// 导出窗口：页面加载完成，可以接任务。
 #[tauri::command]
-pub async fn batch_window_ready(manager: State<'_, BatchManager>) -> Result<()> {
-    manager.window_ready();
+pub async fn batch_window_ready(window: tauri::WebviewWindow, manager: State<'_, BatchManager>) -> Result<()> {
+    manager.window_ready(window.label());
     Ok(())
 }
 

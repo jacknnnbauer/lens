@@ -122,11 +122,13 @@ pub struct Batch {
     pub mem_limit_mb: u64,
     /// 合并模式每卷词数
     pub merge_volume_size: usize,
+    /// 「每个词一个文件」时同时渲染 / 打印的窗口数（WebView2 打印 PDF 是串行的大头，并行几个窗口快得多）
+    pub render_workers: usize,
 }
 
 impl Default for Batch {
     fn default() -> Self {
-        Self { max_words: 2000, lookup_concurrency: 4, render_recycle_every: 150, mem_limit_mb: 800, merge_volume_size: 300 }
+        Self { max_words: 2000, lookup_concurrency: 4, render_recycle_every: 150, mem_limit_mb: 800, merge_volume_size: 300, render_workers: 3 }
     }
 }
 
@@ -160,7 +162,7 @@ impl Default for Copy {
 pub struct Export {
     /// cards | document
     pub layout: String,
-    /// paperWhite | followTheme | inkSaving
+    /// paperWhite | followTheme | inkSaving | theme:<主题 id>
     pub style: String,
     /// a4 | letter
     pub paper: String,

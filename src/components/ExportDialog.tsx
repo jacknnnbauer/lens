@@ -8,6 +8,7 @@ import { inlineEntry } from "../export/resources";
 import { runExport } from "../export/run";
 import {
   buildExportBody,
+  exportTheme,
   isoDate,
   safeFileName,
   type ExportLayout,
@@ -20,6 +21,7 @@ import type { Card } from "../stores/lookup";
 import { useSettings } from "../stores/settings";
 import { useAppliedTheme } from "../theme/useApplyTheme";
 import styles from "./ExportDialog.module.css";
+import { ExportStyleOptions, PaperOptions } from "./ExportStyleOptions";
 import { CloseIcon, GripIcon } from "./icons";
 import { useDragReorder } from "./useDragReorder";
 import { getLang, tr } from "../i18n";
@@ -119,7 +121,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
         })),
       );
       const body = buildExportBody({ word, date: new Date(), layout, style, options, cards: exportCards, context });
-      const theme = style === "inkSaving" ? "eink" : style === "followTheme" ? appliedTheme : "paper";
+      const theme = exportTheme(style, appliedTheme);
       await runExport({ jobId: crypto.randomUUID(), format, body, title: `${word} · ${tr("Lens 词镜")}`, theme, accent, path, paper, lang: getLang() });
       update({ export: { layout, style, paper, dir: path.replace(/[\\/][^\\/]*$/, "") } });
       setPhase({ kind: "done", path });
@@ -221,16 +223,13 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
             <label>
               <span>{tr("样式")}</span>
               <select value={style} onChange={(e) => setStyle(e.target.value as ExportStyle)}>
-                <option value="paperWhite">{tr("纸本（白底打印版）")}</option>
-                <option value="followTheme">{tr("跟随当前主题")}</option>
-                <option value="inkSaving">{tr("黑白省墨")}</option>
+                <ExportStyleOptions />
               </select>
             </label>
             <label>
               <span>{tr("纸张")}</span>
-              <select value={paper} disabled={format === "html"} onChange={(e) => setPaper(e.target.value as Paper)}>
-                <option value="a4">{tr("A4 纵向")}</option>
-                <option value="letter">{tr("Letter 纵向")}</option>
+              <select value={paper === "letter" ? "a4" : paper} disabled={format === "html"} onChange={(e) => setPaper(e.target.value as Paper)}>
+                <PaperOptions />
               </select>
             </label>
           </div>

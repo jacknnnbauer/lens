@@ -43,7 +43,7 @@ pub struct BatchRequest {
     pub merge: bool,
     /// cards | document
     pub layout: String,
-    /// paperWhite | followTheme | inkSaving
+    /// paperWhite | followTheme | inkSaving | theme:<主题 id>
     pub style: String,
     pub paper: Paper,
     /// 只用本地词典
@@ -142,11 +142,13 @@ pub struct BatchManager {
     /// 导出窗口每报告一次就绪加一。用计数而不是 Notify 的许可：开发模式下 React 会把
     /// effect 跑两遍，多出来的许可会让下次重建窗口时没等新窗口就绪就发任务
     window_ready: watch::Sender<u64>,
+    /// 已报告就绪的窗口标签（渲染窗口池里每个窗口各自就绪）
+    ready_labels: Mutex<std::collections::HashSet<String>>,
 }
 
 impl Default for BatchManager {
     fn default() -> Self {
-        Self { active: Mutex::default(), replies: Mutex::default(), window_ready: watch::channel(0).0 }
+        Self { active: Mutex::default(), replies: Mutex::default(), window_ready: watch::channel(0).0, ready_labels: Mutex::default() }
     }
 }
 
@@ -198,8 +200,22 @@ impl BatchManager {
     }
 
     /// 导出窗口加载完成（新建或重建后）。
-    pub fn window_ready(&self) {
+    pub fn window_ready(&self, label: &str) {
+        if let Ok(mut s) = self.ready_labels.lock() {
+            s.insert(label.to_string());
+        }
         self.window_ready.send_modify(|n| *n += 1);
+    }
+
+    pub fn is_ready(&self, label: &str) -> bool {
+        self.ready_labels.lock().is_ok_and(|s| s.contains(label))
+    }
+
+    /// 窗口要重建 / 新建：清掉旧的就绪记录
+    pub fn forget_ready(&self, label: &str) {
+        if let Ok(mut s) = self.ready_labels.lock() {
+            s.remove(label);
+        }
     }
 
     /// 在创建窗口之前调用，之后 `changed()` 只会被这之后的就绪报告唤醒。

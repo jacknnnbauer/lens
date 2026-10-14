@@ -131,12 +131,27 @@ pub fn lemmatize(word: &str, exists: &dyn Fn(&str) -> bool) -> String {
 }
 
 /// 解析粘贴的词表（也用于整理从历史、生词本选出的词）。
+/// 列表符号：从 COCA 搭配表、笔记里粘过来的词常带 `event•`、`• apple`、`1. apple`、`- apple`
+const BULLETS: &[char] = &['•', '·', '●', '○', '◦', '▪', '■', '□', '◆', '◇', '★', '☆', '►', '▶', '→', '*', '-', '–', '—'];
+
+fn strip_list_marks(raw: &str) -> &str {
+    let s = raw.trim().trim_matches(|c: char| BULLETS.contains(&c) || c.is_whitespace());
+    // 行首编号 `12.` `3)` `4、`
+    let digits = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
+    if digits > 0 && digits < s.len() {
+        if let Some(rest) = s[digits..].strip_prefix(['.', ')', '、', '．']) {
+            return rest.trim();
+        }
+    }
+    s
+}
+
 pub fn parse_list(text: &str, max_words: usize, exists: &dyn Fn(&str) -> bool) -> ParseOutput {
     let mut out = ParseOutput::default();
     // 原形（小写）→ 保留下来的写法
     let mut seen: HashMap<String, String> = HashMap::new();
     for raw in text.split(SEPARATORS) {
-        let item = normalize_query(raw);
+        let item = normalize_query(strip_list_marks(raw));
         if item.is_empty() {
             continue;
         }
@@ -207,6 +222,13 @@ mod tests {
 
     fn dict(word: &str) -> bool {
         ["run", "stop", "study", "box", "make", "colour", "take into account", "ubiquitous", "Paris"].iter().any(|w| w.eq_ignore_ascii_case(word))
+    }
+
+    #[test]
+    fn strips_bullets_and_numbering() {
+        let out = parse_list("event•\n• exhibition\n12. apple\n- pear\n3) plum\n1990", 100, &|_| true);
+        assert_eq!(out.words, ["event", "exhibition", "apple", "pear", "plum"]);
+        assert_eq!(out.invalid.len(), 1, "纯数字仍然算无效");
     }
 
     #[test]

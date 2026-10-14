@@ -84,11 +84,13 @@ pub struct Capture {
     pub ocr_fallback: bool,
     /// 取词超时，超时先弹窗
     pub timeout_ms: u64,
+    /// Lens 窗口内查词（释义、例句、语境句里的词）：dblclick 双击 | click 单击 | drag 划词 | off 关闭
+    pub in_app_trigger: String,
 }
 
 impl Default for Capture {
     fn default() -> Self {
-        Self { hotkey: "Ctrl+Alt+Space".into(), double_copy: true, ocr_fallback: false, timeout_ms: 150 }
+        Self { hotkey: "Ctrl+Alt+Space".into(), double_copy: true, ocr_fallback: false, timeout_ms: 150, in_app_trigger: "dblclick".into() }
     }
 }
 

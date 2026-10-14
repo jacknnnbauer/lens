@@ -254,6 +254,10 @@ fn worker(app: AppHandle, rx: mpsc::Receiver<Job>) {
 /// 把捕获到的语境句存进 context 表（SPEC 6：每次划词捕获一条）。失败只记日志。
 #[cfg(windows)]
 fn save_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &str, fg: &win::Foreground) -> Option<i64> {
+    store_context(app, text, ctx, method, fg.app.as_deref(), fg.title.as_deref())
+}
+
+fn store_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &str, source_app: Option<&str>, title: Option<&str>) -> Option<i64> {
     use crate::db::history::{insert_context, NewContext};
     let lemma = crate::dict::index::normalize_key(&crate::query::normalize_query(text));
     if lemma.is_empty() {
@@ -265,8 +269,8 @@ fn save_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &str
         sentence: &ctx.sentence,
         hl_start: ctx.hl_start as i64,
         hl_end: ctx.hl_end as i64,
-        app: fg.app.as_deref(),
-        window_title: fg.title.as_deref(),
+        app: source_app,
+        window_title: title,
         url: None,
         method,
     };
@@ -362,6 +366,38 @@ pub fn place(anchor: Anchor, size: (f64, f64), work: (f64, f64, f64, f64)) -> (f
     };
     let x = anchor.x.min(wx + ww - w).max(wx);
     (x.round(), y.round())
+}
+
+/// Lens 窗口内划词（设置 › 取词 › 窗口内查词）：前端已经知道词和所在段落，不走 UIA / 剪贴板，直接弹出查词小窗。
+/// `paragraph` + `sel16`（词在段落里的 UTF-16 区间）用来取语境句；`anchor` 为屏幕物理像素，None 时不移动小窗（在小窗里点词）。
+pub fn show_in_app(app: &AppHandle, text: &str, paragraph: Option<&str>, sel16: Option<(usize, usize)>, anchor: Option<Anchor>, title: &str) -> Result<()> {
+    let text = clip_query(text);
+    if text.is_empty() {
+        return Ok(());
+    }
+    let id = app.try_state::<CaptureService>().map_or(0, |s| s.next_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+    let ctx = match (paragraph, sel16) {
+        (Some(p), Some(sel)) => sentence::extract(p, sel),
+        _ => None,
+    };
+    let context_id = ctx.as_ref().and_then(|c| store_context(app, &text, c, "lens", Some("Lens"), Some(title)));
+    let event = CaptureEvent {
+        id,
+        text,
+        context_id,
+        sentence: ctx,
+        source: CaptureSource { method: "lens", app: Some("Lens".into()), window_title: Some(title.to_string()), url: None },
+        ms: 0.0,
+    };
+    if anchor.is_some() {
+        show_popup(app, &event, anchor)
+    } else {
+        let win = app.get_webview_window(POPUP).ok_or_else(|| Error::Other("弹窗窗口不存在".into()))?;
+        win.emit_to(POPUP, EVENT_TRIGGERED, &event)?;
+        win.show()?;
+        win.set_focus()?;
+        Ok(())
+    }
 }
 
 fn show_popup(app: &AppHandle, event: &CaptureEvent, anchor: Option<Anchor>) -> Result<()> {

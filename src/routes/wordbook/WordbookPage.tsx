@@ -130,7 +130,7 @@ function WordDetail({ word, onChanged, onLookup }: { word: Word; onChanged: () =
           <ul>
             {word.contexts.map((c) => (
               <li key={c.id}>
-                <p className={styles.quote}>
+                <p className={styles.quote} data-word-lookup="">
                   “<Sentence ctx={c} />”
                 </p>
                 <div className={styles.meta}>
@@ -386,7 +386,7 @@ export function WordbookPage({ onLookup, active }: Props) {
                     {w.brief && <span className={styles.brief}>{w.brief}</span>}
                   </div>
                   {ctx && (
-                    <p className={styles.quote}>
+                    <p className={styles.quote} data-word-lookup="">
                       “<Sentence ctx={ctx} />”
                     </p>
                   )}

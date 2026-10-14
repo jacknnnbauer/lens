@@ -50,6 +50,8 @@ export interface Capture {
   doubleCopy: boolean;
   ocrFallback: boolean;
   timeoutMs: number;
+  /** Lens 窗口内查词：双击 / 单击 / 划词 / 关闭 */
+  inAppTrigger: "dblclick" | "click" | "drag" | "off";
 }
 
 export interface Online {

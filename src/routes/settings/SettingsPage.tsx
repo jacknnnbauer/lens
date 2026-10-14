@@ -692,6 +692,22 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
           </div>
           <p className={styles.hint}>{tr("取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。")}</p>
+          <div className={styles.grid2}>
+            <Select
+              label={tr("窗口内查词")}
+              value={cap.inAppTrigger ?? "dblclick"}
+              options={[
+                ["dblclick", "双击查词（推荐）"],
+                ["click", "单击查词"],
+                ["drag", "划词查词"],
+                ["off", "关闭"],
+              ]}
+              onChange={(v) => update({ capture: { inAppTrigger: v } })}
+            />
+          </div>
+          <p className={styles.hint}>
+            {tr("在 Lens 里的释义、真实例句、AI 例句、COCA 搭配和生词本语境句中查词，弹出查词小窗并记下所在句子。双击：最不影响正常操作；单击：点一下就查，像 Kindle；划词：拖选一个词或短语后松开即查（也可双击选词）。按钮、链接、输入框不受影响。")}
+          </p>
         </section>
 
         <section id="set-data" className={styles.section} aria-labelledby="h-data">

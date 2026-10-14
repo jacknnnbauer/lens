@@ -185,6 +185,7 @@ pub fn run() {
             commands::popup::capture_status,
             commands::popup::write_clipboard,
             commands::popup::open_in_main,
+            commands::popup::lookup_in_popup,
         ])
         .run(tauri::generate_context!());
 

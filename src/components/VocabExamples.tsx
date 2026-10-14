@@ -89,7 +89,7 @@ export function VocabExamples({ word }: { word: string }) {
   };
 
   return (
-    <section className={styles.box} aria-label={tr("真实例句")}>
+    <section className={styles.box} aria-label={tr("真实例句")} data-word-lookup="">
       <header className={styles.head}>
         <button type="button" className={styles.title} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {tr("真实例句")}

@@ -775,4 +775,10 @@ export const en: Record<string, string> = {
   "例句翻页": "Example pages",
   "上一页": "prev",
   "下一页": "next",
+  // ── 窗口内查词 ──
+  "窗口内查词": "In-app lookup",
+  "双击查词（推荐）": "Double-click (recommended)",
+  "单击查词": "Single click",
+  "划词查词": "Select text",
+  "在 Lens 里的释义、真实例句、AI 例句、COCA 搭配和生词本语境句中查词，弹出查词小窗并记下所在句子。双击：最不影响正常操作；单击：点一下就查，像 Kindle；划词：拖选一个词或短语后松开即查（也可双击选词）。按钮、链接、输入框不受影响。": "Look up words inside Lens — in definitions, real-world and AI examples, COCA collocations and wordbook context sentences — in the lookup popup, keeping the sentence they're in. Double-click: least intrusive. Single click: tap to look up, like a Kindle. Select text: drag over a word or phrase and release (double-click also works). Buttons, links and input fields are unaffected.",
 };

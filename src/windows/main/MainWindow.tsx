@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useInAppLookup } from "../../components/inAppLookup";
 import { BatchChip, BatchDialog, BatchResumeNotice } from "../../components/batch/BatchDialog";
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ImmersiveBar, useImmersiveMode } from "../../components/ImmersiveBar";
@@ -39,6 +40,7 @@ export function MainWindow() {
   const profiles = useDicts((s) => s.profiles);
   useApplyTheme();
   const immersive = useImmersiveMode();
+  useInAppLookup(false);
   const immersivePrefs = useSettings((s) => s.settings?.immersive);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const lookupPage = useRef<LookupPageHandle>(null);

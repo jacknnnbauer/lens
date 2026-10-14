@@ -72,7 +72,7 @@ function CocaSection({ word }: { word: string }) {
     );
   }
   return (
-    <section className={styles.section} aria-label={tr("COCA 词频与搭配")}>
+    <section className={styles.section} aria-label={tr("COCA 词频与搭配")} data-word-lookup="">
       <div className={styles.label}>{tr("COCA 词频与搭配")}</div>
       {entries.map((e) => (
         <div key={`${e.rank}-${e.pos}`} className={styles.entry}>
@@ -156,7 +156,7 @@ function AiSection({ word, brief }: { word: string; brief: string | null }) {
   }, [word, auto]);
 
   return (
-    <section className={styles.section} aria-label={tr("AI 双语例句")}>
+    <section className={styles.section} aria-label={tr("AI 双语例句")} data-word-lookup="">
       <div className={styles.labelRow}>
         <span className={styles.label}>{tr("AI 双语例句")}</span>
         {hasKey && data && (

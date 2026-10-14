@@ -119,5 +119,5 @@ export function DictBody({ html, onEntry, dictId }: Props) {
     };
   }, [html, theme, dark]);
 
-  return <div ref={host} data-dict-body={dictId} />;
+  return <div ref={host} data-dict-body={dictId} data-word-lookup="" />;
 }

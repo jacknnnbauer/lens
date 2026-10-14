@@ -109,6 +109,23 @@ impl Default for Online {
     }
 }
 
+/// AI 双语例句（Claude API）。Key 不在这里，在凭据管理器里。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Ai {
+    pub model: String,
+    /// 每次生成几句
+    pub count: usize,
+    /// 查词后自动生成（否则点按钮再生成）；有缓存时总是直接显示
+    pub auto: bool,
+}
+
+impl Default for Ai {
+    fn default() -> Self {
+        Self { model: "claude-opus-4-8".into(), count: 5, auto: false }
+    }
+}
+
 /// 批量导出（SPEC 12、14）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -224,6 +241,7 @@ pub struct Settings {
     pub copy: Copy,
     pub export: Export,
     pub batch: Batch,
+    pub ai: Ai,
     /// 自定义主题（主题库里「复制并编辑」或导入的）
     pub custom_themes: Vec<crate::themes::CustomTheme>,
     pub active_profile: String,
@@ -242,6 +260,7 @@ impl Default for Settings {
             copy: Copy::default(),
             export: Export::default(),
             batch: Batch::default(),
+            ai: Ai::default(),
             custom_themes: Vec::new(),
             active_profile: "reading".into(),
             rest: Map::new(),

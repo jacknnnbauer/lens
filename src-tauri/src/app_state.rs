@@ -20,6 +20,8 @@ pub struct AppState {
     pub online: OnlineRegistry,
     pub res_cache: ResourceCache,
     pub lookups: Arc<Cancels>,
+    /// COCA 词频表（导入过才有）
+    pub coca: std::sync::RwLock<Option<Arc<crate::coca::Coca>>>,
 }
 
 impl AppState {
@@ -55,7 +57,24 @@ impl AppState {
         }) {
             tracing::warn!(error = %e, "整理未完成的批量导出失败");
         }
+        // COCA 词频表：导入过就在启动时读进来；读不了只记日志
+        let coca_path = root.join(crate::coca::FILE);
+        let coca = if coca_path.exists() {
+            match crate::coca::Coca::load(&coca_path) {
+                Ok(c) => {
+                    tracing::info!(entries = c.len(), "已加载 COCA 词频表");
+                    Some(Arc::new(c))
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "COCA 词频表读取失败");
+                    None
+                }
+            }
+        } else {
+            None
+        };
         Ok(Self {
+            coca: std::sync::RwLock::new(coca),
             root: root.to_path_buf(),
             db,
             settings,

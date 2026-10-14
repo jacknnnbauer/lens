@@ -550,3 +550,25 @@ kbd {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* AI 例句：API Key 输入 */
+.keyRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.keyRow input {
+  width: 220px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.hint[data-error] {
+  color: var(--warn);
+}

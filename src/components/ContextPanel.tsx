@@ -1,7 +1,8 @@
-// 右侧栏：本次查询的详情（各词典命中情况与耗时）。
-// 画板 01 里的语境句、词根、复习数据随 M3/M4 加入这一栏。
+// 右侧栏（三栏布局）：当前词的 COCA 词频与搭配、AI 双语例句，以及本次查询的详情（各词典命中情况与耗时）。
 
 import { useLookup } from "../stores/lookup";
+import { briefOf } from "../stores/save";
+import { WordInsights } from "./WordInsights";
 import styles from "./ContextPanel.module.css";
 import { tr } from "../i18n";
 
@@ -18,6 +19,7 @@ const STATUS_LABEL = {
 export function ContextPanel() {
   const handle = useLookup((s) => s.handle);
   const cards = useLookup((s) => s.cards);
+  const done = useLookup((s) => s.done);
 
   if (!handle) {
     return (
@@ -27,9 +29,13 @@ export function ContextPanel() {
     );
   }
   const hits = cards.filter((c) => c.status === "hit").length;
+  const headword = cards.find((c) => c.status === "hit")?.entries[0]?.headword ?? "";
+  const word = (headword || handle.normalized || handle.query).trim();
 
   return (
     <aside aria-label={tr("查询详情")} className={styles.aside}>
+      {word && (done || hits > 0) && <WordInsights key={word.toLowerCase()} word={word} brief={briefOf(cards, word)} />}
+
       <section className={styles.section}>
         <div className={styles.label}>{tr("查询")}</div>
         <dl className={styles.kv}>

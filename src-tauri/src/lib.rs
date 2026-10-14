@@ -1,8 +1,10 @@
+mod ai;
 mod app_state;
 mod audio;
 mod batch;
 mod capture;
 mod clipboard;
+mod coca;
 mod commands;
 mod db;
 mod dict;
@@ -129,6 +131,12 @@ pub fn run() {
             commands::dicts::list_profiles,
             commands::lookup::lookup,
             commands::lookup::sense_atlas,
+            commands::ai::coca_status,
+            commands::ai::coca_import,
+            commands::ai::coca_lookup,
+            commands::ai::ai_key_status,
+            commands::ai::ai_set_key,
+            commands::ai::ai_examples,
             commands::lookup::cancel_lookup,
             commands::lookup::suggest,
             commands::history::record_history,

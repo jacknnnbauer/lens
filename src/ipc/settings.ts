@@ -83,6 +83,14 @@ export interface ExportPrefs {
   dir: string | null;
 }
 
+/** AI 双语例句（Claude API）；Key 存在凭据管理器，不在这里 */
+export interface AiPrefs {
+  model: string;
+  count: number;
+  /** 查词后自动生成（否则点按钮） */
+  auto: boolean;
+}
+
 /** 目前建模到 appearance、layout、immersive、capture、online、copy、export、batch；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   appearance: Appearance;
@@ -93,6 +101,7 @@ export interface Settings {
   copy: Copy;
   export: ExportPrefs;
   batch: BatchPrefs;
+  ai: AiPrefs;
   customThemes: CustomTheme[];
   activeProfile: string;
   [section: string]: unknown;

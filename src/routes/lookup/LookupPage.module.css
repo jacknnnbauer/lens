@@ -10,8 +10,14 @@
 
 .searchRow {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+}
+
+/* 窄时（三栏 + 小窗口）搜索框至少留 260px，按钮换到下一行，不再把输入框挤没 */
+.searchRow > :first-child {
+  flex: 1 1 260px;
 }
 
 .jump {

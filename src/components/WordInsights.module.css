@@ -1,0 +1,169 @@
+/* 右侧栏：COCA 词频与搭配、AI 双语例句（与 ContextPanel 的分节样式一致） */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hint {
+  margin: 0;
+  color: var(--sub);
+  line-height: 1.5;
+}
+
+.error {
+  margin: 0;
+  color: var(--warn);
+  line-height: 1.5;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.rank {
+  font-family: var(--font-gloss);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos {
+  color: var(--accent);
+}
+
+.meta {
+  color: var(--sub);
+  font-variant-numeric: tabular-nums;
+}
+
+.register {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--sub);
+  font-size: 11px;
+}
+
+.group {
+  display: grid;
+  grid-template-columns: 3.5em minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+}
+
+.groupName {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-gloss);
+  font-size: 12px;
+}
+
+.synonyms {
+  color: var(--sub);
+  font-family: var(--font-gloss);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.generate {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.generate:hover {
+  background: var(--hl);
+}
+
+.examples {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.examples p {
+  margin: 0;
+}
+
+.en {
+  font-family: var(--font-gloss);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.zh {
+  color: var(--sub);
+  line-height: 1.5;
+}
+
+.examples .chip {
+  display: inline-block;
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+.foot {
+  margin: 0;
+  color: var(--faint);
+  font-size: 11px;
+}

@@ -6,7 +6,8 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCaptureStatus } from "../../components/HotkeyNotice";
 import { htmlToMarkdown, sourceLine } from "../../copy/convert";
-import { appPaths, type AppPaths, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
+import { aiKeyStatus, aiSetKey, cocaImport, cocaStatus, type CocaStatus } from "../../ipc/ai";
+import { appPaths, type AiPrefs, type AppPaths, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
 import { exportStyleChoices, PAPER_CHOICES } from "../../components/ExportStyleOptions";
 import type { ExportStyle, Paper } from "../../export-templates/template";
@@ -23,6 +24,7 @@ const SECTIONS = [
   { id: "layout", name: "布局" },
   { id: "immersive", name: "沉浸模式" },
   { id: "online", name: "在线词典" },
+  { id: "ai", name: "AI 例句" },
   { id: "copy", name: "复制" },
   { id: "export", name: "导出" },
   { id: "shortcuts", name: "快捷键" },
@@ -90,6 +92,119 @@ function Select<T extends string | number>({ label, value, options, onChange }: 
         ))}
       </select>
     </label>
+  );
+}
+
+/** 设置 › AI 例句：COCA 词频表导入、Claude API Key、模型 */
+function AiSettings() {
+  const ai = useSettings((s) => s.settings?.ai);
+  const update = useSettings((s) => s.update);
+  const [coca, setCoca] = useState<CocaStatus | null>(null);
+  const [hasKey, setHasKey] = useState(false);
+  const [key, setKey] = useState("");
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+
+  useEffect(() => {
+    cocaStatus().then(setCoca, () => setCoca(null));
+    aiKeyStatus().then(setHasKey, () => setHasKey(false));
+  }, []);
+
+  if (!ai) return null;
+  const setAi = (p: Partial<AiPrefs>) => update({ ai: p });
+
+  const importCoca = async () => {
+    const path = await openDialog({ multiple: false, title: tr("选择 COCA 词表"), filters: [{ name: "JSON", extensions: ["json"] }] });
+    if (typeof path !== "string") return;
+    try {
+      const st = await cocaImport(path);
+      setCoca(st);
+      setMessage({ text: tr("已导入 COCA 词频表：{n} 个词条", { n: st.entries.toLocaleString() }) });
+    } catch (e) {
+      setMessage({ text: String(e), error: true });
+    }
+  };
+
+  const saveKey = async (value: string | null) => {
+    try {
+      setHasKey(await aiSetKey(value));
+      setKey("");
+      setMessage({ text: value ? tr("API Key 已保存到 Windows 凭据管理器") : tr("已删除 API Key") });
+    } catch (e) {
+      setMessage({ text: String(e), error: true });
+    }
+  };
+
+  return (
+    <section id="set-ai" className={styles.section} aria-labelledby="h-ai">
+      <h2 id="h-ai">{tr("AI 例句")}</h2>
+      <p className={styles.hint}>{tr("三栏布局的右侧栏显示当前词的 COCA 词频、语体与搭配，并可用 Claude 按这些真实搭配生成中英双语例句。")}</p>
+
+      <div className={styles.row}>
+        <span>
+          {tr("COCA 2 万词频表")}
+          <small>{coca?.loaded ? tr("已导入 · {n} 个词条", { n: coca.entries.toLocaleString() }) : tr("未导入 · 选择由词频表 PDF 解析得到的 coca20k.json")}</small>
+        </span>
+        <button type="button" className={styles.ghost} onClick={() => void importCoca()}>
+          {coca?.loaded ? tr("重新导入…") : tr("导入…")}
+        </button>
+      </div>
+
+      <div className={styles.row}>
+        <span>
+          {tr("Claude API Key")}
+          <small>{hasKey ? tr("已保存（存在 Windows 凭据管理器，不写进设置文件）") : tr("在 console.anthropic.com 创建；按用量计费")}</small>
+        </span>
+        <span className={styles.keyRow}>
+          <input
+            type="password"
+            value={key}
+            placeholder={hasKey ? "••••••••" : "sk-ant-…"}
+            aria-label={tr("Claude API Key")}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => setKey(e.target.value)}
+          />
+          <button type="button" className={styles.ghost} disabled={!key.trim()} onClick={() => void saveKey(key)}>
+            {tr("保存")}
+          </button>
+          {hasKey && (
+            <button type="button" className={styles.ghost} onClick={() => void saveKey(null)}>
+              {tr("删除")}
+            </button>
+          )}
+        </span>
+      </div>
+
+      <div className={styles.grid2}>
+        <Select
+          label={tr("模型")}
+          value={ai.model}
+          options={[
+            ["claude-opus-4-8", "Claude Opus 4.8（默认，质量最好）"],
+            ["claude-sonnet-5", "Claude Sonnet 5（更便宜）"],
+            ["claude-haiku-4-5", "Claude Haiku 4.5（最便宜、最快）"],
+          ]}
+          onChange={(v) => setAi({ model: v })}
+        />
+        <Select
+          label={tr("每次生成")}
+          value={ai.count}
+          options={[
+            [3, "3 句"],
+            [5, "5 句"],
+            [8, "8 句"],
+          ]}
+          onChange={(v) => setAi({ count: v })}
+        />
+        <Toggle label={tr("查词后自动生成")} hint={tr("关闭时点「生成双语例句」才调用；生成过的词直接显示缓存")} checked={ai.auto} onChange={(v) => setAi({ auto: v })} />
+      </div>
+      {message && (
+        <p className={styles.hint} role={message.error ? "alert" : "status"} data-error={message.error || undefined}>
+          {message.text}
+        </p>
+      )}
+      <p className={styles.hint}>{tr("发给 Claude 的只有：单词、首部词典的简释、COCA 搭配词。不发送语境句和生词本。")}</p>
+    </section>
   );
 }
 
@@ -454,6 +569,8 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
           </div>
           <p className={styles.hint}>{tr("超时不会拖慢本地词典的结果。联网失败时显示过期的缓存，并标注获取时间。添加在线词典、填写 API Key 在「词典库」（Ctrl+L）。")}</p>
         </section>
+
+        <AiSettings />
 
         <section id="set-copy" className={styles.section} aria-labelledby="h-copy">
           <h2 id="h-copy">{tr("复制")}</h2>

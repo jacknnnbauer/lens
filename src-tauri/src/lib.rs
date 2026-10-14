@@ -19,6 +19,7 @@ mod review;
 mod senses;
 mod settings;
 mod themes;
+mod vocab;
 
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::ShortcutState;
@@ -137,6 +138,7 @@ pub fn run() {
             commands::ai::ai_key_status,
             commands::ai::ai_set_key,
             commands::ai::ai_examples,
+            commands::ai::vocab_examples,
             commands::lookup::cancel_lookup,
             commands::lookup::suggest,
             commands::history::record_history,

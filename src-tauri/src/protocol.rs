@@ -124,7 +124,15 @@ fn load(app: &AppHandle, dict_id: &str, path: &str) -> Result<Option<Arc<Vec<u8>
         return Ok(Some(hit));
     }
     let bytes = match state.dicts.get(dict_id)? {
-        Some(dict) => dict.source.resource(path)?,
+        // vocabulary.com 的词典包不带音频：本地没有时从 audio.vocab.com 取（并存到本地，下次离线可用）
+        Some(dict) => match dict.source.resource(path)? {
+            Some(b) => Some(b),
+            None if crate::vocab::is_audio_path(path) => crate::vocab::audio(state.online.client(), &state.root, path).unwrap_or_else(|e| {
+                tracing::debug!(path, error = %e, "vocabulary.com 发音下载失败");
+                None
+            }),
+            None => None,
+        },
         None => match state.online.get(dict_id)? {
             Some(dict) => remote_media(state.online.client(), &dict, path)?,
             None => None,

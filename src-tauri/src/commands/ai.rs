@@ -103,3 +103,37 @@ pub async fn ai_examples(
     state.db.with_conn(|c| ai::store(c, &word, &cfg.model, &examples, now_ms()))?;
     Ok(Some(Examples { word, model: cfg.model, examples, cached_at: None }))
 }
+
+/// vocabulary.com 真实例句（一页 24 句）。缓存在有效期内直接用；联网失败时退回过期缓存并标注。
+#[tauri::command]
+pub async fn vocab_examples(state: State<'_, AppState>, word: String, domain: Option<String>, offset: Option<u32>, force: bool) -> Result<crate::vocab::Page> {
+    use crate::vocab;
+    let word = word.trim().to_string();
+    if word.is_empty() {
+        return Err(Error::Other(crate::i18n::t("没有要查的词", "No word to look up").into()));
+    }
+    let domain = vocab::normalize_domain(domain.as_deref().unwrap_or(""));
+    let offset = offset.unwrap_or(0);
+    let days = state.settings.get()?.online.cache_days;
+    let now = now_ms();
+    let cached = state.db.with_conn(|c| vocab::cached(c, &word, &domain, offset))?;
+    let fresh = |at: i64| days < 0 || (days > 0 && now - at < days * 86_400_000);
+    let page = |total, sentences, cached_at, stale| vocab::Page { word: word.clone(), domain: domain.clone(), offset, total, sentences, cached_at, stale };
+    if let Some((total, sentences, at)) = &cached {
+        if !force && fresh(*at) {
+            return Ok(page(*total, sentences.clone(), Some(*at), false));
+        }
+    }
+    match vocab::fetch(state.online.client(), &word, &domain, offset).await {
+        Ok((total, sentences)) => {
+            if days != 0 {
+                state.db.with_conn(|c| vocab::store(c, &word, &domain, offset, total, &sentences, now))?;
+            }
+            Ok(page(total, sentences, None, false))
+        }
+        Err(e) => match cached {
+            Some((total, sentences, at)) => Ok(page(total, sentences, Some(at), true)),
+            None => Err(e),
+        },
+    }
+}

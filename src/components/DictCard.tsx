@@ -2,6 +2,7 @@
 // 标题可获得焦点，Tab / Shift+Tab、J / K 在卡片之间跳转。
 
 import type { CopyFormat } from "../copy/convert";
+import { isVocabularyCom, VocabExamples } from "./VocabExamples";
 import { DictBody } from "../dict-render/DictBody";
 import { openWebDict } from "../ipc/online";
 import type { Card } from "../stores/lookup";
@@ -93,6 +94,9 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
             <DictBody html={e.html} onEntry={onEntry} dictId={card.id} />
           </div>
         ))}
+        {card.status === "hit" && card.entries[0] && isVocabularyCom(card.entries[0].html) && (
+          <VocabExamples word={card.entries[0].headword || card.entries[0].html.match(/data-word="([^"]+)"/)?.[1] || ""} />
+        )}
       </div>
     </article>
   );

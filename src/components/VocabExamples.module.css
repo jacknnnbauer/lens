@@ -1,0 +1,119 @@
+/* vocabulary.com 卡片底部的真实例句 */
+
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 20px 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.title small {
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.via {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.domains button {
+  padding: 2px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sub);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.domains button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sentence {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: var(--gloss-size, 17px);
+  line-height: 1.55;
+}
+
+.sentence mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--hl);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.source {
+  margin: 2px 0 0;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.source a {
+  color: var(--sub);
+}
+
+.note {
+  margin: 0;
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.more {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--raised);
+}

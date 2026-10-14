@@ -10,6 +10,7 @@ const MIGRATIONS: &[(i32, &str)] = &[
     (2, include_str!("../../migrations/0002_online.sql")),
     (3, include_str!("../../migrations/0003_review.sql")),
     (4, include_str!("../../migrations/0004_ai.sql")),
+    (5, include_str!("../../migrations/0005_vocab.sql")),
 ];
 
 pub fn latest_version() -> i32 {

@@ -7,6 +7,9 @@ import { tr } from "../i18n";
 import { vocabExamples, type VocabPage, type VocabSentence } from "../ipc/vocab";
 import styles from "./VocabExamples.module.css";
 
+/** 每页显示几句（接口一次取 24 句，翻到没取过的部分再取） */
+const PER_PAGE = 5;
+
 const DOMAINS: Array<[string, string]> = [
   ["", "全部来源"],
   ["F", "小说"],
@@ -47,6 +50,7 @@ export function VocabExamples({ word }: { word: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
+  const [page, setPage] = useState(0);
 
   const load = async (d: string, offset: number) => {
     setBusy(true);
@@ -63,14 +67,26 @@ export function VocabExamples({ word }: { word: string }) {
 
   useEffect(() => {
     setPages([]);
+    setPage(0);
     void load(domain, 0);
   }, [word, domain]);
 
-  const sentences = pages.flatMap((p) => p.sentences);
+  // 接口相邻两批偶尔有重叠：按句子去重
+  const seen = new Set<string>();
+  const sentences = pages.flatMap((p) => p.sentences).filter((x) => !seen.has(x.text) && (seen.add(x.text), true));
   const total = pages[0]?.total ?? 0;
   const last = pages[pages.length - 1];
-  const more = last && last.offset + last.sentences.length < total && last.sentences.length > 0;
+  const more = !!last && last.offset + last.sentences.length < total && last.sentences.length > 0;
   const stale = pages.some((p) => p.stale);
+  const shown = sentences.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
+  const hasNext = (page + 1) * PER_PAGE < sentences.length || more;
+
+  const next = async () => {
+    // 下一页超出已取到的部分：先向接口再要一批
+    if ((page + 2) * PER_PAGE > sentences.length && more && last) await load(domain, last.offset + last.sentences.length);
+    setPage((p) => p + 1);
+  };
 
   return (
     <section className={styles.box} aria-label={tr("真实例句")}>
@@ -98,8 +114,8 @@ export function VocabExamples({ word }: { word: string }) {
           )}
           {!busy && !error && sentences.length === 0 && <p className={styles.note}>{tr("这个来源下没有例句")}</p>}
           <ul className={styles.list}>
-            {sentences.map((s, i) => (
-              <li key={i}>
+            {shown.map((s, i) => (
+              <li key={page * PER_PAGE + i}>
                 <p className={styles.sentence}>
                   <Highlighted s={s} />
                 </p>
@@ -124,10 +140,17 @@ export function VocabExamples({ word }: { word: string }) {
             ))}
           </ul>
           {busy && <p className={styles.note}>{tr("正在加载…")}</p>}
-          {more && !busy && (
-            <button type="button" className={styles.more} onClick={() => void load(domain, last.offset + last.sentences.length)}>
-              {tr("更多例句")}
-            </button>
+          {sentences.length > PER_PAGE && (
+            <nav className={styles.pager} aria-label={tr("例句翻页")}>
+              <button type="button" disabled={page === 0 || busy} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+                ‹ {tr("上一页")}
+              </button>
+              <span className={styles.sep} aria-hidden="true" />
+              <button type="button" disabled={!hasNext || busy} onClick={() => void next()}>
+                {tr("下一页")} ›
+              </button>
+              <span className={styles.pageNo}>{tr("{a} / {b}", { a: page + 1, b: pageCount.toLocaleString() })}</span>
+            </nav>
           )}
         </>
       )}

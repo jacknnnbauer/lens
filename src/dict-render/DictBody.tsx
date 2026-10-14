@@ -8,8 +8,10 @@ import { adjustContrast, parseColor, type RGB } from "./contrast";
 import { tr } from "../i18n";
 
 // 主题变量穿透 Shadow 边界继承；词典自带 CSS 写在后面，可以覆盖这里的默认值
+// :host 用 flow-root：有的词典把整个词条包在 float:left 的容器里（如美国传统词典的 #results），
+// 普通 block 会塌成 0 高，卡片底边距失效、内容压到边框上
 export const BASE_CSS = `
-:host { display: block; color: var(--text); font-family: var(--font-gloss); font-size: var(--gloss-size, 17px);
+:host { display: flow-root; color: var(--text); font-family: var(--font-gloss); font-size: var(--gloss-size, 17px);
   line-height: 1.65; overflow-wrap: anywhere; }
 .lens-plain { white-space: pre-wrap; }
 img { max-width: 100%; height: auto; }
@@ -75,6 +77,15 @@ export function DictBody({ html, onEntry, dictId }: Props) {
         adjustContrast(root, { panel, raised, dark });
       }
       el.style.visibility = "";
+    });
+
+    // 词典 mdd 里缺的图片（发音小喇叭等）不显示破图标
+    const hideBroken = (img: HTMLImageElement) => {
+      img.style.display = "none";
+    };
+    root.querySelectorAll("img").forEach((img) => {
+      if (img.complete && img.naturalWidth === 0 && img.getAttribute("src")) hideBroken(img);
+      else img.addEventListener("error", () => hideBroken(img), { once: true });
     });
 
     const onClick = (ev: Event) => {

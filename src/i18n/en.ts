@@ -771,4 +771,8 @@ export const en: Record<string, string> = {
   "体育": "Sports",
   "科学医学": "Science / Med",
   "科技": "Technology",
+  // ── 例句翻页 ──
+  "例句翻页": "Example pages",
+  "上一页": "prev",
+  "下一页": "next",
 };

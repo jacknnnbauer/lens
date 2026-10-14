@@ -102,18 +102,42 @@
   font-size: 13px;
 }
 
-.more {
-  align-self: flex-start;
-  padding: 5px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+/* ‹ 上一页 | 下一页 › */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pager button {
+  padding: 2px 4px;
+  border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--sub);
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   cursor: pointer;
 }
 
-.more:hover {
-  background: var(--raised);
+.pager button:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.pager button:disabled {
+  color: var(--faint);
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+}
+
+.pageNo {
+  margin-left: 6px;
+  color: var(--faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }

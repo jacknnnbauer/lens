@@ -44,7 +44,8 @@ function year(ms: number | null): string {
   return ms ? String(new Date(ms).getFullYear()) : "";
 }
 
-export function VocabExamples({ word }: { word: string }) {
+/** variant：card = vocabulary.com 词典卡片底部；panel = 右侧栏（不需要这部词典，直接走在线接口） */
+export function VocabExamples({ word, variant = "card" }: { word: string; variant?: "card" | "panel" }) {
   const [domain, setDomain] = useState("");
   const [pages, setPages] = useState<VocabPage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -89,7 +90,7 @@ export function VocabExamples({ word }: { word: string }) {
   };
 
   return (
-    <section className={styles.box} aria-label={tr("真实例句")} data-word-lookup="">
+    <section className={styles.box} data-variant={variant} aria-label={tr("真实例句")} data-word-lookup="">
       <header className={styles.head}>
         <button type="button" className={styles.title} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {tr("真实例句")}

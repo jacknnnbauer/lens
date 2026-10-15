@@ -3,16 +3,19 @@
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
-import { MaximizeIcon, MinimizeIcon, SidebarIcon, WindowCloseIcon } from "./icons";
+import { ContextPanelIcon, MaximizeIcon, MinimizeIcon, SidebarIcon, WindowCloseIcon } from "./icons";
 import styles from "./TitleBar.module.css";
 import { tr } from "../i18n";
 
 interface Props {
   navShown: boolean;
   onToggleNav: () => void;
+  /** 右侧上下文栏（COCA、例句、查询详情） */
+  contextShown: boolean;
+  onToggleContext: () => void;
 }
 
-export function TitleBar({ navShown, onToggleNav }: Props) {
+export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext }: Props) {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
@@ -39,6 +42,16 @@ export function TitleBar({ navShown, onToggleNav }: Props) {
       <span className={styles.title} data-tauri-drag-region>
         {tr("词镜 Lens")}
       </span>
+      <button
+        type="button"
+        className={styles.navBtn}
+        aria-label={tr(contextShown ? "隐藏右侧上下文栏" : "显示右侧上下文栏")}
+        aria-pressed={contextShown}
+        title={`${tr(contextShown ? "隐藏右侧上下文栏" : "显示右侧上下文栏")}（Ctrl+Shift+\\）`}
+        onClick={onToggleContext}
+      >
+        <ContextPanelIcon />
+      </button>
       <span className={styles.controls}>
         <button type="button" className={styles.ctrl} aria-label={tr("最小化")} onClick={() => void w.minimize()}>
           <MinimizeIcon />

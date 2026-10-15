@@ -104,10 +104,21 @@ export function MainWindow() {
     const cur = useSettings.getState().settings?.layout.showNav ?? false;
     useSettings.getState().updateLayout({ showNav: !cur });
   }, []);
+  // 标题栏右侧按钮 / Ctrl+Shift+\：右侧上下文栏
+  const toggleContext = useCallback(() => {
+    const cur = useSettings.getState().settings?.layout.showContext ?? false;
+    useSettings.getState().updateLayout({ showContext: !cur });
+  }, []);
 
   // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+B 生词本，Ctrl+, 设置，Ctrl+K 回到查词（SPEC 9.4）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "Backslash") {
+        // Ctrl+Shift+\ 显示 / 隐藏右侧上下文栏
+        e.preventDefault();
+        toggleContext();
+        return;
+      }
       if (!e.ctrlKey || e.altKey || e.shiftKey) return;
       if (e.key === ",") {
         e.preventDefault();
@@ -141,7 +152,7 @@ export function MainWindow() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [profiles, switchProfile, go, focusSearch, toggleNav]);
+  }, [profiles, switchProfile, go, focusSearch, toggleNav, toggleContext]);
 
   // 进入沉浸模式时回到查词页
   useEffect(() => {
@@ -158,7 +169,9 @@ export function MainWindow() {
 
   return (
     <div className={styles.frame} data-titlebar={showTitleBar || undefined}>
-    {showTitleBar && <TitleBar navShown={layout?.showNav ?? false} onToggleNav={toggleNav} />}
+    {showTitleBar && (
+      <TitleBar navShown={layout?.showNav ?? false} onToggleNav={toggleNav} contextShown={layout?.showContext ?? false} onToggleContext={toggleContext} />
+    )}
     <div id={SCROLL_ID} className={styles.scroller}>
     <div className={styles.shell} data-nav={showNav || undefined} data-context={showContext || undefined}>
       {showNav && (

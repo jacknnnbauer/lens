@@ -1,4 +1,4 @@
-// 右侧栏（三栏布局）：COCA 词频与搭配、AI 双语例句。
+// 右侧栏（三栏布局）：COCA 词频与搭配、vocabulary.com 真实例句、AI 双语例句。
 // COCA 来自用户导入的 2 万词频表；例句由 Claude 生成，按（词, 模型）缓存，查过的词再看不花钱。
 
 import { useEffect, useState } from "react";
@@ -7,6 +7,7 @@ import { aiExamples, aiKeyStatus, cocaLookup, cocaStatus, expandCollocate, type 
 import { useRoute } from "../stores/route";
 import { useSettings } from "../stores/settings";
 import { scrollRoot } from "../windows/main/scroll";
+import { VocabExamples } from "./VocabExamples";
 import styles from "./WordInsights.module.css";
 
 const POS: Record<string, string> = {
@@ -204,6 +205,7 @@ export function WordInsights({ word, brief }: { word: string; brief: string | nu
   return (
     <>
       <CocaSection word={word} />
+      <VocabExamples word={word} variant="panel" />
       <AiSection word={word} brief={brief} />
     </>
   );

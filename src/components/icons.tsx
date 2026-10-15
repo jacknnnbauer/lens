@@ -88,6 +88,14 @@ export const SidebarIcon = ({ size = 16 }) => (
   </svg>
 );
 
+/** 右侧栏开关（与 SidebarIcon 左右对称） */
+export const ContextPanelIcon = ({ size = 16 }) => (
+  <svg {...base(size)}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M14.5 4.5v15" />
+  </svg>
+);
+
 /** 沉浸模式：四角向外 */
 export const ImmersiveIcon = ({ size = 18 }) => (
   <svg {...base(size)}>

@@ -783,4 +783,7 @@ export const en: Record<string, string> = {
   "在 Lens 里的释义、真实例句、AI 例句、COCA 搭配和生词本语境句中查词：直接跳到查词页查这个词（在查词小窗里则原地换词），并记下所在句子，收藏时一并保存。双击：最不影响正常操作；单击：点一下就查，像 Kindle；划词：拖选一个词或短语后松开即查（也可双击选词）。按钮、链接、输入框不受影响。": "Look up words inside Lens — in definitions, real-world and AI examples, COCA collocations and wordbook context sentences. The word opens straight on the lookup page (inside the lookup popup, the popup switches to it), and the sentence it came from is kept for your wordbook. Double-click: least intrusive. Single click: tap to look up, like a Kindle. Select text: drag over a word or phrase and release (double-click also works). Buttons, links and input fields are unaffected.",
   // ── 右侧栏开关 ──
   "隐藏右侧上下文栏": "Hide the right panel",
+  // ── 侧栏宽度 ──
+  "拖动调整左侧导航宽度（双击恢复默认）": "Drag to resize the left navigation (double-click to reset)",
+  "拖动调整右侧栏宽度（双击恢复默认）": "Drag to resize the right panel (double-click to reset)",
 };

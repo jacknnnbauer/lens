@@ -28,6 +28,9 @@ export interface Layout {
   cardsExpanded: "first2" | "all" | "none";
   /** 每次启动都回到简洁单栏 */
   startCompact: boolean;
+  /** 侧栏宽度（px） */
+  navWidth: number;
+  contextWidth: number;
 }
 
 export interface Immersive {

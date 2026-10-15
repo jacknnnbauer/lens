@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ResizeHandle } from "../../components/ResizeHandle";
 import { useInAppLookup } from "../../components/inAppLookup";
 import { BatchChip, BatchDialog, BatchResumeNotice } from "../../components/batch/BatchDialog";
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
@@ -31,6 +32,14 @@ import { tr } from "../../i18n";
  * 主窗口。布局（SPEC 9.2）：简洁单栏 / 双栏（+左侧导航）/ 三栏（+右侧查询详情），
  * 状态栏与跳转条可单独开关。目前只有查词页；其他路由随后续里程碑加入。
  */
+/** 侧栏宽度范围（px） */
+const NAV_DEFAULT = 220;
+const NAV_MIN = 160;
+const CONTEXT_DEFAULT = 280;
+const CONTEXT_MIN = 220;
+/** 中间主区至少留这么宽 */
+const MAIN_MIN = 420;
+
 export function MainWindow() {
   const loadSettings = useSettings((s) => s.load);
   const settingsError = useSettings((s) => s.error);
@@ -159,6 +168,14 @@ export function MainWindow() {
     if (immersive) go("lookup");
   }, [immersive, go]);
 
+  // 侧栏宽度：拖动中用本地值实时预览，松手写回设置
+  const [navW, setNavW] = useState<number | null>(null);
+  const [ctxW, setCtxW] = useState<number | null>(null);
+  const navWidth = navW ?? layout?.navWidth ?? NAV_DEFAULT;
+  const contextWidth = ctxW ?? layout?.contextWidth ?? CONTEXT_DEFAULT;
+  // 中间至少留 MAIN_MIN；另一侧栏也算进去
+  const maxSide = (other: number) => () => Math.max(0, window.innerWidth - MAIN_MIN - other);
+
   // 设置页有自己的分类导航，不显示两侧栏；沉浸模式按设置隐藏
   const inSettings = page === "settings" || page === "themes";
   const hideSides = inSettings || (immersive && (immersivePrefs?.hideSidebars ?? true));
@@ -173,9 +190,27 @@ export function MainWindow() {
       <TitleBar navShown={layout?.showNav ?? false} onToggleNav={toggleNav} contextShown={layout?.showContext ?? false} onToggleContext={toggleContext} />
     )}
     <div id={SCROLL_ID} className={styles.scroller}>
-    <div className={styles.shell} data-nav={showNav || undefined} data-context={showContext || undefined}>
+    <div
+      className={styles.shell}
+      data-nav={showNav || undefined}
+      data-context={showContext || undefined}
+      style={{ "--nav-w": `${navWidth}px`, "--context-w": `${contextWidth}px` } as React.CSSProperties}
+    >
       {showNav && (
         <div className={styles.side}>
+          <ResizeHandle
+            side="left"
+            label={tr("拖动调整左侧导航宽度（双击恢复默认）")}
+            width={navWidth}
+            min={NAV_MIN}
+            max={maxSide(showContext ? contextWidth : 0)}
+            defaultWidth={NAV_DEFAULT}
+            onPreview={setNavW}
+            onCommit={(w) => {
+              useSettings.getState().updateLayout({ navWidth: w });
+              setNavW(null);
+            }}
+          />
           <SideNav
             onFocusSearch={focusSearch}
             onOpenHistory={() => go("history")}
@@ -232,6 +267,19 @@ export function MainWindow() {
 
       {showContext && (
         <div className={`${styles.side} ${styles.context}`}>
+          <ResizeHandle
+            side="right"
+            label={tr("拖动调整右侧栏宽度（双击恢复默认）")}
+            width={contextWidth}
+            min={CONTEXT_MIN}
+            max={maxSide(showNav ? navWidth : 0)}
+            defaultWidth={CONTEXT_DEFAULT}
+            onPreview={setCtxW}
+            onCommit={(w) => {
+              useSettings.getState().updateLayout({ contextWidth: w });
+              setCtxW(null);
+            }}
+          />
           <ContextPanel />
         </div>
       )}

@@ -1,0 +1,57 @@
+/* 贴在侧栏内侧边缘的细条：平时看不见，悬停 / 拖动 / 键盘聚焦时显示强调色 */
+.handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.handle[data-side="left"] {
+  right: 0;
+}
+
+.handle[data-side="right"] {
+  left: 0;
+}
+
+.handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.12s;
+}
+
+.handle[data-side="left"]::after {
+  right: 0;
+}
+
+.handle[data-side="right"]::after {
+  left: 0;
+}
+
+.handle:hover::after,
+.handle:focus-visible::after,
+:global(html[data-resizing]) .handle::after {
+  width: 2px;
+  background: var(--accent);
+}
+
+.handle:focus-visible {
+  box-shadow: none;
+}
+
+/* 拖动时全局保持列宽光标、不选中文字 */
+:global(html[data-resizing]),
+:global(html[data-resizing]) * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}

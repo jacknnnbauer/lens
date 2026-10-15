@@ -48,6 +48,7 @@
 }
 
 .side {
+  /* sticky 本身是定位上下文：宽度拖动条（absolute）贴在内侧边缘 */
   position: sticky;
   top: 0;
   align-self: start;

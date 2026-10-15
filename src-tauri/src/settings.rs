@@ -56,6 +56,9 @@ pub struct Layout {
     pub cards_expanded: String,
     /// 每次启动都回到简洁单栏
     pub start_compact: bool,
+    /// 左侧导航、右侧栏宽度（px，拖动侧栏边缘调整）
+    pub nav_width: u32,
+    pub context_width: u32,
 }
 
 impl Default for Layout {
@@ -69,6 +72,8 @@ impl Default for Layout {
             show_jump_bar: true,
             cards_expanded: "first2".into(),
             start_compact: true,
+            nav_width: 220,
+            context_width: 280,
         }
     }
 }

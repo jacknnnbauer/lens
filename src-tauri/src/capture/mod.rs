@@ -30,8 +30,11 @@ pub const POPUP: &str = "popup";
 pub const EVENT_TRIGGERED: &str = "capture:triggered";
 pub const EVENT_URL: &str = "capture:url";
 /// 弹窗逻辑尺寸（画板 02）
-pub const POPUP_W: f64 = 480.0;
-pub const POPUP_H: f64 = 560.0;
+/// 弹窗默认大小：窄一点、修长一点，释义能铺满
+pub const POPUP_W: f64 = 420.0;
+pub const POPUP_H: f64 = 640.0;
+/// 0.8.0 及以前的默认大小：设置里还是这个值时视为没调过，用新的默认值
+const OLD_DEFAULT: (u32, u32) = (480, 560);
 /// 弹窗最小尺寸（逻辑像素）
 pub const POPUP_MIN_W: f64 = 320.0;
 pub const POPUP_MIN_H: f64 = 260.0;
@@ -441,6 +444,7 @@ fn show_popup(app: &AppHandle, event: &CaptureEvent, anchor: Option<Anchor>) -> 
 /// 设置里记住的弹窗大小（逻辑像素）
 fn popup_size(app: &AppHandle) -> (f64, f64) {
     match app.state::<AppState>().settings.get() {
+        Ok(s) if (s.capture.popup_width, s.capture.popup_height) == OLD_DEFAULT => (POPUP_W, POPUP_H),
         Ok(s) => (f64::from(s.capture.popup_width).max(POPUP_MIN_W), f64::from(s.capture.popup_height).max(POPUP_MIN_H)),
         Err(_) => (POPUP_W, POPUP_H),
     }

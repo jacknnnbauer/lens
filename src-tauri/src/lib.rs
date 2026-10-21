@@ -29,6 +29,46 @@ use app_state::AppState;
 /// 持有日志后台线程的 guard，随 App 一起释放。
 struct LogGuard(#[allow(dead_code)] tracing_appender::non_blocking::WorkerGuard);
 
+fn close_to_tray(app: &tauri::AppHandle) -> bool {
+    app.try_state::<AppState>().and_then(|s| s.settings.get().ok()).is_some_and(|s| s.capture.close_to_tray)
+}
+
+fn show_main(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
+/// 托盘图标：单击 / 双击打开主窗口；右键菜单「打开词镜 / 退出」。
+fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    let open = MenuItem::with_id(app, "open", i18n::t("打开词镜", "Open Lens"), true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", i18n::t("退出", "Quit"), true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &quit])?;
+    let mut tray = TrayIconBuilder::with_id("lens")
+        .tooltip("词镜 Lens")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, e| match e.id().as_ref() {
+            "open" => show_main(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, e| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
+                show_main(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -58,8 +98,17 @@ pub fn run() {
         // 关掉主窗口就退出整个程序：隐藏的弹窗 / 导出窗口不能让进程残留，
         // 否则再次打开会被单实例转给这个已没有主窗口的进程，看起来「点了打不开」
         .on_window_event(|window, event| {
-            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
-                window.app_handle().exit(0);
+            if window.label() != "main" {
+                return;
+            }
+            match event {
+                // 设置 › 取词「关闭时隐藏到后台」：只隐藏主窗口，从托盘菜单退出
+                tauri::WindowEvent::CloseRequested { api, .. } if close_to_tray(window.app_handle()) => {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                tauri::WindowEvent::Destroyed => window.app_handle().exit(0),
+                _ => {}
             }
         })
         .register_asynchronous_uri_scheme_protocol(protocol::SCHEME, |ctx, request, responder| {
@@ -106,6 +155,9 @@ pub fn run() {
                 *s = capture::CaptureStatus { double_copy: s.double_copy, ..status };
             }
             app.manage(service);
+            if let Err(e) = build_tray(app.handle()) {
+                tracing::warn!(error = %e, "创建托盘图标失败");
+            }
             app.manage(batch::BatchManager::default());
             // 主窗口配置为先隐藏：取消最大化、缩到屏幕以内并居中之后再显示，
             // 避免一打开就铺满整个屏幕（无边框窗口铺满时看起来像沉浸模式）

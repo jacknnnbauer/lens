@@ -1,5 +1,6 @@
-// 迷你弹窗（SPEC 8、画板 02）：常驻隐藏，取词后由 Rust 定位并显示。
-// 键盘：Enter 在主窗口打开 · Tab/Shift+Tab 切换词典 · Alt+←/→ 语境句多带一句 · Ctrl+P 钉住 · Esc 关闭。
+// 迷你弹窗（SPEC 8、画板 02）：常驻隐藏，取词后由 Rust 定位并显示。拖动边缘调大小，拖动搜索行空白处移动。
+// 键盘：Enter 在主窗口打开 · Tab/Shift+Tab 切换词典 · Alt+←/→ 语境句多带一句 · Ctrl+P 钉住 · Esc 关闭
+// （说明在设置 › 快捷键，小窗里不再显示提示栏）。
 // 失焦 300ms 后自动隐藏（钉住时除外）。
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -281,28 +282,6 @@ export function PopupWindow() {
         </section>
       )}
 
-      <footer className={styles.footer} data-tauri-drag-region>
-        <span>
-          <kbd>↵</kbd> {tr("主窗口")}
-        </span>
-        <span>
-          <kbd>Ctrl+S</kbd> {tr("收藏")}
-        </span>
-        <span>
-          <kbd>Ctrl+Shift+C</kbd> {tr("复制")}
-        </span>
-        <span>
-          <kbd>Ctrl+P</kbd> {tr("钉住")}
-        </span>
-        {ctx && (
-          <span>
-            <kbd>Alt+←/→</kbd> {tr("语境")}
-          </span>
-        )}
-        <span className={styles.esc}>
-          <kbd>Esc</kbd>
-        </span>
-      </footer>
       <Toast />
     </div>
   );

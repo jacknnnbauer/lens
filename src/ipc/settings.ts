@@ -60,6 +60,8 @@ export interface Capture {
   /** 弹窗大小（逻辑像素），拖动边缘后由 Rust 记下 */
   popupWidth: number;
   popupHeight: number;
+  /** 点关闭时隐藏到后台（托盘） */
+  closeToTray: boolean;
 }
 
 export interface Online {
@@ -93,9 +95,15 @@ export interface ExportPrefs {
   dir: string | null;
 }
 
-/** AI 双语例句（Claude API）；Key 存在凭据管理器，不在这里 */
+export type AiProvider = "claude" | "deepseek";
+
+/** AI 双语例句（Claude 或 DeepSeek）；Key 存在凭据管理器，不在这里 */
 export interface AiPrefs {
+  provider: AiProvider;
+  /** Claude 的模型 */
   model: string;
+  /** DeepSeek 的模型 */
+  deepseekModel: string;
   count: number;
   /** 查词后自动生成（否则点按钮） */
   auto: boolean;

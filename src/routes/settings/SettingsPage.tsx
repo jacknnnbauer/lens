@@ -53,9 +53,14 @@ const SHORTCUTS: Array<[string, string]> = [
   ["F11 / Esc", "进入 / 退出沉浸模式"],
   ["Ctrl+\\", "显示 / 隐藏左侧导航"],
   ["Ctrl+,", "设置"],
-  ["Enter", "弹窗中：展开到主窗口"],
   ["鼠标侧键 · Alt+← / Alt+→", "主窗口：后退 / 前进（回到刚才查的词或页面）"],
-  ["Alt+← / Alt+→", "弹窗中：语境句向前 / 向后多带一句"],
+  ["Enter", "查词小窗：展开到主窗口（改过词时先在小窗里查）"],
+  ["Ctrl+S", "查词小窗：收藏（带语境句）"],
+  ["Ctrl+Shift+C", "查词小窗：复制当前词典"],
+  ["Ctrl+P", "查词小窗：钉住（失焦不自动关闭）"],
+  ["Tab / Shift+Tab", "查词小窗：下一本 / 上一本词典"],
+  ["Alt+← / Alt+→", "查词小窗：语境句向前 / 向后多带一句"],
+  ["Esc", "查词小窗：关闭"],
 ];
 
 const COPY_SAMPLE = `<span class="phon">/juːˈbɪk.wɪ.təs/</span> <i>adj.</i>
@@ -102,13 +107,18 @@ function AiSettings() {
   const update = useSettings((s) => s.update);
   const [coca, setCoca] = useState<CocaStatus | null>(null);
   const [hasKey, setHasKey] = useState(false);
+  const provider = ai?.provider ?? "claude";
+  const deepseek = provider === "deepseek";
   const [key, setKey] = useState("");
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   useEffect(() => {
     cocaStatus().then(setCoca, () => setCoca(null));
-    aiKeyStatus().then(setHasKey, () => setHasKey(false));
   }, []);
+  useEffect(() => {
+    setKey("");
+    aiKeyStatus(provider).then(setHasKey, () => setHasKey(false));
+  }, [provider]);
 
   if (!ai) return null;
   const setAi = (p: Partial<AiPrefs>) => update({ ai: p });
@@ -127,7 +137,7 @@ function AiSettings() {
 
   const saveKey = async (value: string | null) => {
     try {
-      setHasKey(await aiSetKey(value));
+      setHasKey(await aiSetKey(provider, value));
       setKey("");
       setMessage({ text: value ? tr("API Key 已保存到 Windows 凭据管理器") : tr("已删除 API Key") });
     } catch (e) {
@@ -138,7 +148,19 @@ function AiSettings() {
   return (
     <section id="set-ai" className={styles.section} aria-labelledby="h-ai">
       <h2 id="h-ai">{tr("AI 例句")}</h2>
-      <p className={styles.hint}>{tr("三栏布局的右侧栏显示当前词的 COCA 词频、语体与搭配，并可用 Claude 按这些真实搭配生成中英双语例句。")}</p>
+      <p className={styles.hint}>{tr("右侧栏显示当前词的 COCA 词频、语体与搭配，并可用 Claude 或 DeepSeek 按这些真实搭配生成中英双语例句。")}</p>
+
+      <div className={styles.grid2}>
+        <Select
+          label={tr("AI 服务")}
+          value={provider}
+          options={[
+            ["claude", "Claude（Anthropic）"],
+            ["deepseek", "DeepSeek（深度求索，国内可直连）"],
+          ]}
+          onChange={(v) => setAi({ provider: v })}
+        />
+      </div>
 
       <div className={styles.row}>
         <span>
@@ -152,15 +174,21 @@ function AiSettings() {
 
       <div className={styles.row}>
         <span>
-          {tr("Claude API Key")}
-          <small>{hasKey ? tr("已保存（存在 Windows 凭据管理器，不写进设置文件）") : tr("在 console.anthropic.com 创建；按用量计费")}</small>
+          {deepseek ? tr("DeepSeek API Key") : tr("Claude API Key")}
+          <small>
+            {hasKey
+              ? tr("已保存（存在 Windows 凭据管理器，不写进设置文件）")
+              : deepseek
+                ? tr("在 platform.deepseek.com 创建；按用量计费")
+                : tr("在 console.anthropic.com 创建；按用量计费")}
+          </small>
         </span>
         <span className={styles.keyRow}>
           <input
             type="password"
             value={key}
-            placeholder={hasKey ? "••••••••" : "sk-ant-…"}
-            aria-label={tr("Claude API Key")}
+            placeholder={hasKey ? "••••••••" : deepseek ? "sk-…" : "sk-ant-…"}
+            aria-label={deepseek ? tr("DeepSeek API Key") : tr("Claude API Key")}
             autoComplete="off"
             spellCheck={false}
             onChange={(e) => setKey(e.target.value)}
@@ -177,16 +205,28 @@ function AiSettings() {
       </div>
 
       <div className={styles.grid2}>
-        <Select
-          label={tr("模型")}
-          value={ai.model}
-          options={[
-            ["claude-opus-4-8", "Claude Opus 4.8（默认，质量最好）"],
-            ["claude-sonnet-5", "Claude Sonnet 5（更便宜）"],
-            ["claude-haiku-4-5", "Claude Haiku 4.5（最便宜、最快）"],
-          ]}
-          onChange={(v) => setAi({ model: v })}
-        />
+        {deepseek ? (
+          <Select
+            label={tr("模型")}
+            value={ai.deepseekModel}
+            options={[
+              ["deepseek-flash", "DeepSeek Flash（默认，快、便宜）"],
+              ["deepseek-v4-pro", "DeepSeek V4 Pro（质量更好）"],
+            ]}
+            onChange={(v) => setAi({ deepseekModel: v })}
+          />
+        ) : (
+          <Select
+            label={tr("模型")}
+            value={ai.model}
+            options={[
+              ["claude-opus-4-8", "Claude Opus 4.8（默认，质量最好）"],
+              ["claude-sonnet-5", "Claude Sonnet 5（更便宜）"],
+              ["claude-haiku-4-5", "Claude Haiku 4.5（最便宜、最快）"],
+            ]}
+            onChange={(v) => setAi({ model: v })}
+          />
+        )}
         <Select
           label={tr("每次生成")}
           value={ai.count}
@@ -204,7 +244,7 @@ function AiSettings() {
           {message.text}
         </p>
       )}
-      <p className={styles.hint}>{tr("发给 Claude 的只有：单词、首部词典的简释、COCA 搭配词。不发送语境句和生词本。")}</p>
+      <p className={styles.hint}>{tr("发给 AI 服务的只有：单词、首部词典的简释、COCA 搭配词。不发送语境句和生词本。")}</p>
     </section>
   );
 }
@@ -705,6 +745,14 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
           </div>
           <p className={styles.hint}>{tr("自动：划词查到释义后，连同当时的语境句一起收进生词本；已在生词本里的词只追加这条语境。")}</p>
+          <div className={styles.grid2}>
+            <Toggle
+              label={tr("关闭时隐藏到后台")}
+              hint={tr("点 × 只隐藏窗口，划词快捷键和 Ctrl+C+C 照常可用；点任务栏右下角的托盘图标重新打开，右键托盘图标退出")}
+              checked={cap.closeToTray ?? false}
+              onChange={(v) => void updateNow({ capture: { closeToTray: v } })}
+            />
+          </div>
           <div className={styles.grid2}>
             <Select
               label={tr("窗口内查词")}

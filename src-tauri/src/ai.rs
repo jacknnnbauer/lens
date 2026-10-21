@@ -1,5 +1,6 @@
-//! AI 双语例句：调用 Claude API（Messages API，原始 HTTP；Rust 没有官方 SDK）。
-//! 提示里带上词典简释和 COCA 搭配词，让例句用真实、高频的搭配；用 JSON Schema 约束输出格式。
+//! AI 双语例句：调用 Claude API（Messages API，原始 HTTP；Rust 没有官方 SDK）或 DeepSeek（OpenAI 兼容接口）。
+//! 提示里带上词典简释和 COCA 搭配词，让例句用真实、高频的搭配；Claude 用 JSON Schema 约束输出，
+//! DeepSeek 用 JSON Output 模式（response_format = json_object，提示里给出格式示例）。
 //! API Key 存在 Windows 凭据管理器（与在线词典的 Key 同一处），结果按（词, 模型）缓存在数据库里。
 
 use std::time::Duration;
@@ -12,8 +13,38 @@ use crate::error::{Error, Result};
 
 const ENDPOINT: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2023-06-01";
-/// 凭据管理器里的条目名（`Lens/online/` 前缀下）
-pub const KEY_ID: &str = "ai-anthropic";
+const DEEPSEEK_ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Provider {
+    Claude,
+    DeepSeek,
+}
+
+impl Provider {
+    pub fn parse(s: &str) -> Self {
+        if s.eq_ignore_ascii_case("deepseek") {
+            Provider::DeepSeek
+        } else {
+            Provider::Claude
+        }
+    }
+
+    /// 凭据管理器里的条目名（`Lens/online/` 前缀下）
+    pub fn key_id(self) -> &'static str {
+        match self {
+            Provider::Claude => "ai-anthropic",
+            Provider::DeepSeek => "ai-deepseek",
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Provider::Claude => "Claude",
+            Provider::DeepSeek => "DeepSeek",
+        }
+    }
+}
 const TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -89,6 +120,47 @@ pub fn request_body(model: &str, word: &str, brief: Option<&str>, collocations: 
     })
 }
 
+/// DeepSeek 的 JSON Output 要求提示里出现 "json" 并给出格式示例
+const JSON_FORMAT: &str = "Reply with JSON only, in exactly this format:\n\
+{\"examples\": [{\"en\": \"English sentence\", \"zh\": \"中文翻译\", \"collocation\": \"generation gap\"}]}";
+
+pub fn deepseek_request_body(model: &str, word: &str, brief: Option<&str>, collocations: &str, count: usize) -> Value {
+    json!({
+        "model": model,
+        "max_tokens": 4000,
+        "messages": [
+            { "role": "system", "content": format!("{SYSTEM}\n\n{JSON_FORMAT}") },
+            { "role": "user", "content": prompt(word, brief, collocations, count) }
+        ],
+        "response_format": { "type": "json_object" },
+        "stream": false
+    })
+}
+
+fn parse_examples(text: &str) -> Result<Vec<Example>> {
+    #[derive(Deserialize)]
+    struct Out {
+        examples: Vec<Example>,
+    }
+    let out: Out = serde_json::from_str(text).map_err(|e| Error::Online(crate::tf!("无法解析模型输出：{}", "Could not parse the model output: {}", e)))?;
+    Ok(out.examples.into_iter().filter(|e| !e.en.trim().is_empty()).collect())
+}
+
+/// 解析 OpenAI 兼容的 chat/completions 响应（DeepSeek）
+pub fn parse_chat_response(v: &Value) -> Result<Vec<Example>> {
+    let choice = v.pointer("/choices/0").ok_or_else(|| Error::Online(crate::i18n::t("模型没有返回内容", "The model returned no content").into()))?;
+    if choice.get("finish_reason").and_then(Value::as_str) == Some("length") {
+        return Err(Error::Online(crate::i18n::t("输出被截断，请重试", "The output was cut off. Please try again").into()));
+    }
+    let text = choice
+        .pointer("/message/content")
+        .and_then(Value::as_str)
+        .filter(|t| !t.trim().is_empty())
+        // JSON Output 模式偶尔返回空内容（官方文档注明），提示重试
+        .ok_or_else(|| Error::Online(crate::i18n::t("模型返回了空内容，请重试", "The model returned an empty reply. Please try again").into()))?;
+    parse_examples(text)
+}
+
 /// 解析 Messages API 的响应：先看 stop_reason，再取第一个 text 块里的 JSON。
 pub fn parse_response(v: &Value) -> Result<Vec<Example>> {
     match v.get("stop_reason").and_then(Value::as_str) {
@@ -103,48 +175,57 @@ pub fn parse_response(v: &Value) -> Result<Vec<Example>> {
         .and_then(|b| b.get("text"))
         .and_then(Value::as_str)
         .ok_or_else(|| Error::Online(crate::i18n::t("模型没有返回内容", "The model returned no content").into()))?;
-    #[derive(Deserialize)]
-    struct Out {
-        examples: Vec<Example>,
-    }
-    let out: Out = serde_json::from_str(text).map_err(|e| Error::Online(crate::tf!("无法解析模型输出：{}", "Could not parse the model output: {}", e)))?;
-    Ok(out.examples.into_iter().filter(|e| !e.en.trim().is_empty()).collect())
+    parse_examples(text)
 }
 
-fn http_error(status: u16, body: &str) -> Error {
+fn http_error(provider: Provider, status: u16, body: &str) -> Error {
     let detail = serde_json::from_str::<Value>(body)
         .ok()
         .and_then(|v| v.pointer("/error/message").and_then(Value::as_str).map(str::to_string))
         .unwrap_or_default();
     let msg = match status {
         401 => crate::i18n::t("API Key 无效，请在设置 › AI 例句里重新填写", "The API key is invalid. Re-enter it in Settings › AI examples").to_string(),
+        402 => crate::i18n::t("账户余额不足，请先充值", "Insufficient balance. Please top up your account").to_string(),
         403 => crate::tf!("没有权限：{}", "Permission denied: {}", detail),
         404 => crate::tf!("找不到模型：{}", "Model not found: {}", detail),
         429 => crate::i18n::t("请求太频繁或额度不足，稍后再试", "Rate limited or out of credit. Try again later").to_string(),
-        500..=599 => crate::i18n::t("Claude 服务暂时不可用，稍后再试", "The Claude service is temporarily unavailable. Try again later").to_string(),
+        500..=599 => crate::tf!("{} 服务暂时不可用，稍后再试", "The {} service is temporarily unavailable. Try again later", provider.name()),
         _ => crate::tf!("请求失败（{}）：{}", "Request failed ({}): {}", status, detail),
     };
     Error::Online(msg)
 }
 
-pub async fn generate(client: &reqwest::Client, key: &str, body: &Value) -> Result<Vec<Example>> {
-    let resp = client
-        .post(ENDPOINT)
-        .header("x-api-key", key)
-        .header("anthropic-version", API_VERSION)
+/// 这个服务商的请求体
+pub fn body_for(provider: Provider, model: &str, word: &str, brief: Option<&str>, collocations: &str, count: usize) -> Value {
+    match provider {
+        Provider::Claude => request_body(model, word, brief, collocations, count),
+        Provider::DeepSeek => deepseek_request_body(model, word, brief, collocations, count),
+    }
+}
+
+/// 按服务商发送请求（body 来自 body_for）并解析。
+pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, body: &Value) -> Result<Vec<Example>> {
+    let req = match provider {
+        Provider::Claude => client.post(ENDPOINT).header("x-api-key", key).header("anthropic-version", API_VERSION),
+        Provider::DeepSeek => client.post(DEEPSEEK_ENDPOINT).bearer_auth(key),
+    }
+    .json(body);
+    let resp = req
         .header("content-type", "application/json")
         .timeout(TIMEOUT)
-        .json(body)
         .send()
         .await
-        .map_err(|e| Error::Online(crate::tf!("连不上 Claude API：{}", "Could not reach the Claude API: {}", e)))?;
+        .map_err(|e| Error::Online(crate::tf!("连不上 {} API：{}", "Could not reach the {} API: {}", provider.name(), e)))?;
     let status = resp.status().as_u16();
     let text = resp.text().await.map_err(|e| Error::Online(e.to_string()))?;
     if !(200..300).contains(&status) {
-        return Err(http_error(status, &text));
+        return Err(http_error(provider, status, &text));
     }
     let v: Value = serde_json::from_str(&text).map_err(|e| Error::Online(e.to_string()))?;
-    parse_response(&v)
+    match provider {
+        Provider::Claude => parse_response(&v),
+        Provider::DeepSeek => parse_chat_response(&v),
+    }
 }
 
 // —— 缓存（迁移 0004 的 ai_examples 表）——
@@ -190,7 +271,22 @@ mod tests {
         assert_eq!(ex[0].zh, "注意代沟。");
         assert!(parse_response(&json!({"stop_reason": "refusal", "content": []})).is_err());
         assert!(parse_response(&json!({"stop_reason": "end_turn", "content": [{"type": "text", "text": "not json"}]})).is_err());
-        assert!(matches!(http_error(401, ""), Error::Online(m) if m.contains("API Key")));
+        assert!(matches!(http_error(Provider::Claude, 401, ""), Error::Online(m) if m.contains("API Key")));
+        Ok(())
+    }
+
+    #[test]
+    fn deepseek_request_and_response() -> Result<()> {
+        let b = deepseek_request_body("deepseek-flash", "generation", None, "", 3);
+        assert_eq!(b["response_format"]["type"], "json_object");
+        let sys = b["messages"][0]["content"].as_str().unwrap_or_default();
+        assert!(sys.to_lowercase().contains("json") && sys.contains("\"examples\""), "JSON Output 要求提示里有 json 和格式示例");
+        let ok = json!({"choices": [{"finish_reason": "stop", "message": {"content": "{\"examples\":[{\"en\":\"Mind the gap.\",\"zh\":\"小心空隙。\",\"collocation\":\"mind the gap\"}]}"}}]});
+        assert_eq!(parse_chat_response(&ok)?[0].zh, "小心空隙。");
+        assert!(parse_chat_response(&json!({"choices": [{"finish_reason": "stop", "message": {"content": ""}}]})).is_err());
+        assert!(parse_chat_response(&json!({"choices": [{"finish_reason": "length", "message": {"content": "{"}}]})).is_err());
+        assert_eq!(Provider::parse("DeepSeek"), Provider::DeepSeek);
+        assert_eq!(Provider::parse("whatever"), Provider::Claude);
         Ok(())
     }
 

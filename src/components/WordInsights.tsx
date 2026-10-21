@@ -1,5 +1,5 @@
 // 右侧栏（三栏布局）：COCA 词频与搭配、vocabulary.com 真实例句、AI 双语例句。
-// COCA 来自用户导入的 2 万词频表；例句由 Claude 生成，按（词, 模型）缓存，查过的词再看不花钱。
+// COCA 来自用户导入的 2 万词频表；例句由 Claude 或 DeepSeek 生成，按（词, 模型）缓存，查过的词再看不花钱。
 
 import { useEffect, useState } from "react";
 import { tr } from "../i18n";
@@ -120,6 +120,8 @@ function CocaSection({ word }: { word: string }) {
 
 function AiSection({ word, brief }: { word: string; brief: string | null }) {
   const auto = useSettings((s) => s.settings?.ai?.auto ?? false);
+  const provider = useSettings((s) => s.settings?.ai?.provider ?? "claude");
+  const model = useSettings((s) => (provider === "deepseek" ? s.settings?.ai?.deepseekModel : s.settings?.ai?.model));
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [data, setData] = useState<Examples | null>(null);
   const [busy, setBusy] = useState(false);
@@ -142,7 +144,7 @@ function AiSection({ word, brief }: { word: string; brief: string | null }) {
     let alive = true;
     setData(null);
     setError(null);
-    void aiKeyStatus().then(
+    void aiKeyStatus(provider).then(
       (k) => {
         if (!alive) return;
         setHasKey(k);
@@ -154,7 +156,8 @@ function AiSection({ word, brief }: { word: string; brief: string | null }) {
     return () => {
       alive = false;
     };
-  }, [word, auto]);
+    // 换了服务商或模型也重新取（缓存按模型区分）
+  }, [word, auto, provider, model]);
 
   return (
     <section className={styles.section} aria-label={tr("AI 双语例句")} data-word-lookup="">
@@ -168,7 +171,7 @@ function AiSection({ word, brief }: { word: string; brief: string | null }) {
       </div>
       {hasKey === false && !data && (
         <p className={styles.hint}>
-          {tr("填写 Claude API Key 后，可以按 COCA 真实搭配生成中英双语例句。")}{" "}
+          {tr("填写 {name} API Key 后，可以按 COCA 真实搭配生成中英双语例句。", { name: provider === "deepseek" ? "DeepSeek" : "Claude" })}{" "}
           <button type="button" className={styles.link} onClick={openAiSettings}>
             {tr("去设置")}
           </button>

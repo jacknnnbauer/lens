@@ -96,6 +96,8 @@ pub struct Capture {
     /// 弹窗大小（逻辑像素）：拖动边缘调整后记住
     pub popup_width: u32,
     pub popup_height: u32,
+    /// 点关闭时隐藏到后台（托盘），快捷键 / Ctrl+C+C 随时可查词；从托盘菜单退出
+    pub close_to_tray: bool,
 }
 
 impl Default for Capture {
@@ -107,8 +109,9 @@ impl Default for Capture {
             timeout_ms: 150,
             in_app_trigger: "dblclick".into(),
             auto_save: false,
-            popup_width: 480,
-            popup_height: 560,
+            popup_width: crate::capture::POPUP_W as u32,
+            popup_height: crate::capture::POPUP_H as u32,
+            close_to_tray: false,
         }
     }
 }
@@ -134,16 +137,35 @@ impl Default for Online {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Ai {
+    /// claude | deepseek
+    pub provider: String,
+    /// Claude 的模型
     pub model: String,
+    /// DeepSeek 的模型（OpenAI 兼容接口）
+    pub deepseek_model: String,
     /// 每次生成几句
     pub count: usize,
     /// 查词后自动生成（否则点按钮再生成）；有缓存时总是直接显示
     pub auto: bool,
 }
 
+impl Ai {
+    pub fn provider(&self) -> crate::ai::Provider {
+        crate::ai::Provider::parse(&self.provider)
+    }
+
+    /// 当前服务商用的模型（缓存也按它区分）
+    pub fn active_model(&self) -> &str {
+        match self.provider() {
+            crate::ai::Provider::Claude => &self.model,
+            crate::ai::Provider::DeepSeek => &self.deepseek_model,
+        }
+    }
+}
+
 impl Default for Ai {
     fn default() -> Self {
-        Self { model: "claude-opus-4-8".into(), count: 5, auto: false }
+        Self { provider: "claude".into(), model: "claude-opus-4-8".into(), deepseek_model: "deepseek-flash".into(), count: 5, auto: false }
     }
 }
 

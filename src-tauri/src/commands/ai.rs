@@ -52,21 +52,24 @@ pub async fn coca_lookup(state: State<'_, AppState>, word: String) -> Result<Vec
     Ok(coca_of(&state).map(|c| c.lookup(&word)).unwrap_or_default())
 }
 
+/// 这个服务商（claude | deepseek）是否已保存 API Key。
 #[tauri::command]
-pub async fn ai_key_status() -> Result<bool> {
-    Ok(credentials::read(ai::KEY_ID)?.is_some())
+pub async fn ai_key_status(provider: Option<String>) -> Result<bool> {
+    let p = ai::Provider::parse(provider.as_deref().unwrap_or("claude"));
+    Ok(credentials::read(p.key_id())?.is_some())
 }
 
-/// 保存或删除（传空）Claude API Key。
+/// 保存或删除（传空）某个服务商的 API Key。
 #[tauri::command]
-pub async fn ai_set_key(key: Option<String>) -> Result<bool> {
+pub async fn ai_set_key(provider: Option<String>, key: Option<String>) -> Result<bool> {
+    let p = ai::Provider::parse(provider.as_deref().unwrap_or("claude"));
     match key.map(|k| k.trim().to_string()).filter(|k| !k.is_empty()) {
         Some(k) => {
-            credentials::write(ai::KEY_ID, &k)?;
+            credentials::write(p.key_id(), &k)?;
             Ok(true)
         }
         None => {
-            credentials::delete(ai::KEY_ID)?;
+            credentials::delete(p.key_id())?;
             Ok(false)
         }
     }
@@ -86,22 +89,28 @@ pub async fn ai_examples(
         return Ok(None);
     }
     let cfg = state.settings.get()?.ai;
+    let provider = cfg.provider();
+    let model = cfg.active_model().to_string();
     if !force {
-        if let Some((examples, at)) = state.db.with_conn(|c| ai::cached(c, &word, &cfg.model))? {
-            return Ok(Some(Examples { word, model: cfg.model, examples, cached_at: Some(at) }));
+        if let Some((examples, at)) = state.db.with_conn(|c| ai::cached(c, &word, &model))? {
+            return Ok(Some(Examples { word, model, examples, cached_at: Some(at) }));
         }
     }
     if cached_only {
         return Ok(None);
     }
-    let key = credentials::read(ai::KEY_ID)?.ok_or_else(|| {
-        Error::Online(crate::i18n::t("还没有填写 Claude API Key（设置 › AI 例句）", "No Claude API key yet (Settings › AI examples)").into())
+    let key = credentials::read(provider.key_id())?.ok_or_else(|| {
+        Error::Online(crate::tf!(
+            "还没有填写 {} API Key（设置 › AI 例句）",
+            "No {} API key yet (Settings › AI examples)",
+            provider.name()
+        ))
     })?;
     let hint = coca_of(&state).map(|c| coca::collocation_hint(&c.lookup(&word), 8)).unwrap_or_default();
-    let body = ai::request_body(&cfg.model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10));
-    let examples = ai::generate(state.online.client(), &key, &body).await?;
-    state.db.with_conn(|c| ai::store(c, &word, &cfg.model, &examples, now_ms()))?;
-    Ok(Some(Examples { word, model: cfg.model, examples, cached_at: None }))
+    let body = ai::body_for(provider, &model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10));
+    let examples = ai::generate(state.online.client(), provider, &key, &body).await?;
+    state.db.with_conn(|c| ai::store(c, &word, &model, &examples, now_ms()))?;
+    Ok(Some(Examples { word, model, examples, cached_at: None }))
 }
 
 /// vocabulary.com 真实例句（一页 24 句）。缓存在有效期内直接用；联网失败时退回过期缓存并标注。

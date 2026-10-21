@@ -77,6 +77,51 @@ pub fn link_context(conn: &Connection, word_id: i64, context_id: i64) -> Result<
     Ok(())
 }
 
+/// 把按屈折形式存的词并到原形下（recaptured → recapture）：语境、标签、复习记录都转过去。
+/// 原形还没收藏时只改名；已收藏时保留原形那条的复习状态（复习过的优先），简释为空时补上。返回最终的词 id。
+pub fn merge_into(conn: &Connection, from_id: i64, lemma: &str) -> Result<i64> {
+    let tx = conn.unchecked_transaction()?;
+    let target: Option<i64> = tx.query_row("SELECT id FROM word WHERE lemma = ?1", params![lemma], |r| r.get(0)).optional()?;
+    let id = match target {
+        None => {
+            tx.execute("UPDATE word SET lemma = ?2 WHERE id = ?1", params![from_id, lemma])?;
+            from_id
+        }
+        Some(to) if to == from_id => to,
+        Some(to) => {
+            tx.execute("INSERT OR IGNORE INTO word_context (word_id, context_id) SELECT ?2, context_id FROM word_context WHERE word_id = ?1", params![from_id, to])?;
+            tx.execute("INSERT OR IGNORE INTO word_tag (word_id, tag_id) SELECT ?2, tag_id FROM word_tag WHERE word_id = ?1", params![from_id, to])?;
+            tx.execute("UPDATE review_log SET word_id = ?2 WHERE word_id = ?1", params![from_id, to])?;
+            // 原形没复习过、屈折形式复习过：用屈折形式的复习状态
+            tx.execute(
+                "UPDATE word SET
+                   stability = f.stability, difficulty = f.difficulty, reps = f.reps, lapses = f.lapses,
+                   last_review = f.last_review, review_state = f.review_state, due_at = f.due_at, familiarity = f.familiarity
+                 FROM (SELECT * FROM word WHERE id = ?1) AS f
+                 WHERE word.id = ?2 AND word.reps = 0 AND f.reps > 0",
+                params![from_id, to],
+            )?;
+            tx.execute(
+                "UPDATE word SET brief = (SELECT brief FROM word WHERE id = ?1),
+                   created_at = MIN(created_at, (SELECT created_at FROM word WHERE id = ?1))
+                 WHERE id = ?2 AND (brief IS NULL OR brief = '')",
+                params![from_id, to],
+            )?;
+            tx.execute("DELETE FROM word WHERE id = ?1", params![from_id])?;
+            to
+        }
+    };
+    tx.commit()?;
+    Ok(id)
+}
+
+/// 全部收藏词（id, lemma），启动时整理原形用
+pub fn all_lemmas(conn: &Connection) -> Result<Vec<(i64, String)>> {
+    let mut st = conn.prepare("SELECT id, lemma FROM word")?;
+    let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+    Ok(rows.collect::<std::result::Result<_, _>>()?)
+}
+
 /// 收藏（已收藏则合并）：补上简释、追加语境、追加标签。
 /// 没给 context_id 时，自动带上这个词最近一次划词捕获的语境句。返回词 id。
 pub fn save(
@@ -300,6 +345,33 @@ pub fn stats(conn: &Connection, now: i64) -> Result<WordbookStats> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn merges_inflected_word_into_lemma() -> crate::error::Result<()> {
+        let db = crate::db::Db::open_in_memory()?;
+        db.with_conn(|c| {
+            c.execute_batch(
+                "INSERT INTO context (id, lemma, surface, sentence, hl_start, hl_end, method, created_at) VALUES
+                   (1, 'recaptured', 'recaptured', 'They recaptured it.', 5, 15, 'uia', 0),
+                   (2, 'recapture', 'recapture', 'A recapture.', 2, 11, 'uia', 0);",
+            )?;
+            let a = save(c, "recaptured", Some("to capture again"), Some(1), &["news".to_string()])?;
+            let b = save(c, "recapture", None, Some(2), &[])?;
+            c.execute("UPDATE word SET reps = 3, review_state = 2 WHERE id = ?1", params![a])?;
+            let id = merge_into(c, a, "recapture")?;
+            assert_eq!(id, b);
+            let n: i64 = c.query_row("SELECT COUNT(*) FROM word_context WHERE word_id = ?1", params![b], |r| r.get(0))?;
+            assert_eq!(n, 2, "两条语境都在原形下");
+            let (reps, brief): (i64, Option<String>) = c.query_row("SELECT reps, brief FROM word WHERE id = ?1", params![b], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            assert_eq!((reps, brief.as_deref()), (3, Some("to capture again")));
+            assert!(id_by_lemma(c, "recaptured")?.is_none());
+            // 原形还没收藏：直接改名
+            let x = save(c, "convulsed", None, None, &[])?;
+            assert_eq!(merge_into(c, x, "convulse")?, x);
+            assert_eq!(id_by_lemma(c, "convulse")?, Some(x));
+            Ok(())
+        })
+    }
+
     use super::*;
     use crate::db::history::{insert_context, record, NewContext};
     use crate::db::Db;

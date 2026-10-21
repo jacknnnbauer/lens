@@ -123,7 +123,11 @@ pub async fn vocab_examples(state: State<'_, AppState>, word: String, domain: Op
     }
     let domain = vocab::normalize_domain(domain.as_deref().unwrap_or(""));
     let offset = offset.unwrap_or(0);
-    let days = state.settings.get()?.online.cache_days;
+    let online = state.settings.get()?.online;
+    if !online.vocab_examples {
+        return Err(Error::Other(crate::i18n::t("已在设置 › 在线词典里关闭 vocabulary.com 例句", "vocabulary.com examples are turned off in Settings › Online dictionaries").into()));
+    }
+    let days = online.cache_days;
     let now = now_ms();
     let cached = state.db.with_conn(|c| vocab::cached(c, &word, &domain, offset))?;
     let fresh = |at: i64| days < 0 || (days > 0 && now - at < days * 86_400_000);

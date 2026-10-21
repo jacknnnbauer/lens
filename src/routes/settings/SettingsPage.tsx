@@ -2,12 +2,12 @@
 // 完整的主题库（11 套内置 + 自定义）在单独的页面（routes/themes）。
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCaptureStatus } from "../../components/HotkeyNotice";
 import { htmlToMarkdown, sourceLine } from "../../copy/convert";
 import { aiKeyStatus, aiSetKey, cocaImport, cocaStatus, type CocaStatus } from "../../ipc/ai";
-import { appPaths, type AiPrefs, type AppPaths, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
+import { appPaths, checkUpdate, type AiPrefs, type AppPaths, type UpdateInfo, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
 import { exportStyleChoices, PAPER_CHOICES } from "../../components/ExportStyleOptions";
 import type { ExportStyle, Paper } from "../../export-templates/template";
@@ -250,6 +250,50 @@ function AiSettings() {
   );
 }
 
+/** 关于 › 检查更新 */
+function UpdateCheck() {
+  const [state, setState] = useState<{ kind: "idle" | "busy" } | { kind: "done"; info: UpdateInfo } | { kind: "error"; message: string }>({ kind: "idle" });
+  const run = async () => {
+    setState({ kind: "busy" });
+    try {
+      const info = await checkUpdate(false);
+      if (info) setState({ kind: "done", info });
+      else setState({ kind: "idle" });
+    } catch (e) {
+      setState({ kind: "error", message: String(e) });
+    }
+  };
+  return (
+    <div className={styles.row}>
+      <span>
+        {tr("检查更新")}
+        <small role="status">
+          {state.kind === "busy"
+            ? tr("正在检查…")
+            : state.kind === "error"
+              ? state.message
+              : state.kind === "done"
+                ? state.info.newer
+                  ? tr("有新版本 {v}", { v: state.info.latest ?? "" })
+                  : state.info.latest
+                    ? tr("已是最新版本")
+                    : tr("还没有公开发布的版本")
+                : tr("从 GitHub 发布页读取最新版本号，不上传任何数据")}
+        </small>
+      </span>
+      {state.kind === "done" && state.info.newer && state.info.url ? (
+        <button type="button" className={styles.ghost} onClick={() => state.info.url && void openUrl(state.info.url)}>
+          {tr("去下载 ↗")}
+        </button>
+      ) : (
+        <button type="button" className={styles.ghost} disabled={state.kind === "busy"} onClick={() => void run()}>
+          {tr("检查更新")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function HotkeyField({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [recording, setRecording] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -396,6 +440,14 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
                 ["tray", "隐藏到托盘（后台继续运行）"],
               ]}
               onChange={(v) => void updateNow({ general: { closeToTray: v === "tray" } })}
+            />
+          </div>
+          <div className={styles.grid2}>
+            <Toggle
+              label={tr("启动时检查新版本")}
+              hint={tr("每天最多一次，只读 GitHub 发布页的版本号；有新版本时提示")}
+              checked={settings.general?.checkUpdates ?? true}
+              onChange={(v) => update({ general: { checkUpdates: v } })}
             />
           </div>
           <p className={styles.hint}>
@@ -615,6 +667,12 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               ]}
               onChange={(v) => update({ online: { timeoutMs: v } })}
             />
+            <Toggle
+              label={tr("vocabulary.com 真实例句")}
+              hint={tr("右侧栏和 vocabulary.com 词典卡片里的例句与发音。来自 vocabulary.com 网站的公开接口（非官方），可能随时失效；关闭后不再联网获取")}
+              checked={settings.online.vocabExamples ?? true}
+              onChange={(v) => update({ online: { vocabExamples: v } })}
+            />
             <Select
               label={tr("结果缓存")}
               value={settings.online.cacheDays}
@@ -816,6 +874,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             <br />
             {tr("离线多词典查词、划词取句、复制与导出。软件不附带任何词典；释义内容版权归各词典所有，仅供个人学习使用。")}
           </p>
+          <UpdateCheck />
         </section>
       </div>
     </div>

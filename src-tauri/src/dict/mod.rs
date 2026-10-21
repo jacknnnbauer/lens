@@ -174,6 +174,11 @@ impl DictRegistry {
         Ok(self.dicts.write().map_err(|_| Error::LockPoisoned)?.remove(id))
     }
 
+    /// 已加载的全部本地词典（顺序不定）
+    pub fn all(&self) -> Result<Vec<LoadedDict>> {
+        Ok(self.dicts.read().map_err(|_| Error::LockPoisoned)?.values().cloned().collect())
+    }
+
     pub fn len(&self) -> Result<usize> {
         Ok(self.dicts.read().map_err(|_| Error::LockPoisoned)?.len())
     }

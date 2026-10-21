@@ -72,6 +72,11 @@ impl Coca {
     }
 
     /// 查一个词：先按原样，再按词形还原（went → go、generations → generation）。同一词元的不同词性都返回。
+    /// 这个词（小写）是不是表里的原形
+    pub fn has_lemma(&self, lower: &str) -> bool {
+        self.by_lemma.contains_key(lower)
+    }
+
     pub fn lookup(&self, word: &str) -> Vec<CocaEntry> {
         let w = word.trim().to_lowercase();
         if let Some(v) = self.by_lemma.get(&w) {

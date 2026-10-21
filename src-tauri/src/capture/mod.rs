@@ -265,7 +265,8 @@ fn save_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &str
 
 fn store_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &str, source_app: Option<&str>, title: Option<&str>) -> Option<i64> {
     use crate::db::history::{insert_context, NewContext};
-    let lemma = crate::dict::index::normalize_key(&crate::query::normalize_query(text));
+    let state = app.state::<AppState>();
+    let lemma = crate::lemma::base_form(&state, text);
     if lemma.is_empty() {
         return None;
     }
@@ -281,7 +282,7 @@ fn store_context(app: &AppHandle, text: &str, ctx: &ContextSentence, method: &st
         method,
     };
     // 已收藏的词再次遇到：语境句自动追加到生词本（「同一个词，N 个语境」）
-    let saved = app.state::<AppState>().db.with_conn(|c| {
+    let saved = state.db.with_conn(|c| {
         let id = insert_context(c, &row)?;
         if let Some(word) = crate::db::words::id_by_lemma(c, &lemma)? {
             crate::db::words::link_context(c, word, id)?;

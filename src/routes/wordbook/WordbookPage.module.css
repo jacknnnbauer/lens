@@ -132,6 +132,11 @@
   color: var(--sub);
 }
 
+/* 语境卡视图里「背面释义」已经靠右，排序紧跟其后 */
+.sort[data-plain] {
+  margin-left: 12px;
+}
+
 .sort select {
   padding: 3px 6px;
   border: 1px solid var(--line);

@@ -11,6 +11,7 @@ mod dict;
 mod error;
 mod export;
 mod i18n;
+mod lemma;
 mod logging;
 mod online;
 mod protocol;
@@ -19,9 +20,11 @@ mod review;
 mod senses;
 mod settings;
 mod themes;
+mod update;
 mod vocab;
+mod wordbook_export;
 
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::ShortcutState;
 
 use app_state::AppState;
@@ -29,8 +32,25 @@ use app_state::AppState;
 /// 持有日志后台线程的 guard，随 App 一起释放。
 struct LogGuard(#[allow(dead_code)] tracing_appender::non_blocking::WorkerGuard);
 
+/// 第一次隐藏到托盘时推给主窗口，显示说明
+const EVENT_TRAY_HINT: &str = "app:tray-hint";
+const TRAY_ID: &str = "lens";
+
 fn close_to_tray(app: &tauri::AppHandle) -> bool {
     app.try_state::<AppState>().and_then(|s| s.settings.get().ok()).is_some_and(|s| s.general.close_to_tray)
+}
+
+fn tray_hint_shown(app: &tauri::AppHandle) -> bool {
+    app.try_state::<AppState>().and_then(|s| s.settings.get().ok()).is_some_and(|s| s.general.tray_hint_shown)
+}
+
+/// 托盘图标只在「点击关闭按钮时：隐藏到托盘」模式下显示
+pub fn set_tray_visible(app: &tauri::AppHandle, visible: bool) {
+    if let Some(t) = app.tray_by_id(TRAY_ID) {
+        if let Err(e) = t.set_visible(visible) {
+            tracing::warn!(error = %e, "切换托盘图标失败");
+        }
+    }
 }
 
 fn show_main(app: &tauri::AppHandle) {
@@ -48,7 +68,7 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", i18n::t("打开词镜", "Open Lens"), true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", i18n::t("退出", "Quit"), true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &quit])?;
-    let mut tray = TrayIconBuilder::with_id("lens")
+    let mut tray = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip("词镜 Lens")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -65,7 +85,8 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
     }
-    tray.build(app)?;
+    let tray = tray.build(app)?;
+    tray.set_visible(close_to_tray(app))?;
     Ok(())
 }
 
@@ -105,7 +126,12 @@ pub fn run() {
                 // 设置 › 常规「点击关闭按钮时：隐藏到托盘」：只隐藏主窗口，从托盘菜单退出
                 tauri::WindowEvent::CloseRequested { api, .. } if close_to_tray(window.app_handle()) => {
                     api.prevent_close();
-                    let _ = window.hide();
+                    // 第一次：先在窗口里说明 Lens 还在后台（由界面调用 hide_to_tray / quit_app）
+                    if tray_hint_shown(window.app_handle()) {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.emit_to("main", EVENT_TRAY_HINT, ());
+                    }
                 }
                 tauri::WindowEvent::Destroyed => window.app_handle().exit(0),
                 _ => {}
@@ -133,6 +159,13 @@ pub fn run() {
             tracing::info!(root = %state.root.display(), version = env!("CARGO_PKG_VERSION"), schema, dicts, "Lens 启动");
             let capture_settings = state.settings.get()?.capture;
             app.manage(state);
+            // 以前按屈折形式收藏的词并到原形下（后台做，不拖慢启动）
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                if let Err(e) = lemma::normalize_saved(&handle.state::<AppState>()) {
+                    tracing::warn!(error = %e, "整理生词本原形失败");
+                }
+            });
 
             // 迷你弹窗：启动时创建、常驻隐藏，用时 show/hide（SPEC 5）
             WebviewWindowBuilder::new(app, capture::POPUP, WebviewUrl::App("index.html".into()))
@@ -173,6 +206,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_settings,
+            commands::settings::hide_to_tray,
+            commands::settings::quit_app,
+            commands::settings::check_update,
             commands::settings::set_settings,
             commands::settings::app_paths,
             commands::settings::save_custom_theme,
@@ -205,6 +241,7 @@ pub fn run() {
             commands::words::save_word,
             commands::words::word_id,
             commands::words::list_words,
+            commands::words::export_wordbook,
             commands::words::update_word,
             commands::words::delete_word,
             commands::words::unlink_word_context,

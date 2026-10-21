@@ -62,10 +62,21 @@ export interface Capture {
   popupHeight: number;
 }
 
+/** 生词本 */
+export interface WordbookPrefs {
+  /** 语境卡 / 复习卡背面用哪本词典（词典 id）；空 = 自动 */
+  cardDict: string;
+}
+
 /** 常规：整个应用的行为 */
 export interface General {
+  /** 启动时检查新版本（每天最多一次） */
+  checkUpdates: boolean;
+  lastUpdateCheck: number;
   /** 点关闭按钮时隐藏到托盘（Lens 留在后台）；false = 退出 */
   closeToTray: boolean;
+  /** 第一次隐藏到托盘时已提示过 */
+  trayHintShown: boolean;
 }
 
 export interface Online {
@@ -74,6 +85,8 @@ export interface Online {
   timeoutMs: number;
   /** 0 = 不缓存，-1 = 永久 */
   cacheDays: number;
+  /** vocabulary.com 真实例句（非官方接口） */
+  vocabExamples: boolean;
 }
 
 export interface BatchPrefs {
@@ -116,6 +129,7 @@ export interface AiPrefs {
 /** 目前建模到 appearance、layout、immersive、capture、online、copy、export、batch；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
   general: General;
+  wordbook: WordbookPrefs;
   appearance: Appearance;
   layout: Layout;
   immersive: Immersive;
@@ -168,4 +182,18 @@ export interface AppPaths {
 
 export function appPaths(): Promise<AppPaths> {
   return invoke<AppPaths>("app_paths");
+}
+
+export interface UpdateInfo {
+  current: string;
+  /** 还没有公开发布时为 null */
+  latest: string | null;
+  newer: boolean;
+  url: string | null;
+  notes: string | null;
+}
+
+/** auto：启动时自动检查（关了或一天内查过返回 null，失败也返回 null） */
+export function checkUpdate(auto: boolean): Promise<UpdateInfo | null> {
+  return invoke<UpdateInfo | null>("check_update", { auto });
 }

@@ -90,19 +90,13 @@ fn invalid_reason(item: &str) -> Option<&'static str> {
     None
 }
 
-/// 单词的原形：不规则表 → 原样存在 → 词尾规则（还原结果须存在）。短语原样返回。
-pub fn lemmatize(word: &str, exists: &dyn Fn(&str) -> bool) -> String {
-    if word.contains(' ') {
-        return word.to_string();
-    }
-    let lower = word.to_lowercase();
-    if let Some((_, lemma)) = IRREGULAR.iter().find(|(form, _)| *form == lower) {
-        return (*lemma).to_string();
-    }
-    if exists(word) {
-        return word.to_string();
-    }
-    let w = lower.as_str();
+/// 不规则变化的原形（went → go）；参数须是小写
+pub fn irregular(lower: &str) -> Option<&'static str> {
+    IRREGULAR.iter().find(|(form, _)| *form == lower).map(|(_, l)| *l)
+}
+
+/// 按词尾规则可能的原形，按可能性排列（不检查是否存在）；参数须是小写
+pub fn suffix_candidates(w: &str) -> Vec<String> {
     let mut candidates: Vec<String> = Vec::new();
     let strip = |suffix: &str| w.strip_suffix(suffix).filter(|s| s.chars().count() >= 2).map(str::to_string);
     if let Some(s) = strip("ies") {
@@ -127,7 +121,22 @@ pub fn lemmatize(word: &str, exists: &dyn Fn(&str) -> bool) -> String {
             }
         }
     }
-    candidates.into_iter().find(|c| exists(c)).unwrap_or_else(|| word.to_string())
+    candidates
+}
+
+/// 单词的原形：不规则表 → 原样存在 → 词尾规则（还原结果须存在）。短语原样返回。
+pub fn lemmatize(word: &str, exists: &dyn Fn(&str) -> bool) -> String {
+    if word.contains(' ') {
+        return word.to_string();
+    }
+    let lower = word.to_lowercase();
+    if let Some(lemma) = irregular(&lower) {
+        return lemma.to_string();
+    }
+    if exists(word) {
+        return word.to_string();
+    }
+    suffix_candidates(&lower).into_iter().find(|c| exists(c)).unwrap_or_else(|| word.to_string())
 }
 
 /// 解析粘贴的词表（也用于整理从历史、生词本选出的词）。

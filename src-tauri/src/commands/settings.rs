@@ -21,6 +21,10 @@ pub async fn set_settings(app: AppHandle, state: State<'_, AppState>, patch: ser
     let before = state.settings.get()?;
     let after = state.settings.patch(patch)?;
     crate::i18n::set_language(&after.appearance.language);
+    // 托盘图标只在「隐藏到托盘」模式下显示
+    if before.general.close_to_tray != after.general.close_to_tray {
+        crate::set_tray_visible(&app, after.general.close_to_tray);
+    }
     let Some(service) = app.try_state::<CaptureService>() else { return Ok(after) };
     // 快捷键改了就立即重新注册；Ctrl+C+C 开关立即生效。结果推给各窗口
     let hotkey_changed = before.capture.hotkey != after.capture.hotkey;
@@ -120,4 +124,38 @@ pub async fn import_theme(state: State<'_, AppState>, path: PathBuf) -> Result<c
     list.push(theme.clone());
     state.settings.patch(serde_json::json!({ "customThemes": list }))?;
     Ok(theme)
+}
+
+/// 第一次点关闭（隐藏到托盘模式）后的提示框：「隐藏到托盘」。以后不再提示。
+#[tauri::command]
+pub async fn hide_to_tray(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
+    state.settings.patch(serde_json::json!({ "general": { "trayHintShown": true } }))?;
+    if let Some(w) = app.get_webview_window("main") {
+        w.hide()?;
+    }
+    Ok(())
+}
+
+/// 提示框里选「退出 Lens」，或托盘菜单「退出」。
+#[tauri::command]
+pub async fn quit_app(app: AppHandle) -> Result<()> {
+    app.exit(0);
+    Ok(())
+}
+
+const DAY_MS: i64 = 86_400_000;
+
+/// 检查新版本。auto = 启动时自动检查：设置里关了、或一天内查过就直接返回 None，失败也只返回 None。
+#[tauri::command]
+pub async fn check_update(state: State<'_, AppState>, auto: bool) -> Result<Option<crate::update::UpdateInfo>> {
+    if auto {
+        let g = state.settings.get()?.general;
+        let now = crate::db::now_ms();
+        if !g.check_updates || now - g.last_update_check < DAY_MS {
+            return Ok(None);
+        }
+        state.settings.patch(serde_json::json!({ "general": { "lastUpdateCheck": now } }))?;
+        return Ok(crate::update::check(state.online.client()).await.ok());
+    }
+    crate::update::check(state.online.client()).await.map(Some)
 }

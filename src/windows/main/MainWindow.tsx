@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { checkUpdate } from "../../ipc/settings";
+import { toast } from "../../stores/toast";
+import { TrayHint } from "../../components/TrayHint";
 import { useNavHistory } from "./navHistory";
 import { ResizeHandle } from "../../components/ResizeHandle";
 import { useInAppLookup } from "../../components/inAppLookup";
@@ -100,6 +103,17 @@ export function MainWindow() {
     },
     [updateNow],
   );
+
+  // 启动时检查新版本（设置 › 常规，每天最多一次；失败不打扰）
+  useEffect(() => {
+    const t = setTimeout(() => {
+      checkUpdate(true).then(
+        (u) => u?.newer && toast(tr("Lens 有新版本 {v}", { v: u.latest ?? "" }), tr("设置 › 关于 › 去下载")),
+        () => undefined,
+      );
+    }, 5000);
+    return () => clearTimeout(t);
+  }, []);
 
   // 启动时回到简洁单栏（设置 › 布局，默认开）
   const startApplied = useRef(false);
@@ -294,6 +308,7 @@ export function MainWindow() {
       )}
 
       <LibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
+      <TrayHint />
       <Toast />
       <BatchDialog />
       {!immersive && <BatchChip />}

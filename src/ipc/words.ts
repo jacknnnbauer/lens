@@ -104,3 +104,8 @@ export function reviewQueue(dayStart: number, limit?: number): Promise<ReviewIte
 export function reviewRate(id: number, rating: number): Promise<number> {
   return invoke<number>("review_rate", { id, rating });
 }
+
+/** 导出生词本（按筛选）：anki = Anki 可直接导入的 .txt，csv = Excel 能打开的 CSV。返回导出的词数 */
+export function exportWordbook(path: string, format: "anki" | "csv", q: { status?: WordStatus; tag?: string; search?: string } = {}): Promise<number> {
+  return invoke<number>("export_wordbook", { path, format, status: q.status ?? null, tag: q.tag ?? null, search: q.search || null });
+}

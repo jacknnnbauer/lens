@@ -85,7 +85,14 @@ pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) ->
         .map_err(|e| crate::error::Error::Other(e.to_string()))
 }
 
-/// 第一本命中的本地词典（当前配置组顺序）的词条：语境卡、复习卡背面显示释义用。
+/// 搭配、词频类词典（COCA 搭配之类）：背面要的是释义，自动选择时排到最后
+fn is_reference_dict(name: &str) -> bool {
+    let n = name.to_lowercase();
+    ["coca", "colloc", "搭配", "词频", "frequen", "同义", "thesaurus", "词根"].iter().any(|k| n.contains(k))
+}
+
+/// 语境卡、复习卡背面显示释义用：设置 › 生词本选了词典就先查那本；
+/// 否则按当前配置组顺序查本地词典，搭配、词频类排在最后。
 /// 只查本地，不发事件、不取消别的查询，也不记历史。
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -101,7 +108,13 @@ pub async fn first_entry(state: State<'_, AppState>, query: String) -> Result<Op
     if keys.is_empty() {
         return Ok(None);
     }
-    let dicts = locals(profile_sources(&state)?);
+    let mut dicts = locals(profile_sources(&state)?);
+    // 稳定排序：先是设置里选的那本，然后是普通词典，搭配、词频类最后
+    let chosen = state.settings.get()?.wordbook.card_dict;
+    dicts.sort_by_key(|d| {
+        let m = d.source.meta();
+        (m.id != chosen, is_reference_dict(&m.name))
+    });
     tauri::async_runtime::spawn_blocking(move || -> Result<Option<FirstEntry>> {
         for d in &dicts {
             for k in &keys {
@@ -122,4 +135,17 @@ pub async fn first_entry(state: State<'_, AppState>, query: String) -> Result<Op
     })
     .await
     .map_err(|e| crate::error::Error::Other(e.to_string()))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_reference_dict;
+
+    #[test]
+    fn spots_collocation_and_frequency_dicts() {
+        assert!(is_reference_dict("COCA2W"));
+        assert!(is_reference_dict("牛津英语搭配词典"));
+        assert!(!is_reference_dict("American Heritage Dictionary 5th"));
+        assert!(!is_reference_dict("牛津高阶英汉双解词典 第 8 版"));
+    }
 }

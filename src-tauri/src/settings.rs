@@ -78,12 +78,32 @@ impl Default for Layout {
     }
 }
 
-/// 常规：整个应用的行为。
+/// 生词本。
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
+pub struct Wordbook {
+    /// 语境卡 / 复习卡背面用哪本词典的释义（词典 id）；空 = 自动（跳过搭配、词频类词典）
+    pub card_dict: String,
+}
+
+/// 常规：整个应用的行为。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct General {
+    /// 启动时检查新版本（每天最多一次）
+    pub check_updates: bool,
+    /// 上次自动检查的时间（毫秒）
+    pub last_update_check: i64,
     /// 点主窗口的关闭按钮时隐藏到托盘（Lens 留在后台，随时可划词查词）；false = 退出 Lens
     pub close_to_tray: bool,
+    /// 第一次隐藏到托盘时已经提示过（之后直接隐藏）
+    pub tray_hint_shown: bool,
+}
+
+impl Default for General {
+    fn default() -> Self {
+        Self { check_updates: true, last_update_check: 0, close_to_tray: false, tray_hint_shown: false }
+    }
 }
 
 /// 取词（SPEC 8.1、14）。
@@ -130,11 +150,13 @@ pub struct Online {
     pub timeout_ms: u64,
     /// 缓存天数：0 = 不缓存，-1 = 永久
     pub cache_days: i64,
+    /// vocabulary.com 真实例句（非官方公开接口，可能随时失效）
+    pub vocab_examples: bool,
 }
 
 impl Default for Online {
     fn default() -> Self {
-        Self { trigger: "localMiss".into(), timeout_ms: 3000, cache_days: 30 }
+        Self { trigger: "localMiss".into(), timeout_ms: 3000, cache_days: 30, vocab_examples: true }
     }
 }
 
@@ -282,6 +304,7 @@ impl Default for Immersive {
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub general: General,
+    pub wordbook: Wordbook,
     pub appearance: Appearance,
     pub layout: Layout,
     pub immersive: Immersive,
@@ -302,6 +325,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             general: General::default(),
+            wordbook: Wordbook::default(),
             appearance: Appearance::default(),
             layout: Layout::default(),
             immersive: Immersive::default(),

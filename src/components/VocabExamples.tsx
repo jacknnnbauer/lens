@@ -2,6 +2,7 @@
 // 改由 Rust 取 corpus.vocabulary.com 的例句（缓存，离线时用缓存）。
 
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useSettings } from "../stores/settings";
 import { useEffect, useState } from "react";
 import { tr } from "../i18n";
 import { vocabExamples, type VocabPage, type VocabSentence } from "../ipc/vocab";
@@ -45,7 +46,13 @@ function year(ms: number | null): string {
 }
 
 /** variant：card = vocabulary.com 词典卡片底部；panel = 右侧栏（不需要这部词典，直接走在线接口） */
-export function VocabExamples({ word, variant = "card" }: { word: string; variant?: "card" | "panel" }) {
+export function VocabExamples(props: { word: string; variant?: "card" | "panel" }) {
+  // 设置 › 在线词典里可以关掉（非官方接口）
+  const enabled = useSettings((s) => s.settings?.online?.vocabExamples ?? true);
+  return enabled ? <VocabExamplesInner {...props} /> : null;
+}
+
+function VocabExamplesInner({ word, variant = "card" }: { word: string; variant?: "card" | "panel" }) {
   const [domain, setDomain] = useState("");
   const [pages, setPages] = useState<VocabPage[]>([]);
   const [busy, setBusy] = useState(false);

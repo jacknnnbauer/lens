@@ -4,12 +4,10 @@ use tauri::State;
 use crate::app_state::AppState;
 use crate::db::now_ms;
 use crate::db::words::{self, TagCount, Word, WordFilter, WordPatch, WordbookStats};
-use crate::dict::index::normalize_key;
 use crate::error::Result;
-use crate::query::normalize_query;
 
-fn lemma_of(query: &str) -> String {
-    normalize_key(&normalize_query(query))
+fn lemma_of(state: &AppState, query: &str) -> String {
+    crate::lemma::base_form(state, query)
 }
 
 /// 收藏（Ctrl+S）。没给语境句时自动带上这个词最近一次划词的原句。返回词 id。
@@ -21,14 +19,14 @@ pub async fn save_word(
     context_id: Option<i64>,
     tags: Option<Vec<String>>,
 ) -> Result<i64> {
-    let lemma = lemma_of(&query);
+    let lemma = lemma_of(&state, &query);
     state.db.with_conn(|c| words::save(c, &lemma, brief.as_deref(), context_id, &tags.unwrap_or_default()))
 }
 
 /// 这个词是否已收藏，返回词 id。
 #[tauri::command]
 pub async fn word_id(state: State<'_, AppState>, query: String) -> Result<Option<i64>> {
-    let lemma = lemma_of(&query);
+    let lemma = lemma_of(&state, &query);
     state.db.with_conn(|c| words::id_by_lemma(c, &lemma))
 }
 
@@ -121,4 +119,37 @@ pub async fn review_queue(state: State<'_, AppState>, day_start: i64, limit: Opt
 #[tauri::command]
 pub async fn review_rate(state: State<'_, AppState>, id: i64, rating: u8) -> Result<i64> {
     state.db.with_conn(|c| crate::db::review::rate(c, id, rating, now_ms()))
+}
+
+/// 导出生词本（按当前筛选）：format = anki（Anki 可直接导入的 .txt）| csv。返回导出的词数。
+#[tauri::command]
+pub async fn export_wordbook(
+    state: State<'_, AppState>,
+    path: std::path::PathBuf,
+    format: String,
+    status: Option<String>,
+    tag: Option<String>,
+    search: Option<String>,
+) -> Result<usize> {
+    if !path.is_absolute() {
+        return Err(crate::error::Error::Other(
+            crate::i18n::t("保存位置需要是完整路径（从盘符开始）", "The save location must be a full path, starting with the drive letter").into(),
+        ));
+    }
+    // 列表查询一次最多 1000 条：分页取完
+    const PAGE: i64 = 1000;
+    let mut f = WordFilter { status, tag, search: search.filter(|s| !s.trim().is_empty()), sort: Some("added".into()), id: None, limit: PAGE, offset: 0 };
+    let mut list = Vec::new();
+    loop {
+        let page = state.db.with_conn(|c| words::list(c, &f))?;
+        let n = page.len() as i64;
+        list.extend(page);
+        if n < PAGE {
+            break;
+        }
+        f.offset += PAGE;
+    }
+    let text = if format == "csv" { crate::wordbook_export::csv(&list) } else { crate::wordbook_export::anki(&list) };
+    std::fs::write(&path, text)?;
+    Ok(list.len())
 }

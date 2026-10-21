@@ -5,6 +5,7 @@ import { DictBody } from "../dict-render/DictBody";
 import { prepareEntry } from "../dict-render/prepare";
 import { tr } from "../i18n";
 import { firstEntry } from "../ipc/lookup";
+import { useSettings } from "../stores/settings";
 import styles from "./CardDefinition.module.css";
 
 interface Shown {
@@ -15,6 +16,8 @@ interface Shown {
 
 export function CardDefinition({ word, onLookup }: { word: string; onLookup: (w: string) => void }) {
   const [shown, setShown] = useState<Shown | null | "loading">("loading");
+  // 换了背面词典就重新查
+  const cardDict = useSettings((s) => s.settings?.wordbook?.cardDict ?? "");
 
   useEffect(() => {
     let alive = true;
@@ -26,7 +29,7 @@ export function CardDefinition({ word, onLookup }: { word: string; onLookup: (w:
     return () => {
       alive = false;
     };
-  }, [word]);
+  }, [word, cardDict]);
 
   if (shown === "loading") return <p className={styles.note}>{tr("查询中…")}</p>;
   if (!shown) return <p className={styles.note}>{tr("本地词典里没有找到释义")}</p>;

@@ -2,9 +2,11 @@
 // 复习（M8）：「开始复习」进入 ReviewSession，调度由 Rust 的 FSRS 完成。
 
 import { SourceLink, sourceText } from "../../components/SourceLink";
+import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import {
   deleteWord,
+  exportWordbook,
   listTags,
   listWords,
   reviewCounts,
@@ -24,6 +26,29 @@ import { toast } from "../../stores/toast";
 import { formatInterval, ReviewSession, startOfToday } from "./ReviewSession";
 import { Sentence } from "./Sentence";
 import { CardDefinition } from "../../components/CardDefinition";
+import { useDicts } from "../../stores/dicts";
+import { useSettings } from "../../stores/settings";
+
+/** 语境卡背面用哪本词典：自动，或指定一本本地词典 */
+function CardDictSelect() {
+  const dicts = useDicts((s) => s.dicts).filter((d) => d.kind !== "online" && d.loaded);
+  const value = useSettings((s) => s.settings?.wordbook?.cardDict ?? "");
+  // 立即写回：背面释义由 Rust 按设置挑词典
+  const updateNow = useSettings((s) => s.updateNow);
+  return (
+    <label className={styles.sort}>
+      <span>{tr("背面释义")}</span>
+      <select value={dicts.some((d) => d.id === value) ? value : ""} onChange={(e) => void updateNow({ wordbook: { cardDict: e.target.value } })}>
+        <option value="">{tr("自动（跳过搭配、词频类词典）")}</option>
+        {dicts.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 import styles from "./WordbookPage.module.css";
 import { tr } from "../../i18n";
 
@@ -239,6 +264,25 @@ export function WordbookPage({ onLookup, active }: Props) {
 
   const toReview = counts ? counts.due + counts.new : 0;
 
+  // 生词本 → Anki（.txt，带文件头）/ CSV；按当前的状态、标签、搜索筛选
+  const exportWords = async () => {
+    const path = await saveDialog({
+      title: tr("导出生词本"),
+      defaultPath: `Lens-wordbook_${new Date().toISOString().slice(0, 10)}.txt`,
+      filters: [
+        { name: tr("Anki 文本（导入到 Anki）"), extensions: ["txt"] },
+        { name: "CSV（Excel）", extensions: ["csv"] },
+      ],
+    });
+    if (!path) return;
+    try {
+      const n = await exportWordbook(path, /\.csv$/i.test(path) ? "csv" : "anki", { status: query.status, tag: query.tag, search });
+      toast(tr("已导出 {n} 个词", { n }), path);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
   return (
     <div className={styles.column}>
       <header className={styles.head}>
@@ -257,6 +301,9 @@ export function WordbookPage({ onLookup, active }: Props) {
         </label>
         <button type="button" className={styles.ghost} onClick={() => useBatch.getState().openDialog("wordbook")}>
           {tr("批量导出…")}
+        </button>
+        <button type="button" className={styles.ghost} title={tr("按当前筛选导出：Anki 可直接导入的文本，或 Excel 能打开的 CSV")} onClick={() => void exportWords()}>
+          {tr("导出到 Anki / CSV…")}
         </button>
         <button type="button" className={styles.reviewBtn} disabled={toReview === 0} onClick={() => setReviewing(true)}>
           {tr("开始复习 · {n}", { n: toReview })}
@@ -323,7 +370,8 @@ export function WordbookPage({ onLookup, active }: Props) {
             </button>
           ))}
         </div>
-        <label className={styles.sort}>
+        {view === "cards" && <CardDictSelect />}
+        <label className={styles.sort} data-plain={view === "cards" || undefined}>
           {tr("排序")}
           <select value={query.sort} onChange={(e) => setQuery((q) => ({ ...q, sort: e.target.value as WordQuery["sort"] }))}>
             <option value="added">{tr("最近收藏")}</option>

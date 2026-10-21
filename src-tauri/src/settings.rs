@@ -78,6 +78,14 @@ impl Default for Layout {
     }
 }
 
+/// 常规：整个应用的行为。
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct General {
+    /// 点主窗口的关闭按钮时隐藏到托盘（Lens 留在后台，随时可划词查词）；false = 退出 Lens
+    pub close_to_tray: bool,
+}
+
 /// 取词（SPEC 8.1、14）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -96,8 +104,6 @@ pub struct Capture {
     /// 弹窗大小（逻辑像素）：拖动边缘调整后记住
     pub popup_width: u32,
     pub popup_height: u32,
-    /// 点关闭时隐藏到后台（托盘），快捷键 / Ctrl+C+C 随时可查词；从托盘菜单退出
-    pub close_to_tray: bool,
 }
 
 impl Default for Capture {
@@ -111,7 +117,6 @@ impl Default for Capture {
             auto_save: false,
             popup_width: crate::capture::POPUP_W as u32,
             popup_height: crate::capture::POPUP_H as u32,
-            close_to_tray: false,
         }
     }
 }
@@ -276,6 +281,7 @@ impl Default for Immersive {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
+    pub general: General,
     pub appearance: Appearance,
     pub layout: Layout,
     pub immersive: Immersive,
@@ -295,6 +301,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            general: General::default(),
             appearance: Appearance::default(),
             layout: Layout::default(),
             immersive: Immersive::default(),

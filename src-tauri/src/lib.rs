@@ -30,7 +30,7 @@ use app_state::AppState;
 struct LogGuard(#[allow(dead_code)] tracing_appender::non_blocking::WorkerGuard);
 
 fn close_to_tray(app: &tauri::AppHandle) -> bool {
-    app.try_state::<AppState>().and_then(|s| s.settings.get().ok()).is_some_and(|s| s.capture.close_to_tray)
+    app.try_state::<AppState>().and_then(|s| s.settings.get().ok()).is_some_and(|s| s.general.close_to_tray)
 }
 
 fn show_main(app: &tauri::AppHandle) {
@@ -102,7 +102,7 @@ pub fn run() {
                 return;
             }
             match event {
-                // 设置 › 取词「关闭时隐藏到后台」：只隐藏主窗口，从托盘菜单退出
+                // 设置 › 常规「点击关闭按钮时：隐藏到托盘」：只隐藏主窗口，从托盘菜单退出
                 tauri::WindowEvent::CloseRequested { api, .. } if close_to_tray(window.app_handle()) => {
                     api.prevent_close();
                     let _ = window.hide();

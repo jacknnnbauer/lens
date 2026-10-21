@@ -20,6 +20,7 @@ import styles from "./SettingsPage.module.css";
 import { tr } from "../../i18n";
 
 const SECTIONS = [
+  { id: "general", name: "常规" },
   { id: "look", name: "外观" },
   { id: "layout", name: "布局" },
   { id: "immersive", name: "沉浸模式" },
@@ -310,7 +311,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
   const update = useSettings((s) => s.update);
   const updateNow = useSettings((s) => s.updateNow);
   const appliedTheme = useAppliedTheme((s) => s.theme) ?? "paper";
-  const [current, setCurrent] = useState<string>("look");
+  const [current, setCurrent] = useState<string>("general");
   const [paths, setPaths] = useState<AppPaths | null>(null);
   const body = useRef<HTMLDivElement>(null);
 
@@ -384,6 +385,24 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
       </nav>
 
       <div ref={body} className={styles.body}>
+        <section id="set-general" className={styles.section} aria-labelledby="h-general">
+          <h2 id="h-general">{tr("常规")}</h2>
+          <div className={styles.grid2}>
+            <Select
+              label={tr("点击关闭按钮时")}
+              value={settings.general?.closeToTray ? "tray" : "quit"}
+              options={[
+                ["quit", "退出 Lens"],
+                ["tray", "隐藏到托盘（后台继续运行）"],
+              ]}
+              onChange={(v) => void updateNow({ general: { closeToTray: v === "tray" } })}
+            />
+          </div>
+          <p className={styles.hint}>
+            {tr("隐藏到托盘：点 × 后 Lens 留在后台，在任何程序里划词按快捷键或 Ctrl+C+C 都能随时查词。点任务栏右下角的托盘图标重新打开窗口，右键托盘图标选「退出」才真正关闭。")}
+          </p>
+        </section>
+
         <section id="set-look" className={styles.section} aria-labelledby="h-look">
           <h2 id="h-look">{tr("外观")}</h2>
           <fieldset className={styles.fieldset}>
@@ -745,14 +764,6 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
           </div>
           <p className={styles.hint}>{tr("自动：划词查到释义后，连同当时的语境句一起收进生词本；已在生词本里的词只追加这条语境。")}</p>
-          <div className={styles.grid2}>
-            <Toggle
-              label={tr("关闭时隐藏到后台")}
-              hint={tr("点 × 只隐藏窗口，划词快捷键和 Ctrl+C+C 照常可用；点任务栏右下角的托盘图标重新打开，右键托盘图标退出")}
-              checked={cap.closeToTray ?? false}
-              onChange={(v) => void updateNow({ capture: { closeToTray: v } })}
-            />
-          </div>
           <div className={styles.grid2}>
             <Select
               label={tr("窗口内查词")}

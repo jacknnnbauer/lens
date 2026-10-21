@@ -815,6 +815,9 @@ export const en: Record<string, string> = {
   "查词小窗：下一本 / 上一本词典": "Lookup popup: next / previous dictionary",
   "查词小窗：语境句向前 / 向后多带一句": "Lookup popup: extend the context by one sentence before / after",
   "查词小窗：关闭": "Lookup popup: close",
-  "关闭时隐藏到后台": "Hide to the background on close",
-  "点 × 只隐藏窗口，划词快捷键和 Ctrl+C+C 照常可用；点任务栏右下角的托盘图标重新打开，右键托盘图标退出": "× only hides the window; the capture hotkey and Ctrl+C+C keep working. Click the tray icon at the bottom right of the taskbar to reopen, right-click it to quit.",
+  "常规": "General",
+  "点击关闭按钮时": "When I click the close button",
+  "退出 Lens": "Quit Lens",
+  "隐藏到托盘（后台继续运行）": "Hide to the tray (keep running in the background)",
+  "隐藏到托盘：点 × 后 Lens 留在后台，在任何程序里划词按快捷键或 Ctrl+C+C 都能随时查词。点任务栏右下角的托盘图标重新打开窗口，右键托盘图标选「退出」才真正关闭。": "Hide to the tray: after you click ×, Lens keeps running in the background, so the hotkey or Ctrl+C+C looks up words from any program. Click the tray icon at the bottom right of the taskbar to reopen the window; right-click it and choose Quit to really close Lens.",
 };

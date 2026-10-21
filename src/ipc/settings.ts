@@ -60,7 +60,11 @@ export interface Capture {
   /** 弹窗大小（逻辑像素），拖动边缘后由 Rust 记下 */
   popupWidth: number;
   popupHeight: number;
-  /** 点关闭时隐藏到后台（托盘） */
+}
+
+/** 常规：整个应用的行为 */
+export interface General {
+  /** 点关闭按钮时隐藏到托盘（Lens 留在后台）；false = 退出 */
   closeToTray: boolean;
 }
 
@@ -111,6 +115,7 @@ export interface AiPrefs {
 
 /** 目前建模到 appearance、layout、immersive、capture、online、copy、export、batch；其他分组由 Rust 原样保留，接入时再补类型。 */
 export interface Settings {
+  general: General;
   appearance: Appearance;
   layout: Layout;
   immersive: Immersive;

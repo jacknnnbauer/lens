@@ -4,7 +4,7 @@ import { documentDir, join } from "@tauri-apps/api/path";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ExportLayout, ExportStyle, Paper } from "../../export-templates/template";
-import { isoDate } from "../../export-templates/template";
+import { isoDate, type ExportOptions } from "../../export-templates/template";
 import { batchParse, batchPreflight, startBatch, type BatchRequest, type BatchSource, type ParseOutput, type Preflight } from "../../ipc/batch";
 import { listHistory, type HistoryItem } from "../../ipc/history";
 import { listTags, listWords, type TagCount, type Word } from "../../ipc/words";
@@ -124,6 +124,8 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
   const [style, setStyle] = useState<ExportStyle>(prefs?.style ?? "paperWhite");
   const [paper, setPaper] = useState<Paper>(prefs?.paper ?? "a4");
   const [offlineOnly, setOfflineOnly] = useState(false);
+  /** 导出内容：与单词导出对话框相同的几项 */
+  const [options, setOptions] = useState<ExportOptions>({ phonetics: true, examples: true, context: true, sourceDate: true, dictNames: true });
   const [baseDir, setBaseDir] = useState<string | null>(null);
   const [customDir, setCustomDir] = useState<string | null>(null);
   // 整理与预检
@@ -216,7 +218,7 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
           paper,
           offlineOnly,
           outDir,
-          options: { phonetics: true, examples: true, context: true, sourceDate: true },
+          options,
           theme,
           accent,
           lang: getLang(),
@@ -445,6 +447,25 @@ export function BatchSelect({ onClose }: { onClose: () => void }) {
               </select>
             </label>
           </div>
+          <fieldset className={styles.fieldset}>
+            <legend>{tr("包含")}</legend>
+            <div className={styles.formats}>
+              {(
+                [
+                  ["dictNames", "词典名称"],
+                  ["phonetics", "音标"],
+                  ["examples", "例句"],
+                  ["context", "我的语境"],
+                  ["sourceDate", "来源与日期"],
+                ] as const
+              ).map(([k, name]) => (
+                <label key={k} data-checked={options[k] !== false || undefined}>
+                  <input type="checkbox" checked={options[k] !== false} onChange={(e) => setOptions((o) => ({ ...o, [k]: e.target.checked }))} />
+                  {tr(name)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <label className={styles.field}>
             <span>{tr("保存到")}</span>
             <span className={styles.dirRow}>

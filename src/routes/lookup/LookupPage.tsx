@@ -51,6 +51,17 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards);
   const saveRef = useRef(save);
   saveRef.current = save;
+  // 设置 › 取词「主窗口查词时加入生词本：自动」：确定的查询有命中就收藏一次
+  const autoSaveLookup = useSettings((s) => s.settings?.wordbook?.autoSaveLookup) ?? false;
+  const committed = useLookup((s) => s.committed);
+  const autoSavedSeq = useRef<number | null>(null);
+  const hasHit = cards.some((c) => c.status === "hit");
+  useEffect(() => {
+    if (!autoSaveLookup || !committed || !handle || committed.query !== handle.query.trim() || !hasHit) return;
+    if (autoSavedSeq.current === committed.seq) return;
+    autoSavedSeq.current = committed.seq;
+    void saveRef.current();
+  }, [autoSaveLookup, committed, handle, hasHit]);
   const [exportOpen, setExportOpen] = useState(false);
   const canExportRef = useRef(false);
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
@@ -235,7 +246,6 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
               {c.name}
             </a>
           ))}
-          <span className={styles.jumpHint}>{tr("Tab / Shift+Tab 跳转")}</span>
         </nav>
       )}
 
@@ -300,7 +310,6 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} word={headword || handle?.normalized || ""} cards={cards} />
 
-      {visible.length > 0 && <p className={styles.footHint}>{tr("Tab / Shift+Tab 在词典之间跳转 · Ctrl+Shift+C 复制当前词典 · Ctrl+Shift+A 合并复制全部词典")}</p>}
     </div>
   );
 });

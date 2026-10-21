@@ -584,7 +584,12 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             <Toggle label={tr("显示左侧导航")} checked={l.showNav} onChange={(v) => setL({ showNav: v })} />
             <Toggle label={tr("显示右侧上下文栏")} checked={l.showContext} onChange={(v) => setL({ showContext: v })} />
             <Toggle label={tr("显示状态栏")} checked={l.showStatusBar} onChange={(v) => setL({ showStatusBar: v })} />
-            <Toggle label={tr("词典跳转条")} checked={l.showJumpBar} onChange={(v) => setL({ showJumpBar: v })} />
+            <Toggle
+              label={tr("词典名称条")}
+              hint={tr("查词结果上方一排词典名称，点一下跳到那本词典")}
+              checked={l.showJumpBar}
+              onChange={(v) => setL({ showJumpBar: v })}
+            />
             <Toggle
               label={tr("义项图谱（实验）")}
               hint={tr("查词结果上方把几部词典的义项对齐，显示共识与差异")}
@@ -812,7 +817,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
           <p className={styles.hint}>{tr("取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。")}</p>
           <div className={styles.grid2}>
             <Select
-              label={tr("加入生词本")}
+              label={tr("划词时加入生词本")}
               value={cap.autoSave ? "auto" : "manual"}
               options={[
                 ["manual", "手动（点收藏或 Ctrl+S）"],
@@ -820,8 +825,17 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               ]}
               onChange={(v) => update({ capture: { autoSave: v === "auto" } })}
             />
+            <Select
+              label={tr("主窗口查词时加入生词本")}
+              value={settings.wordbook?.autoSaveLookup ? "auto" : "manual"}
+              options={[
+                ["manual", "手动（点 ☆ 或 Ctrl+S）"],
+                ["auto", "自动（按 Enter 查到就收藏）"],
+              ]}
+              onChange={(v) => update({ wordbook: { autoSaveLookup: v === "auto" } })}
+            />
           </div>
-          <p className={styles.hint}>{tr("自动：划词查到释义后，连同当时的语境句一起收进生词本；已在生词本里的词只追加这条语境。")}</p>
+          <p className={styles.hint}>{tr("自动：查到释义后收进生词本（划词时连同当时的语境句）；已在生词本里的词只追加语境。主窗口里只有确定的查询才算（按 Enter、点候选、点链接、窗口内划词），打字过程中的联想不算。")}</p>
           <div className={styles.grid2}>
             <Select
               label={tr("窗口内查词")}

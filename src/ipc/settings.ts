@@ -66,6 +66,8 @@ export interface Capture {
 export interface WordbookPrefs {
   /** 语境卡 / 复习卡背面用哪本词典（词典 id）；空 = 自动 */
   cardDict: string;
+  /** 主窗口查词有结果就自动收藏 */
+  autoSaveLookup: boolean;
 }
 
 /** 常规：整个应用的行为 */

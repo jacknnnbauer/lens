@@ -45,14 +45,6 @@
   opacity: 0.6;
 }
 
-.jumpHint {
-  margin-left: auto;
-  align-self: center;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--faint);
-}
-
 .empty {
   display: flex;
   flex-direction: column;
@@ -112,8 +104,7 @@
   background: var(--hl);
 }
 
-.missed,
-.footHint {
+.missed {
   margin: 0;
   text-align: center;
   font-size: 12px;
@@ -188,7 +179,6 @@
   display: none;
 }
 
-:global(html[data-immersive-cards]) .jump,
-:global(html[data-immersive-cards]) .footHint {
+:global(html[data-immersive-cards]) .jump {
   display: none;
 }

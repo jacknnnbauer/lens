@@ -84,6 +84,8 @@ impl Default for Layout {
 pub struct Wordbook {
     /// 语境卡 / 复习卡背面用哪本词典的释义（词典 id）；空 = 自动（跳过搭配、词频类词典）
     pub card_dict: String,
+    /// 主窗口查词（确定的查询）有结果就自动收进生词本
+    pub auto_save_lookup: bool,
 }
 
 /// 常规：整个应用的行为。

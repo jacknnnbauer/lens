@@ -1,3 +1,4 @@
+use serde::Serialize;
 use tauri::{AppHandle, State, Window};
 
 use crate::app_state::AppState;
@@ -82,4 +83,43 @@ pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) ->
     tauri::async_runtime::spawn_blocking(move || crate::senses::build(&word, &dicts))
         .await
         .map_err(|e| crate::error::Error::Other(e.to_string()))
+}
+
+/// 第一本命中的本地词典（当前配置组顺序）的词条：语境卡、复习卡背面显示释义用。
+/// 只查本地，不发事件、不取消别的查询，也不记历史。
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FirstEntry {
+    pub dict_id: String,
+    pub name: String,
+    pub entries: Vec<crate::dict::RawEntry>,
+}
+
+#[tauri::command]
+pub async fn first_entry(state: State<'_, AppState>, query: String) -> Result<Option<FirstEntry>> {
+    let keys = query::candidates(&query);
+    if keys.is_empty() {
+        return Ok(None);
+    }
+    let dicts = locals(profile_sources(&state)?);
+    tauri::async_runtime::spawn_blocking(move || -> Result<Option<FirstEntry>> {
+        for d in &dicts {
+            for k in &keys {
+                let hits = match d.source.lookup(k) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        tracing::warn!(dict = %d.source.meta().id, error = %e, "查词失败");
+                        break;
+                    }
+                };
+                if !hits.is_empty() {
+                    let meta = d.source.meta();
+                    return Ok(Some(FirstEntry { dict_id: meta.id.clone(), name: meta.name.clone(), entries: hits }));
+                }
+            }
+        }
+        Ok(None)
+    })
+    .await
+    .map_err(|e| crate::error::Error::Other(e.to_string()))?
 }

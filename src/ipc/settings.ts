@@ -55,6 +55,11 @@ export interface Capture {
   timeoutMs: number;
   /** Lens 窗口内查词：双击 / 单击 / 划词 / 关闭 */
   inAppTrigger: "dblclick" | "click" | "drag" | "off";
+  /** 划词查到后自动收进生词本（连同语境句）；false = 手动收藏 */
+  autoSave: boolean;
+  /** 弹窗大小（逻辑像素），拖动边缘后由 Rust 记下 */
+  popupWidth: number;
+  popupHeight: number;
 }
 
 export interface Online {

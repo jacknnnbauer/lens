@@ -1,7 +1,7 @@
 // 历史（SPEC 9.1 /history、M4）：按天分组；有语境句的显示原句与来源，网页来源可「回到原处」。
 
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SourceLink } from "../../components/SourceLink";
 import { clearHistory, deleteHistory, listHistory, type HistoryItem } from "../../ipc/history";
 import { useBatch } from "../../stores/batch";
 import styles from "./HistoryPage.module.css";
@@ -40,9 +40,6 @@ function time(ms: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function canOpen(url: string | null): url is string {
-  return !!url && /^https?:\/\//i.test(url);
-}
 
 export function HistoryPage({ onLookup, active }: Props) {
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -169,22 +166,7 @@ export function HistoryPage({ onLookup, active }: Props) {
                         {it.context.sentence.slice(it.context.hlEnd)}
                       </p>
                       <div className={styles.source}>
-                        <span className={styles.sourceText}>
-                          {[it.context.app, it.context.windowTitle].filter(Boolean).join(" · ")}
-                        </span>
-                        {canOpen(it.context.url) && (
-                          <a
-                            href={it.context.url}
-                            className={styles.back}
-                            title={it.context.url}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              void openUrl(it.context?.url ?? "");
-                            }}
-                          >
-                            {tr("回到原处 ↗")}
-                          </a>
-                        )}
+                        <SourceLink src={it.context} className={styles.sourceText} />
                       </div>
                     </>
                   )}

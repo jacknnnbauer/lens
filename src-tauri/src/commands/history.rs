@@ -59,3 +59,17 @@ pub async fn lookup_count(state: State<'_, AppState>, query: String) -> Result<i
     let lemma = normalize_key(&normalize_query(&query));
     state.db.with_conn(|c| history::lookup_count(c, &lemma))
 }
+
+/// 扩展后的语境句最多这么长（UTF-16 码元）
+const MAX_CONTEXT_UTF16: usize = 4000;
+
+/// 弹窗里多带了前后句：更新已存的语境句。高亮区间是 UTF-16 下标，必须落在句子里。
+#[tauri::command]
+pub async fn extend_context(state: State<'_, AppState>, id: i64, sentence: String, hl_start: i64, hl_end: i64) -> Result<()> {
+    let len = sentence.encode_utf16().count();
+    let valid = len <= MAX_CONTEXT_UTF16 && 0 <= hl_start && hl_start < hl_end && usize::try_from(hl_end).is_ok_and(|e| e <= len);
+    if !valid {
+        return Err(crate::error::Error::Other("语境句或高亮位置无效".into()));
+    }
+    state.db.with_conn(|c| history::set_context_sentence(c, id, &sentence, hl_start, hl_end))
+}

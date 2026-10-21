@@ -11,6 +11,8 @@ import { SearchIcon } from "../../components/icons";
 import { DictBody } from "../../dict-render/DictBody";
 import { hidePopup, onCapture, onCaptureUrl, openInMain, type CaptureEvent } from "../../ipc/capture";
 import { Toast } from "../../components/Toast";
+import { SourceLink } from "../../components/SourceLink";
+import { extendContext } from "../../ipc/history";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
 import { useSaveWord } from "../../stores/save";
 import { useSettings } from "../../stores/settings";
@@ -38,6 +40,9 @@ export function PopupWindow() {
   const captureMatches = capture != null && handle != null && handle.query === capture.text;
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
   const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards, captureMatches ? capture.contextId : null);
+  const autoSave = useSettings((s) => s.settings?.capture.autoSave) ?? false;
+  /** 已自动收藏过的那次划词（每次划词只自动收一次） */
+  const autoSaved = useRef<number | null>(null);
 
   const lookupWord = useCallback(
     (q: string) => {
@@ -85,6 +90,23 @@ export function PopupWindow() {
 
   const hits = cards.filter((c) => c.status === "hit");
   const pending = cards.some((c) => c.status === "pending");
+
+  // 设置为「自动加入生词本」：这次划词有命中就收藏一次（连同语境句）
+  useEffect(() => {
+    if (!autoSave || !capture || !captureMatches || hits.length === 0 || autoSaved.current === capture.id) return;
+    autoSaved.current = capture.id;
+    void save();
+  }, [autoSave, capture, captureMatches, hits.length, save]);
+
+  // 多带了前后句：写回已存的语境句，历史和生词本里看到的就是扩展后的句子
+  useEffect(() => {
+    const c = capture?.sentence;
+    const id = capture?.contextId;
+    if (!c || id == null || (extra.before === 0 && extra.after === 0)) return;
+    const ext = extend(c, extra.before, extra.after);
+    const t = setTimeout(() => void extendContext(id, ext.text, ext.hlStart, ext.hlEnd).catch((e) => console.warn("更新语境句失败", e)), 300);
+    return () => clearTimeout(t);
+  }, [capture, extra]);
   const active = hits.find((c) => c.id === tab) ?? hits[0];
   const ctx = capture?.sentence ?? null;
 
@@ -152,11 +174,10 @@ export function PopupWindow() {
   };
 
   const source = capture?.source;
-  const sourceLine = source ? [source.app, source.windowTitle, source.url].filter(Boolean).join(" · ") : "";
 
   return (
     <div className={styles.popup} role="dialog" aria-label={tr("查词弹窗")} onKeyDown={onKeyDown}>
-      <label className={styles.searchRow}>
+      <label className={styles.searchRow} data-tauri-drag-region>
         <span className={styles.icon}>
           <SearchIcon size={16} />
         </span>
@@ -231,8 +252,8 @@ export function PopupWindow() {
 
       {ctx && (
         <section className={styles.context} aria-label={tr("语境句")}>
-          <div className={styles.contextHead}>
-            <span className={styles.captured}>
+          <div className={styles.contextHead} data-tauri-drag-region>
+            <span className={styles.captured} data-tauri-drag-region>
               <span className={styles.dot} aria-hidden="true" />
               {tr("已捕获语境句")}
             </span>
@@ -256,11 +277,7 @@ export function PopupWindow() {
             </button>
           </div>
           <ContextSentence ctx={ctx} extraBefore={extra.before} extraAfter={extra.after} />
-          {sourceLine && (
-            <div className={styles.source} title={sourceLine}>
-              {sourceLine}
-            </div>
-          )}
+          {source && <SourceLink src={source} className={styles.source} />}
         </section>
       )}
 

@@ -37,6 +37,15 @@ pub fn set_context_url(conn: &Connection, id: i64, url: &str) -> Result<()> {
     Ok(())
 }
 
+/// 弹窗里点了「+ 前句 / 后句 +」：把扩展后的句子写回这条语境（历史、生词本都用它）。
+pub fn set_context_sentence(conn: &Connection, id: i64, sentence: &str, hl_start: i64, hl_end: i64) -> Result<()> {
+    conn.execute(
+        "UPDATE context SET sentence = ?2, hl_start = ?3, hl_end = ?4 WHERE id = ?1",
+        params![id, sentence, hl_start, hl_end],
+    )?;
+    Ok(())
+}
+
 /// 记一条历史；同一来源 DEDUPE_MS 内的同一个词合并为一条（更新时间，补上语境）。返回历史 id。
 pub fn record(conn: &Connection, query: &str, lemma: &str, source: &str, context_id: Option<i64>, now: i64) -> Result<i64> {
     let recent: Option<i64> = conn

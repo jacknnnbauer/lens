@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavHistory } from "./navHistory";
 import { ResizeHandle } from "../../components/ResizeHandle";
 import { useInAppLookup } from "../../components/inAppLookup";
 import { BatchChip, BatchDialog, BatchResumeNotice } from "../../components/batch/BatchDialog";
@@ -65,6 +66,8 @@ export function MainWindow() {
   );
   // 主窗口里划词：直接在主窗口查这个词（不弹小窗）
   useInAppLookup(lookupWord);
+  // 鼠标侧键 / Alt+←→：后退、前进
+  useNavHistory(lookupWord);
   const focusSearch = useCallback(() => {
     go("lookup");
     requestAnimationFrame(() => lookupPage.current?.focusSearch());

@@ -54,6 +54,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ["Ctrl+\\", "显示 / 隐藏左侧导航"],
   ["Ctrl+,", "设置"],
   ["Enter", "弹窗中：展开到主窗口"],
+  ["鼠标侧键 · Alt+← / Alt+→", "主窗口：后退 / 前进（回到刚才查的词或页面）"],
   ["Alt+← / Alt+→", "弹窗中：语境句向前 / 向后多带一句"],
 ];
 
@@ -692,6 +693,18 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
           </div>
           <p className={styles.hint}>{tr("取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。")}</p>
+          <div className={styles.grid2}>
+            <Select
+              label={tr("加入生词本")}
+              value={cap.autoSave ? "auto" : "manual"}
+              options={[
+                ["manual", "手动（点收藏或 Ctrl+S）"],
+                ["auto", "自动（划词查到就收藏）"],
+              ]}
+              onChange={(v) => update({ capture: { autoSave: v === "auto" } })}
+            />
+          </div>
+          <p className={styles.hint}>{tr("自动：划词查到释义后，连同当时的语境句一起收进生词本；已在生词本里的词只追加这条语境。")}</p>
           <div className={styles.grid2}>
             <Select
               label={tr("窗口内查词")}

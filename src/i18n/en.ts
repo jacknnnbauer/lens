@@ -786,4 +786,15 @@ export const en: Record<string, string> = {
   // ── 侧栏宽度 ──
   "拖动调整左侧导航宽度（双击恢复默认）": "Drag to resize the left navigation (double-click to reset)",
   "拖动调整右侧栏宽度（双击恢复默认）": "Drag to resize the right panel (double-click to reset)",
+  // ── 0.8：弹窗、语境、后退 ──
+  "本地词典里没有找到释义": "No definition found in your local dictionaries",
+  "释义": "Definition",
+  "打开原网页：{url}": "Open the original page: {url}",
+  "加入生词本": "Add to wordbook",
+  "手动（点收藏或 Ctrl+S）": "Manually (Save button or Ctrl+S)",
+  "自动（划词查到就收藏）": "Automatically (whenever a captured word is found)",
+  "自动：划词查到释义后，连同当时的语境句一起收进生词本；已在生词本里的词只追加这条语境。": "Automatic: when a captured word is found, it is saved to the wordbook together with its context sentence; words already saved just get the new context.",
+  "词典名称": "Dictionary names",
+  "鼠标侧键 · Alt+← / Alt+→": "Mouse side buttons · Alt+← / Alt+→",
+  "主窗口：后退 / 前进（回到刚才查的词或页面）": "Main window: back / forward (to the previous word or page)",
 };

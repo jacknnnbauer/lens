@@ -92,7 +92,9 @@ pub fn run() {
                 .decorations(false)
                 .always_on_top(true)
                 .skip_taskbar(true)
-                .resizable(false)
+                // 拖动边缘调大小，松开后记住（隐藏时写回设置）
+                .resizable(true)
+                .min_inner_size(capture::POPUP_MIN_W, capture::POPUP_MIN_H)
                 .visible(false)
                 .focused(false)
                 .build()?;
@@ -132,6 +134,7 @@ pub fn run() {
             commands::dicts::list_profiles,
             commands::lookup::lookup,
             commands::lookup::sense_atlas,
+            commands::lookup::first_entry,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,
@@ -146,6 +149,7 @@ pub fn run() {
             commands::history::delete_history,
             commands::history::clear_history,
             commands::history::lookup_count,
+            commands::history::extend_context,
             commands::words::save_word,
             commands::words::word_id,
             commands::words::list_words,

@@ -3,7 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { LookupDoneEvent, LookupHandle, LookupResultEvent } from "./types";
+import type { EntryBody, LookupDoneEvent, LookupHandle, LookupResultEvent } from "./types";
 
 /** 立即返回；结果通过 onLookupResult 逐部推送，最后 onLookupDone。 */
 export function lookup(query: string): Promise<LookupHandle> {
@@ -56,4 +56,15 @@ export interface SenseAtlas {
 
 export function senseAtlas(word: string, dicts: Array<{ id: string; name: string; entries: string[] }>): Promise<SenseAtlas> {
   return invoke<SenseAtlas>("sense_atlas", { word, dicts });
+}
+
+export interface FirstEntry {
+  dictId: string;
+  name: string;
+  entries: Array<{ headword: string; body: EntryBody }>;
+}
+
+/** 第一本命中的本地词典的词条（只查本地，不影响当前查询、不记历史）：语境卡背面用 */
+export function firstEntry(query: string): Promise<FirstEntry | null> {
+  return invoke<FirstEntry | null>("first_entry", { query });
 }

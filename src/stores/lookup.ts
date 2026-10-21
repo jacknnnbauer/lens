@@ -61,6 +61,8 @@ interface LookupState {
   error: string | null;
   /** 本次会话查过的词（历史记录页在 M4） */
   recent: string[];
+  /** 最近一次「确定的」查询（Enter、点链接、划词…）；主窗口的后退 / 前进按它记步 */
+  committed: { query: string; seq: number } | null;
   /** commit：这是一次「确定的」查询（Enter、点链接、划词…），有命中就记入历史 */
   search: (query: string, opts?: SearchOptions) => Promise<void>;
   /** 把当前查询记入历史（命中后才真正写入；同一次查询只写一次） */
@@ -77,6 +79,7 @@ type Pending = { results: LookupResultEvent[]; done: LookupDoneEvent | null };
 const buffer = new Map<string, Pending>();
 /** 只认最后一次 search 的返回，防止较早的查询晚到后覆盖新结果 */
 let searchSeq = 0;
+let commitSeq = 0;
 
 function buffered(id: string): Pending {
   let p = buffer.get(id);
@@ -113,10 +116,12 @@ export const useLookup = create<LookupState>((set, get) => ({
   expanded: {},
   error: null,
   recent: [],
+  committed: null,
 
   commit: () => {
     const h = get().handle;
     if (!h) return;
+    if (get().committed?.query !== h.query.trim()) set({ committed: { query: h.query.trim(), seq: ++commitSeq } });
     pendingCommit = h.requestId;
     flushCommit(get());
   },
@@ -141,6 +146,7 @@ export const useLookup = create<LookupState>((set, get) => ({
       return;
     }
     const seq = ++searchSeq;
+    if (opts.commit) set({ committed: { query: query.trim(), seq: ++commitSeq } });
     currentContextId = opts.contextId ?? null;
     try {
       const handle = await ipcLookup(query);

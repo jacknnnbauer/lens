@@ -241,7 +241,8 @@
 }
 
 .quote mark,
-.cardQuote mark {
+.cardQuote mark,
+.cardBackQuote mark {
   padding: 0 2px;
   border-radius: 3px;
   background: var(--hl);
@@ -382,6 +383,8 @@
 
 .cardGrid {
   display: grid;
+  /* 翻到背面的卡片变高时，同一行的其他卡片不跟着拉长 */
+  align-items: start;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
 }
@@ -395,12 +398,25 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--panel);
-  text-align: left;
-  cursor: pointer;
 }
 
-.card[aria-pressed="true"] {
+.card[data-flipped] {
   background: var(--raised);
+}
+
+/* 翻面按钮占满卡片上半部分 */
+.cardFlip {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .cardSide {
@@ -447,4 +463,10 @@
   background: var(--raised);
   color: var(--faint);
   cursor: default;
+}
+
+.cardBackQuote {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sub);
 }

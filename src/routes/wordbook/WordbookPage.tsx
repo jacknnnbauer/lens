@@ -1,7 +1,7 @@
 // 生词本（SPEC M4、画板 04）：收藏的词、语境句与来源、标签、熟悉度、语境卡。
 // 复习（M8）：「开始复习」进入 ReviewSession，调度由 Rust 的 FSRS 完成。
 
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { SourceLink, sourceText } from "../../components/SourceLink";
 import { useCallback, useEffect, useState } from "react";
 import {
   deleteWord,
@@ -23,6 +23,7 @@ import { useBatch } from "../../stores/batch";
 import { toast } from "../../stores/toast";
 import { formatInterval, ReviewSession, startOfToday } from "./ReviewSession";
 import { Sentence } from "./Sentence";
+import { CardDefinition } from "../../components/CardDefinition";
 import styles from "./WordbookPage.module.css";
 import { tr } from "../../i18n";
 
@@ -37,22 +38,6 @@ const STATUSES: Array<{ id: WordStatus | undefined; name: string }> = [
 interface Props {
   onLookup: (word: string) => void;
   active: boolean;
-}
-
-function BackLink({ url }: { url: string | null }) {
-  if (!url || !/^https?:\/\//i.test(url)) return null;
-  return (
-    <a
-      href={url}
-      title={url}
-      onClick={(e) => {
-        e.preventDefault();
-        void openUrl(url);
-      }}
-    >
-      {tr("回到原处 ↗")}
-    </a>
-  );
 }
 
 function Familiarity({ value, onChange, word }: { value: number; onChange: (v: number) => void; word: string }) {
@@ -134,9 +119,8 @@ function WordDetail({ word, onChanged, onLookup }: { word: Word; onChanged: () =
                   “<Sentence ctx={c} />”
                 </p>
                 <div className={styles.meta}>
-                  <span>{[c.app, c.windowTitle].filter(Boolean).join(" · ")}</span>
+                  <SourceLink src={c} />
                   <span>{new Date(c.createdAt).toLocaleDateString()}</span>
-                  <BackLink url={c.url} />
                   <button
                     type="button"
                     className={styles.linkBtn}
@@ -155,14 +139,15 @@ function WordDetail({ word, onChanged, onLookup }: { word: Word; onChanged: () =
   );
 }
 
-/** 语境卡：正面是当时读到的句子，Space / 点击翻到背面看释义。 */
-function ContextCard({ word }: { word: Word }) {
+/** 语境卡：正面是当时读到的句子，Space / 点击翻到背面看原词、简释和词典释义。 */
+function ContextCard({ word, onLookup }: { word: Word; onLookup: (w: string) => void }) {
   const [flipped, setFlipped] = useState(false);
   const ctx = word.contexts[0];
   return (
+    <div className={styles.card} data-flipped={flipped || undefined}>
     <button
       type="button"
-      className={styles.card}
+      className={styles.cardFlip}
       aria-pressed={flipped}
       aria-label={flipped ? `${word.lemma}: ${word.brief ?? ""}` : tr("语境卡，按 Space 翻面")}
       onClick={() => setFlipped((f) => !f)}
@@ -177,16 +162,23 @@ function ContextCard({ word }: { word: Word }) {
           ) : (
             <span className={styles.cardWord}>{word.lemma}</span>
           )}
-          {ctx && <span className={styles.cardSource}>{[ctx.app, ctx.windowTitle].filter(Boolean).join(" · ")}</span>}
+          {ctx && <span className={styles.cardSource}>{sourceText(ctx)}</span>}
         </>
       ) : (
         <>
           <span className={styles.cardSide}>{tr("背面")}</span>
           <span className={styles.cardWord}>{word.lemma}</span>
-          <span className={styles.cardBrief}>{word.brief ?? tr("（没有简释，可在列表里补上）")}</span>
+          {word.brief && <span className={styles.cardBrief}>{word.brief}</span>}
+          {ctx && (
+            <span className={styles.cardBackQuote}>
+              “<Sentence ctx={ctx} />”
+            </span>
+          )}
         </>
       )}
     </button>
+      {flipped && <CardDefinition word={word.lemma} onLookup={onLookup} />}
+    </div>
   );
 }
 
@@ -369,7 +361,7 @@ export function WordbookPage({ onLookup, active }: Props) {
       ) : view === "cards" ? (
         <div className={styles.cardGrid}>
           {words.map((w) => (
-            <ContextCard key={w.id} word={w} />
+            <ContextCard key={w.id} word={w} onLookup={onLookup} />
           ))}
         </div>
       ) : (
@@ -391,14 +383,13 @@ export function WordbookPage({ onLookup, active }: Props) {
                     </p>
                   )}
                   <div className={styles.meta}>
-                    {ctx && <span>{[ctx.app, ctx.windowTitle].filter(Boolean).join(" · ")}</span>}
+                    {ctx && <SourceLink src={ctx} />}
                     {w.tags.map((t) => (
                       <span key={t}># {t}</span>
                     ))}
                     {w.lookups > 0 && <span>{tr("查过 {n} 次", { n: w.lookups })}</span>}
                     {w.contexts.length > 1 && <span>{tr("{n} 个语境", { n: w.contexts.length })}</span>}
                     {w.dueAt !== null && <span>{w.dueAt <= Date.now() ? tr("该复习了") : tr("{t}后复习", { t: formatInterval(w.dueAt - Date.now()) })}</span>}
-                    {ctx && <BackLink url={ctx.url} />}
                   </div>
                 </div>
                 <div className={styles.side}>

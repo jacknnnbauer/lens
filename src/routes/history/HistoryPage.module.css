@@ -194,9 +194,13 @@
   white-space: nowrap;
 }
 
-.back {
-  flex: none;
+a.sourceText {
   color: var(--accent);
+  text-decoration: none;
+}
+
+a.sourceText:hover {
+  text-decoration: underline;
 }
 
 .remove {

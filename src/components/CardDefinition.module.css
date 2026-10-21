@@ -1,0 +1,27 @@
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.name {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+/* 词条可能很长：卡片里限高滚动 */
+.body {
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: 14px;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--faint);
+}

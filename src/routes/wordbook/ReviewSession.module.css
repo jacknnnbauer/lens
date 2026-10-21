@@ -216,3 +216,11 @@ kbd {
   color: var(--accent-ink);
   cursor: pointer;
 }
+
+/* 翻面后：第一本本地词典的释义 */
+.definition {
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}

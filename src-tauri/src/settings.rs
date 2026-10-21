@@ -91,11 +91,25 @@ pub struct Capture {
     pub timeout_ms: u64,
     /// Lens 窗口内查词（释义、例句、语境句里的词）：dblclick 双击 | click 单击 | drag 划词 | off 关闭
     pub in_app_trigger: String,
+    /// 划词查到后自动收进生词本（连同语境句）；默认手动（Ctrl+S / 收藏按钮）
+    pub auto_save: bool,
+    /// 弹窗大小（逻辑像素）：拖动边缘调整后记住
+    pub popup_width: u32,
+    pub popup_height: u32,
 }
 
 impl Default for Capture {
     fn default() -> Self {
-        Self { hotkey: "Ctrl+Alt+Space".into(), double_copy: true, ocr_fallback: false, timeout_ms: 150, in_app_trigger: "dblclick".into() }
+        Self {
+            hotkey: "Ctrl+Alt+Space".into(),
+            double_copy: true,
+            ocr_fallback: false,
+            timeout_ms: 150,
+            in_app_trigger: "dblclick".into(),
+            auto_save: false,
+            popup_width: 480,
+            popup_height: 560,
+        }
     }
 }
 

@@ -47,7 +47,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
   const [layout, setLayout] = useState<ExportLayout>("cards");
   const [style, setStyle] = useState<ExportStyle>("paperWhite");
   const [paper, setPaper] = useState<Paper>("a4");
-  const [options, setOptions] = useState<ExportOptions>({ phonetics: true, examples: true, context: true, sourceDate: true });
+  const [options, setOptions] = useState<ExportOptions>({ phonetics: true, examples: true, context: true, sourceDate: true, dictNames: true });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** 本次导出里词典的先后（默认按词典库顺序，可在这里调整） */
   const [order, setOrder] = useState<string[]>([]);
@@ -99,9 +99,12 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
     setOrder,
   );
   const ext = format === "pdf" ? "pdf" : "html";
+  // 词典可以一本都不选，只导出语境句
+  const withContext = context != null && options.context;
+  const canExport = chosen.length > 0 || withContext;
 
   const doExport = async () => {
-    if (chosen.length === 0 || phase.kind === "busy") return;
+    if (!canExport || phase.kind === "busy") return;
     const fileName = `${safeFileName(name.replace(/\.(pdf|html?)$/i, "")) || "lens"}.${ext}`;
     const path = await saveDialog({
       title: tr("导出词条"),
@@ -241,12 +244,13 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
                 ["examples", "例句"],
                 ["context", context ? "我的语境" : "我的语境（这个词还没有）"],
                 ["sourceDate", "来源与日期"],
+                ["dictNames", "词典名称"],
               ] as const
             ).map(([k, label]) => (
               <label key={k}>
                 <input
                   type="checkbox"
-                  checked={options[k]}
+                  checked={options[k] !== false}
                   disabled={k === "context" && !context}
                   onChange={(e) => setOptions((o) => ({ ...o, [k]: e.target.checked }))}
                 />
@@ -262,9 +266,15 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
             {layout === "cards" ? (
               <>
                 <div className={styles.pWord}>{word}</div>
+                {withContext && (
+                  <div className={styles.pCard}>
+                    <span>{tr("语境句")}</span>
+                    <i />
+                  </div>
+                )}
                 {chosen.slice(0, 5).map((c) => (
                   <div key={c.id} className={styles.pCard}>
-                    <span>{c.name}</span>
+                    <span>{options.dictNames !== false ? c.name : ""}</span>
                     <i />
                     <i />
                   </div>
@@ -273,11 +283,15 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
             ) : (
               <>
                 <div className={styles.pTitle}>{word}</div>
+                {withContext && (
+                  <div className={styles.pSection}>
+                    <span>{tr("我的语境")}</span>
+                    <i />
+                  </div>
+                )}
                 {chosen.slice(0, 5).map((c, i) => (
                   <div key={c.id} className={styles.pSection}>
-                    <span>
-                      {String(i + 1).padStart(2, "0")} {c.name}
-                    </span>
+                    <span>{options.dictNames !== false ? `${String(i + 1).padStart(2, "0")} ${c.name}` : ""}</span>
                     <i />
                     <i />
                   </div>
@@ -316,7 +330,7 @@ export function ExportDialog({ open, onClose, word, cards }: Props) {
             <button type="button" className={styles.ghost} onClick={onClose}>
               {tr("取消")}
             </button>
-            <button type="button" className={styles.primary} disabled={chosen.length === 0 || phase.kind === "busy"} onClick={() => void doExport()}>
+            <button type="button" className={styles.primary} disabled={!canExport || phase.kind === "busy"} onClick={() => void doExport()}>
               {phase.kind === "busy" ? tr("正在导出…") : tr("导出 {format}", { format: ext.toUpperCase() })}
               <kbd>Ctrl+Enter</kbd>
             </button>

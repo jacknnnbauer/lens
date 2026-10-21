@@ -8,6 +8,7 @@ pub const EVENT_MAIN_LOOKUP: &str = "main:lookup";
 #[tauri::command]
 pub async fn hide_popup(app: AppHandle) -> Result<()> {
     if let Some(w) = app.get_webview_window(POPUP) {
+        crate::capture::remember_popup_size(&app);
         w.hide()?;
     }
     Ok(())
@@ -17,6 +18,7 @@ pub async fn hide_popup(app: AppHandle) -> Result<()> {
 #[tauri::command]
 pub async fn open_in_main(app: AppHandle, query: String) -> Result<()> {
     if let Some(w) = app.get_webview_window(POPUP) {
+        crate::capture::remember_popup_size(&app);
         w.hide()?;
     }
     if let Some(main) = app.get_webview_window("main") {

@@ -6,6 +6,8 @@ import { tr } from "../../i18n";
 import { reviewQueue, reviewRate, type ReviewItem } from "../../ipc/words";
 import styles from "./ReviewSession.module.css";
 import { Sentence } from "./Sentence";
+import { CardDefinition } from "../../components/CardDefinition";
+import { sourceText } from "../../components/SourceLink";
 
 const RATINGS = [
   { r: 1, name: "忘了" },
@@ -161,7 +163,7 @@ export function ReviewSession({ onExit, onLookup }: Props) {
               <span className={styles.bare}>{item.word.lemma}</span>
             )}
             {item.word.contexts[0] && (
-              <span className={styles.source}>{[item.word.contexts[0].app, item.word.contexts[0].windowTitle].filter(Boolean).join(" · ")}</span>
+              <span className={styles.source}>{sourceText(item.word.contexts[0])}</span>
             )}
             {flipped ? (
               <span className={styles.back}>
@@ -197,6 +199,11 @@ export function ReviewSession({ onExit, onLookup }: Props) {
             </div>
           )}
 
+          {flipped && (
+            <div className={styles.definition}>
+              <CardDefinition word={item.word.lemma} onLookup={onLookup} />
+            </div>
+          )}
           <div className={styles.tools}>
             <button type="button" className={styles.linkBtn} onClick={() => onLookup(item.word.lemma)}>
               {tr("查词")}

@@ -32,6 +32,9 @@ pub const EVENT_URL: &str = "capture:url";
 /// 弹窗逻辑尺寸（画板 02）
 pub const POPUP_W: f64 = 480.0;
 pub const POPUP_H: f64 = 560.0;
+/// 弹窗最小尺寸（逻辑像素）
+pub const POPUP_MIN_W: f64 = 320.0;
+pub const POPUP_MIN_H: f64 = 260.0;
 /// 选中的文本超过这么长就截断（再长按句子模式处理，见 SPEC 7.6）
 const MAX_QUERY_CHARS: usize = 200;
 const BROWSERS: &[&str] = &["msedge.exe", "chrome.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe"];
@@ -419,8 +422,10 @@ fn show_popup(app: &AppHandle, event: &CaptureEvent, anchor: Option<Anchor>) -> 
         if let Some(m) = monitor {
             let scale = m.scale_factor();
             let wa = m.work_area();
-            let size = (POPUP_W * scale, POPUP_H * scale);
             let work = (f64::from(wa.position.x), f64::from(wa.position.y), f64::from(wa.size.width), f64::from(wa.size.height));
+            let (w, h) = popup_size(app);
+            // 用户调过的大小；不超过工作区
+            let size = ((w * scale).min(work.2), (h * scale).min(work.3));
             let (x, y) = place(a, size, work);
             win.set_size(PhysicalSize::new(size.0 as u32, size.1 as u32))?;
             win.set_position(PhysicalPosition::new(x as i32, y as i32))?;
@@ -431,6 +436,33 @@ fn show_popup(app: &AppHandle, event: &CaptureEvent, anchor: Option<Anchor>) -> 
     win.show()?;
     win.set_focus()?;
     Ok(())
+}
+
+/// 设置里记住的弹窗大小（逻辑像素）
+fn popup_size(app: &AppHandle) -> (f64, f64) {
+    match app.state::<AppState>().settings.get() {
+        Ok(s) => (f64::from(s.capture.popup_width).max(POPUP_MIN_W), f64::from(s.capture.popup_height).max(POPUP_MIN_H)),
+        Err(_) => (POPUP_W, POPUP_H),
+    }
+}
+
+/// 隐藏弹窗前记下当前大小，下次按这个大小弹出。
+pub fn remember_popup_size(app: &AppHandle) {
+    let Some(win) = app.get_webview_window(POPUP) else { return };
+    let (Ok(size), Ok(scale)) = (win.inner_size(), win.scale_factor()) else { return };
+    if scale <= 0.0 {
+        return;
+    }
+    let w = (f64::from(size.width) / scale).round().max(POPUP_MIN_W) as u32;
+    let h = (f64::from(size.height) / scale).round().max(POPUP_MIN_H) as u32;
+    let state = app.state::<AppState>();
+    let Ok(cur) = state.settings.get() else { return };
+    if (cur.capture.popup_width, cur.capture.popup_height) == (w, h) {
+        return;
+    }
+    if let Err(e) = state.settings.patch(serde_json::json!({ "capture": { "popupWidth": w, "popupHeight": h } })) {
+        tracing::warn!(error = %e, "保存弹窗大小失败");
+    }
 }
 
 impl From<tauri::Error> for Error {

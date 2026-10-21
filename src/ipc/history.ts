@@ -51,3 +51,8 @@ export function clearHistory(before?: number): Promise<number> {
 export function lookupCount(query: string): Promise<number> {
   return invoke<number>("lookup_count", { query });
 }
+
+/** 弹窗里多带了前后句：把扩展后的句子写回已存的语境（高亮区间是 UTF-16 下标） */
+export function extendContext(id: number, sentence: string, hlStart: number, hlEnd: number): Promise<void> {
+  return invoke("extend_context", { id, sentence, hlStart, hlEnd });
+}

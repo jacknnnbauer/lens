@@ -27,6 +27,8 @@ export interface ExportOptions {
   examples: boolean;
   context: boolean;
   sourceDate: boolean;
+  /** 词典名称（标签行、卡片标题、「收录词典」行）；没有该字段时视为显示 */
+  dictNames?: boolean;
 }
 
 export interface ExportCard {
@@ -92,31 +94,42 @@ function contextHtml(input: ExportInput, label: string): string {
   if (!c || !input.options.context) return "";
   const s = c.sentence;
   const quote = `${escapeHtml(s.slice(0, c.hlStart))}<mark>${escapeHtml(s.slice(c.hlStart, c.hlEnd))}</mark>${escapeHtml(s.slice(c.hlEnd))}`;
-  const src = [c.windowTitle, c.app?.replace(/\.exe$/i, "")].filter(Boolean).map((x) => escapeHtml(x as string));
+  // 只写窗口标题，不写 msedge 之类的进程名
+  const src = c.windowTitle ? [escapeHtml(c.windowTitle)] : [];
   const url = c.url && /^https?:/i.test(c.url) ? ` · <a href="${escapeHtml(c.url)}">${escapeHtml(c.url)}</a>` : "";
   const meta = input.options.sourceDate && src.length ? ` · ${src.join(" · ")}${url}` : "";
   return `<section class="context"><div class="label">${tr(label)}${meta}</div><p>“${quote}”</p></section>`;
 }
 
+// 语境句紧跟在词头下面（第二行），词典释义在后
 function cardsLayout(input: ExportInput): string {
+  const names = input.options.dictNames !== false;
   const meta = input.options.sourceDate ? `<span class="meta">${tr("Lens 词镜")} · ${isoDate(input.date)}</span>` : "";
-  const tags = input.cards.map((c) => `<span>${escapeHtml(c.name)}</span>`).join("");
+  const tags = names && input.cards.length ? `<div class="dict-tags">${input.cards.map((c) => `<span>${escapeHtml(c.name)}</span>`).join("")}</div>` : "";
   const cards = input.cards
-    .map((c) => `<article class="card"><header><strong>${escapeHtml(c.name)}</strong>${c.online ? `<span>${tr("在线")}</span>` : ""}</header>${entriesHtml(c, input)}</article>`)
+    .map(
+      (c) =>
+        `<article class="card">${names ? `<header><strong>${escapeHtml(c.name)}</strong>${c.online ? `<span>${tr("在线")}</span>` : ""}</header>` : ""}${entriesHtml(c, input)}</article>`,
+    )
     .join("");
-  return `<div class="wordbox"><h1>${escapeHtml(input.word)}</h1>${meta}</div><div class="dict-tags">${tags}</div>${cards}${contextHtml(input, "语境句")}`;
+  return `<div class="wordbox"><h1>${escapeHtml(input.word)}</h1>${meta}</div>${contextHtml(input, "语境句")}${tags}${cards}`;
 }
 
 function documentLayout(input: ExportInput): string {
   const row = input.options.sourceDate ? `<div class="row"><span>${tr("Lens 词镜 · 多词典释义")}</span><span>${isoDate(input.date)}</span></div>` : "";
-  const dicts = `<div class="dicts">${tr("收录词典：")}${input.cards.map((c) => escapeHtml(c.name)).join(" · ")}</div>`;
+  const names = input.options.dictNames !== false;
+  const dicts = names && input.cards.length ? `<div class="dicts">${tr("收录词典：")}${input.cards.map((c) => escapeHtml(c.name)).join(" · ")}</div>` : "";
   const sections = input.cards
     .map(
       (c, i) =>
-        `<section class="section"><h2><span><span class="no">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(c.name)}</span>${c.online ? `<span class="kind">${tr("在线")}</span>` : ""}</h2>${entriesHtml(c, input)}</section>`,
+        `<section class="section">${
+          names
+            ? `<h2><span><span class="no">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(c.name)}</span>${c.online ? `<span class="kind">${tr("在线")}</span>` : ""}</h2>`
+            : ""
+        }${entriesHtml(c, input)}</section>`,
     )
     .join("");
-  return `<header class="doc-head">${row}<h1>${escapeHtml(input.word)}</h1>${dicts}</header>${sections}${contextHtml(input, "我的语境")}`;
+  return `<header class="doc-head">${row}<h1>${escapeHtml(input.word)}</h1>${dicts}</header>${contextHtml(input, "我的语境")}${sections}`;
 }
 
 function wordInner(input: ExportInput): string {

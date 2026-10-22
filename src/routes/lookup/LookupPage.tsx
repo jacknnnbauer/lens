@@ -69,6 +69,20 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const canExportRef = useRef(false);
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
   const showAtlas = useSettings((s) => s.settings?.layout.showSenseAtlas) ?? false;
+  // 卡片墙里拖动换位：当前结果立即换位，同时改词典库里的先后（下次查词也按这个顺序）
+  const reorderCard = useCallback((key: string, target: string, after: boolean) => {
+    const move = <T,>(list: T[], id: (x: T) => string): T[] => {
+      const from = list.find((x) => id(x) === key);
+      if (!from) return list;
+      const rest = list.filter((x) => id(x) !== key);
+      const at = rest.findIndex((x) => id(x) === target);
+      if (at < 0) return list;
+      rest.splice(after ? at + 1 : at, 0, from);
+      return rest;
+    };
+    useLookup.setState((s) => ({ cards: move(s.cards, (c) => c.id) }));
+    void useDicts.getState().setOrderQuiet(move(useDicts.getState().dicts, (d) => d.id).map((d) => d.id));
+  }, []);
   const wall = useSettings((s) => s.settings?.layout.cardWall) ?? false;
   const wallColumn = useSettings((s) => s.settings?.layout.wallColumn) ?? 380;
   const wallMaxHeight = useSettings((s) => s.settings?.layout.wallMaxHeight) ?? 0;
@@ -312,7 +326,11 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           />
         );
         // 卡片墙：按卡片自身高度铺满多列；否则上下一列
-        return wall ? <CardWall minColumn={wallColumn} items={visible.map((c) => ({ key: c.id, node: cardOf(c) }))} /> : visible.map(cardOf);
+        return wall ? (
+          <CardWall minColumn={wallColumn} items={visible.map((c) => ({ key: c.id, node: cardOf(c) }))} onReorder={reorderCard} />
+        ) : (
+          visible.map(cardOf)
+        );
       })()}
 
       {allMissed && (

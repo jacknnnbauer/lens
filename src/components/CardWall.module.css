@@ -11,6 +11,40 @@
   transition: transform 0.18s ease;
 }
 
+/* 拖动中：跟着指针走、浮在最上面；不做位移动画 */
+.item[data-dragging] {
+  z-index: 5;
+  transition: none;
+  opacity: 0.92;
+  filter: drop-shadow(0 12px 28px color-mix(in srgb, var(--text) 18%, transparent));
+  cursor: grabbing;
+}
+
+/* 放下的位置：目标卡片的上沿或下沿出现一条强调色线 */
+.item[data-drop]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.item[data-drop="before"]::after {
+  top: -9px;
+}
+
+.item[data-drop="after"]::after {
+  bottom: -9px;
+}
+
+:global(html[data-wall-dragging]),
+:global(html[data-wall-dragging]) * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .item {
     transition: none;

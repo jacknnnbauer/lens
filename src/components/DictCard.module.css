@@ -5,6 +5,11 @@
   scroll-margin-top: 16px;
 }
 
+/* 卡片墙里标题栏可以拖动换位 */
+:global([data-wall-key]) .header {
+  cursor: grab;
+}
+
 .header {
   display: flex;
   align-items: center;

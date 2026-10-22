@@ -19,6 +19,8 @@ interface DictsState {
   move: (id: string, dir: -1 | 1) => Promise<void>;
   /** 按新顺序排列（拖动把手）；当前查询随即按新顺序重查 */
   setOrder: (ids: string[]) => Promise<void>;
+  /** 只写回顺序，不重新查词（卡片墙拖动换位：结果已经在界面上换好了） */
+  setOrderQuiet: (ids: string[]) => Promise<void>;
 }
 
 export const useDicts = create<DictsState>((set, get) => ({
@@ -63,6 +65,17 @@ export const useDicts = create<DictsState>((set, get) => ({
       await reorderDicts(ids);
       await get().refresh();
       await useLookup.getState().rerun();
+    } catch (e) {
+      set({ error: String(e) });
+      await get().refresh();
+    }
+  },
+
+  setOrderQuiet: async (ids) => {
+    const byId = new Map(get().dicts.map((d) => [d.id, d]));
+    set({ dicts: ids.flatMap((x) => byId.get(x) ?? []) });
+    try {
+      await reorderDicts(ids);
     } catch (e) {
       set({ error: String(e) });
       await get().refresh();

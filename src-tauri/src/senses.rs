@@ -100,7 +100,9 @@ fn decode_entities(s: &str) -> String {
     while let Some(i) = rest.find('&') {
         out.push_str(&rest[..i]);
         let tail = &rest[i..];
-        let end = tail[..tail.len().min(12)].find(';');
+        // 实体名很短：只在前 12 字节里找分号。按字符找，不能按字节切——
+        // 「&」后面紧跟中文或 ī 这类多字节字符时，切在字符中间会 panic（义项图谱闪退）
+        let end = tail.char_indices().take_while(|(i, _)| *i < 12).find(|(_, c)| *c == ';').map(|(i, _)| i);
         let decoded = end.and_then(|e| {
             let name = &tail[1..e];
             let ch = match name {
@@ -580,6 +582,15 @@ pub fn build(headword: &str, inputs: &[AtlasInput]) -> SenseAtlas {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn entities_next_to_multibyte_text_do_not_panic() {
+        // 「&」后面是中文 / 带调号的拉丁字母：以前按字节切到字符中间会 panic
+        assert_eq!(decode_entities("A&B 兰兰兰兰"), "A&B 兰兰兰兰");
+        assert_eq!(decode_entities("&兰花兰花兰花"), "&兰花兰花兰花");
+        assert_eq!(decode_entities("x &īīīīīī y"), "x &īīīīīī y");
+        assert_eq!(decode_entities("a&nbsp;b &amp; 兰&#x4e2d;"), "a b & 兰中");
+    }
+
     use super::*;
 
     fn input(id: &str, html: &str) -> AtlasInput {

@@ -72,6 +72,22 @@ impl Coca {
     }
 
     /// 查一个词：先按原样，再按词形还原（went → go、generations → generation）。同一词元的不同词性都返回。
+    /// 全部原形（小写），词汇网络找易混词用
+    pub fn lemmas(&self) -> Vec<String> {
+        self.by_lemma.keys().cloned().collect()
+    }
+
+    /// 这个词的近义词（各组拆开、去掉短语）
+    pub fn synonyms_of(&self, word: &str) -> Vec<String> {
+        self.lookup(word)
+            .iter()
+            .flat_map(|e| e.synonyms.iter())
+            .flat_map(|g| g.split(','))
+            .map(|x| x.trim().to_lowercase())
+            .filter(|x| !x.is_empty() && !x.contains(' '))
+            .collect()
+    }
+
     /// 这个词（小写）是不是表里的原形
     pub fn has_lemma(&self, lower: &str) -> bool {
         self.by_lemma.contains_key(lower)

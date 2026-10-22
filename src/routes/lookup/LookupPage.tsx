@@ -1,6 +1,7 @@
 // 查词页 · 简洁单栏（画板 05）：搜索行 → 词典跳转条 → 词典卡片。
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { WordFamily } from "../../components/WordFamily";
 import { ContextSenseCard, type SentenceCtx } from "../../components/ContextSenseCard";
 import { getContext } from "../../ipc/history";
 import { CardWall } from "../../components/CardWall";
@@ -118,6 +119,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
   // 「当前语境」的句子：划词 / 窗口内查词捕获的语境句，或者自己粘贴的一句话（只对当时选的那个词有效）
   const showContextSense = useSettings((s) => s.settings?.layout.showContextSense) ?? true;
+  const showWordFamily = useSettings((s) => s.settings?.layout.showWordFamily) ?? true;
   const contextId = useLookup((s) => s.contextId);
   const [captured, setCaptured] = useState<SentenceCtx | null>(null);
   const [pasted, setPasted] = useState<(SentenceCtx & { query: string }) | null>(null);
@@ -309,6 +311,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           }}
         />
       )}
+
+      {showWordFamily && handle && done && hitCount > 0 && <WordFamily word={headword || handle.normalized || handle.query} onLookup={lookupWord} />}
 
       {showAtlas && done && hitCount >= 2 && <SenseAtlas word={handle?.normalized || handle?.query || headword} cards={cards} onJump={jumpTo} />}
 

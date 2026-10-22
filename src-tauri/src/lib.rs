@@ -23,6 +23,7 @@ mod settings;
 mod themes;
 mod update;
 mod vocab;
+mod word_family;
 mod wordbook_export;
 
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -229,6 +230,7 @@ pub fn run() {
             commands::lookup::sense_atlas,
             commands::lookup::first_entry,
             commands::lookup::context_sense,
+            commands::lookup::word_family,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,

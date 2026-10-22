@@ -680,6 +680,12 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               onChange={(v) => setL({ showContextSense: v })}
             />
             <Toggle
+              label={tr("词汇网络")}
+              hint={tr("查词结果里把派生词、同根词、易混词、近义词画成一张网，点任何一个词就查它（离线）")}
+              checked={l.showWordFamily ?? true}
+              onChange={(v) => setL({ showWordFamily: v })}
+            />
+            <Toggle
               label={tr("义项图谱（实验）")}
               hint={tr("查词结果上方把几部词典的义项对齐，显示共识与差异")}
               checked={l.showSenseAtlas}

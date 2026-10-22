@@ -27,6 +27,8 @@ export interface Layout {
   showJumpBar: boolean;
   /** 查词结果上方的「当前语境」 */
   showContextSense: boolean;
+  /** 查词结果里的「词汇网络」 */
+  showWordFamily: boolean;
   cardsExpanded: "first2" | "all" | "none";
   /** 每次启动都回到简洁单栏 */
   startCompact: boolean;

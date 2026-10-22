@@ -1,0 +1,202 @@
+/* 四组颜色都从主题变量调出来，换主题跟着变 */
+.card {
+  --k-derived: var(--accent);
+  --k-root: color-mix(in srgb, var(--accent) 45%, var(--text));
+  --k-confusable: var(--warn);
+  --k-synonym: color-mix(in srgb, var(--sub) 80%, var(--accent));
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.title small {
+  letter-spacing: 0;
+  color: var(--sub);
+}
+
+.root {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  /* 淡淡的点阵底，像画布 */
+  background-color: var(--bg);
+  background-image: radial-gradient(color-mix(in srgb, var(--line) 80%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.canvas svg {
+  display: block;
+}
+
+.note {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+/* 连线跟着词飞出去后再淡入（SVG 线段端点不能用 CSS 过渡） */
+.edge {
+  stroke-width: 1.2;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+
+.edge[data-burst] {
+  opacity: 0.35;
+}
+
+.edge[data-on] {
+  stroke-width: 2;
+  opacity: 0.9;
+}
+
+.edge[data-kind="derived"] {
+  stroke: var(--k-derived);
+}
+.edge[data-kind="root"] {
+  stroke: var(--k-root);
+}
+.edge[data-kind="confusable"] {
+  stroke: var(--k-confusable);
+}
+.edge[data-kind="synonym"] {
+  stroke: var(--k-synonym);
+}
+
+.node {
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.4s;
+}
+
+.node a {
+  cursor: pointer;
+  outline: none;
+}
+
+.node rect {
+  fill: var(--panel);
+  stroke-width: 1.2;
+  transition: fill 0.12s;
+}
+
+.node text {
+  font-family: var(--font-gloss);
+  font-size: 13px;
+  fill: var(--text);
+}
+
+.node[data-kind="derived"] rect {
+  stroke: var(--k-derived);
+}
+.node[data-kind="root"] rect {
+  stroke: var(--k-root);
+}
+.node[data-kind="confusable"] rect {
+  stroke: var(--k-confusable);
+}
+.node[data-kind="synonym"] rect {
+  stroke: var(--k-synonym);
+  stroke-dasharray: 3 2;
+}
+
+.node a:hover rect,
+.node a:focus-visible rect {
+  fill: var(--hl);
+}
+
+.center rect {
+  fill: var(--accent);
+}
+
+.center text {
+  font-family: var(--font-gloss);
+  font-size: 18px;
+  font-weight: 600;
+  fill: var(--accent-ink);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legend button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sub);
+  cursor: pointer;
+}
+
+.legend button[aria-pressed="false"] {
+  opacity: 0.45;
+}
+
+.legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend [data-kind="derived"] i {
+  background: var(--k-derived);
+}
+.legend [data-kind="root"] i {
+  background: var(--k-root);
+}
+.legend [data-kind="confusable"] i {
+  background: var(--k-confusable);
+}
+.legend [data-kind="synonym"] i {
+  background: var(--k-synonym);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node,
+  .edge {
+    transition: none;
+  }
+}

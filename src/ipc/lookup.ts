@@ -98,3 +98,16 @@ export function contextSense(input: {
 }): Promise<ContextSenseResult> {
   return invoke<ContextSenseResult>("context_sense", { input });
 }
+
+export interface WordFamily {
+  word: string;
+  stem: string;
+  root: string | null;
+  /** kind：derived 派生词 | root 同根词 | confusable 易混词 | synonym 近义词 */
+  groups: Array<{ kind: string; words: string[] }>;
+}
+
+/** 词汇网络（离线）：派生词、同根词、易混词、近义词 */
+export function wordFamily(query: string): Promise<WordFamily> {
+  return invoke<WordFamily>("word_family", { query });
+}

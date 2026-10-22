@@ -54,6 +54,8 @@ pub struct Layout {
     pub show_jump_bar: bool,
     /// 有语境句时，查词结果上方显示「当前语境」：这句话里是哪个意思、依据
     pub show_context_sense: bool,
+    /// 查词结果里显示「词汇网络」：派生词、同根词、易混词、近义词
+    pub show_word_family: bool,
     /// 默认展开哪些卡片：first2 | all | none（卡片已改为始终展开，保留字段以兼容旧设置）
     pub cards_expanded: String,
     /// 每次启动都回到简洁单栏
@@ -94,6 +96,7 @@ impl Default for Layout {
             show_status_bar: false,
             show_jump_bar: true,
             show_context_sense: true,
+            show_word_family: true,
             cards_expanded: "first2".into(),
             start_compact: true,
             nav_width: 220,

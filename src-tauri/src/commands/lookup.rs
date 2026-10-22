@@ -88,6 +88,22 @@ pub async fn context_sense(state: State<'_, AppState>, mut input: crate::context
         .map_err(|e| crate::error::Error::Other(e.to_string()))
 }
 
+/// 词汇网络（离线）：派生词、同根词、易混词、近义词。只查当前配置组里的本地词典词头。
+#[tauri::command]
+pub async fn word_family(state: State<'_, AppState>, query: String) -> Result<crate::word_family::WordFamily> {
+    let word = crate::lemma::base_form(&state, &query);
+    let dicts = locals(profile_sources(&state)?);
+    let coca = state.coca.read().ok().and_then(|c| c.clone());
+    tauri::async_runtime::spawn_blocking(move || {
+        let lemmas = coca.as_ref().map(|c| c.lemmas()).unwrap_or_default();
+        let synonyms = coca.as_ref().map(|c| c.synonyms_of(&word)).unwrap_or_default();
+        let search = |p: &str, limit: usize| query::prefix_suggestions(&dicts, p, limit).into_iter().map(|w| w.to_lowercase()).collect::<Vec<_>>();
+        crate::word_family::build(&word, &search, &lemmas, &synonyms)
+    })
+    .await
+    .map_err(|e| crate::error::Error::Other(e.to_string()))
+}
+
 /// 义项图谱（实验）：把各词典命中的词条对齐成义项组。前端在查词完成后把命中卡片的词条 HTML 传进来。
 #[tauri::command]
 pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) -> Result<crate::senses::SenseAtlas> {

@@ -171,8 +171,7 @@ export const en: Record<string, string> = {
   "配置组：{name}": "Profile: {name}",
   "划词：{how}": "Capture: {how}",
   "未启用": "off",
-  "Ctrl+K 搜索 Ctrl+S 收藏 Tab 切典 Ctrl+B 生词本 Ctrl+H 历史 Ctrl+1/2/3 配置组":
-    "Ctrl+K search  Ctrl+S save  Tab next dictionary  Ctrl+B wordbook  Ctrl+H history  Ctrl+1/2/3 profiles",
+  "Ctrl+K 搜索 Ctrl+S 收藏 Ctrl+B 生词本 Ctrl+H 历史 Ctrl+1/2/3 配置组": "Ctrl+K search  Ctrl+S save  Ctrl+B wordbook  Ctrl+H history  Ctrl+1/2/3 profiles",
 
   // ── 右侧查询详情 ──
   "查询详情": "Lookup details",
@@ -851,4 +850,11 @@ export const en: Record<string, string> = {
   "手动（点 ☆ 或 Ctrl+S）": "Manually (☆ or Ctrl+S)",
   "自动（按 Enter 查到就收藏）": "Automatically (whenever a lookup with Enter finds the word)",
   "自动：查到释义后收进生词本（划词时连同当时的语境句）；已在生词本里的词只追加语境。主窗口里只有确定的查询才算（按 Enter、点候选、点链接、窗口内划词），打字过程中的联想不算。": "Automatic: found words go into the wordbook (captured ones with their context sentence); saved words just get the new context. In the main window only definite lookups count (Enter, picking a suggestion, clicking a link, in-app lookup), not suggestions while typing.",
+  "真实例句（vocabulary.com）": "Real examples (vocabulary.com)",
+  "各词典命中情况": "Hits per dictionary",
+  "右侧栏内容": "Right panel",
+  "勾选要显示的内容，拖动左侧把手（或 Alt+↑ / Alt+↓）调整先后。加进来的词典只显示当前配置组里查到的词条。": "Tick what to show and drag the handles (or Alt+↑ / Alt+↓) to reorder. Added dictionaries show their entry only when they are in the current profile.",
+  "（已移除的词典）": "(removed dictionary)",
+  "添加词典": "Add dictionary",
+  "选择一本词典…": "Choose a dictionary…",
 };

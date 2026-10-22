@@ -27,7 +27,7 @@ export function StatusBar({ capture }: { capture: CaptureStatus | null }) {
           {tr("划词：{how}", { how: [capture.hotkeyRegistered && capture.hotkey, capture.doubleCopy && "Ctrl+C+C"].filter(Boolean).join(" / ") || tr("未启用") })}
         </span>
       )}
-      <span className={styles.keys}>{tr("Ctrl+K 搜索 Ctrl+S 收藏 Tab 切典 Ctrl+B 生词本 Ctrl+H 历史 Ctrl+1/2/3 配置组")}</span>
+      <span className={styles.keys}>{tr("Ctrl+K 搜索 Ctrl+S 收藏 Ctrl+B 生词本 Ctrl+H 历史 Ctrl+1/2/3 配置组")}</span>
     </footer>
   );
 }

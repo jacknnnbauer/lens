@@ -297,7 +297,7 @@ export function MainWindow() {
               setCtxW(null);
             }}
           />
-          <ContextPanel />
+          <ContextPanel onLookup={lookupWord} />
         </div>
       )}
 

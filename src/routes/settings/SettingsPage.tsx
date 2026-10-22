@@ -2,6 +2,7 @@
 // 完整的主题库（11 套内置 + 自定义）在单独的页面（routes/themes）。
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { PanelSettings } from "./PanelSettings";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCaptureStatus } from "../../components/HotkeyNotice";
@@ -598,6 +599,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
             <Toggle label={tr("启动时回到简洁单栏")} hint={tr("不管上次用的是哪种布局")} checked={l.startCompact} onChange={(v) => setL({ startCompact: v })} />
           </div>
+          <PanelSettings />
         </section>
 
         <section id="set-immersive" className={styles.section} aria-labelledby="h-immersive">

@@ -76,3 +76,16 @@
   margin: 0;
   color: var(--faint);
 }
+
+/* 右侧栏里的词典释义：窄栏里字号小一点，长词条限高滚动 */
+.dict {
+  max-height: 420px;
+  overflow-y: auto;
+  /* 词条在 Shadow DOM 里，字号走 --gloss-size */
+  --gloss-size: 14px;
+}
+
+.note {
+  margin: 0;
+  color: var(--faint);
+}

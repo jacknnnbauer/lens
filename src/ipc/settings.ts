@@ -31,6 +31,13 @@ export interface Layout {
   /** 侧栏宽度（px） */
   navWidth: number;
   contextWidth: number;
+  /** 右侧栏内容与顺序：coca | vocab | ai | query | dicts | dict:<词典 id> */
+  panel: PanelItem[];
+}
+
+export interface PanelItem {
+  id: string;
+  show: boolean;
 }
 
 export interface Immersive {

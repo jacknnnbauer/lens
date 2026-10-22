@@ -37,7 +37,7 @@ function openAiSettings() {
   }, 50);
 }
 
-function CocaSection({ word }: { word: string }) {
+export function CocaSection({ word }: { word: string }) {
   const [entries, setEntries] = useState<CocaEntry[] | null>(null);
   const [loaded, setLoaded] = useState<boolean | null>(null);
 
@@ -118,7 +118,7 @@ function CocaSection({ word }: { word: string }) {
   );
 }
 
-function AiSection({ word, brief }: { word: string; brief: string | null }) {
+export function AiSection({ word, brief }: { word: string; brief: string | null }) {
   const auto = useSettings((s) => s.settings?.ai?.auto ?? false);
   const provider = useSettings((s) => s.settings?.ai?.provider ?? "claude");
   const model = useSettings((s) => (provider === "deepseek" ? s.settings?.ai?.deepseekModel : s.settings?.ai?.model));
@@ -204,12 +204,6 @@ function AiSection({ word, brief }: { word: string; brief: string | null }) {
   );
 }
 
-export function WordInsights({ word, brief }: { word: string; brief: string | null }) {
-  return (
-    <>
-      <CocaSection word={word} />
-      <VocabExamples word={word} variant="panel" />
-      <AiSection word={word} brief={brief} />
-    </>
-  );
+export function VocabSection({ word }: { word: string }) {
+  return <VocabExamples word={word} variant="panel" />;
 }

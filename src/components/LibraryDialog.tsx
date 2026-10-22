@@ -19,6 +19,7 @@ interface Props {
 
 export function LibraryDialog({ open, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const downOnBackdrop = useRef(false);
   const { dicts, imports, error, importPaths, remove, move, setOrder } = useDicts();
   const drag = useDragReorder(
     dicts.map((d) => d.id),
@@ -48,7 +49,24 @@ export function LibraryDialog({ open, onClose }: Props) {
   const failed = Object.values(imports).filter((p) => p.phase === "error");
 
   return (
-    <dialog ref={dialog} className={styles.dialog} onClose={onClose} aria-labelledby="library-title">
+    <dialog
+      ref={dialog}
+      className={styles.dialog}
+      onClose={onClose}
+      aria-labelledby="library-title"
+      // 点框外（遮罩）关闭：按下与松开都落在 <dialog> 本身才算，框内拖选文字拖到框外不会误关
+      onPointerDown={(e) => {
+        downOnBackdrop.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (downOnBackdrop.current && e.target === e.currentTarget) {
+          const r = e.currentTarget.getBoundingClientRect();
+          const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+          if (!inside) onClose();
+        }
+        downOnBackdrop.current = false;
+      }}
+    >
       <header className={styles.head}>
         <h2 id="library-title" className={styles.title}>
           {tr("词典库")}

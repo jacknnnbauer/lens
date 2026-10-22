@@ -59,6 +59,21 @@ pub struct Layout {
     /// 左侧导航、右侧栏宽度（px，拖动侧栏边缘调整）
     pub nav_width: u32,
     pub context_width: u32,
+    /// 右侧栏显示哪些内容、按什么顺序：coca | vocab | ai | query | dicts | dict:<词典 id>
+    pub panel: Vec<PanelItem>,
+}
+
+/// 右侧栏的一项
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PanelItem {
+    pub id: String,
+    pub show: bool,
+}
+
+/// 右侧栏默认内容（新装时的顺序）
+pub fn default_panel() -> Vec<PanelItem> {
+    ["coca", "vocab", "ai", "query", "dicts"].iter().map(|id| PanelItem { id: (*id).to_string(), show: true }).collect()
 }
 
 impl Default for Layout {
@@ -74,6 +89,7 @@ impl Default for Layout {
             start_compact: true,
             nav_width: 220,
             context_width: 280,
+            panel: default_panel(),
         }
     }
 }

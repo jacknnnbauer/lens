@@ -162,8 +162,12 @@ pub fn run() {
             // 以前按屈折形式收藏的词并到原形下（后台做，不拖慢启动）
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                if let Err(e) = lemma::normalize_saved(&handle.state::<AppState>()) {
+                let state = handle.state::<AppState>();
+                if let Err(e) = lemma::normalize_saved(&state) {
                     tracing::warn!(error = %e, "整理生词本原形失败");
+                }
+                if let Err(e) = lemma::clear_bad_briefs(&state) {
+                    tracing::warn!(error = %e, "清理生词本简释失败");
                 }
             });
 

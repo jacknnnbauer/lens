@@ -58,6 +58,32 @@ pub fn resolve(word: &str, is_lemma: &dyn Fn(&str) -> bool, headwords: &dyn Fn(&
     word.to_string()
 }
 
+/// 简释像不像释义：字母和汉字至少占四成（以前会把 COCA 词频表的一串数字存成简释）
+pub fn looks_like_gloss(s: &str) -> bool {
+    let chars: Vec<char> = s.chars().filter(|c| !c.is_whitespace()).collect();
+    if chars.is_empty() {
+        return false;
+    }
+    let letters = chars.iter().filter(|c| c.is_alphabetic()).count();
+    letters * 5 >= chars.len() * 2
+}
+
+/// 启动时清掉不像释义的简释（下次收藏、或在列表里手动补上）。返回清掉的条数。
+pub fn clear_bad_briefs(state: &AppState) -> crate::error::Result<usize> {
+    let rows = state.db.with_conn(crate::db::words::all_briefs)?;
+    let bad: Vec<i64> = rows.into_iter().filter(|(_, b)| !looks_like_gloss(b)).map(|(id, _)| id).collect();
+    for id in &bad {
+        state.db.with_conn(|c| {
+            c.execute("UPDATE word SET brief = NULL WHERE id = ?1", rusqlite::params![id])?;
+            Ok(())
+        })?;
+    }
+    if !bad.is_empty() {
+        tracing::info!(n = bad.len(), "生词本：清掉不像释义的简释");
+    }
+    Ok(bad.len())
+}
+
 /// 启动时整理：以前按屈折形式收藏的词（convulsed、recaptured）并到原形下，语境句的 lemma 一并改正。返回合并 / 改名的词数。
 pub fn normalize_saved(state: &AppState) -> crate::error::Result<usize> {
     let words = state.db.with_conn(crate::db::words::all_lemmas)?;
@@ -81,6 +107,14 @@ pub fn normalize_saved(state: &AppState) -> crate::error::Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spots_number_soup_briefs() {
+        assert!(!looks_like_gloss("v11677127815067827115425n15725733154211193147 28"));
+        assert!(looks_like_gloss("to hit hard"));
+        assert!(looks_like_gloss("v. 猛击；重击"));
+        assert!(looks_like_gloss("1. 一代人 (pl. 2)"));
+    }
 
     #[test]
     fn prefers_irregulars_coca_then_redirects() {

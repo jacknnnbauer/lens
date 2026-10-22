@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Card } from "./lookup";
 import { briefOf } from "./save";
 
-const card = (summary: string, status: Card["status"] = "hit"): Card => ({
+const card = (summary: string, status: Card["status"] = "hit", name = "D"): Card => ({
   id: "d",
-  name: "D",
+  name,
   source: "local",
   status,
   error: null,
@@ -22,6 +22,12 @@ describe("briefOf", () => {
   it("uses the first hit and truncates", () => {
     const long = "a".repeat(120) + "…";
     expect(briefOf([card("miss", "miss"), card(long)], "w")).toBe(`${"a".repeat(80)}…`);
+  });
+  it("skips frequency / collocation dictionaries and number soup", () => {
+    const coca = card("v 11677 1278150678 27115425 n 1572573315421119314728", "hit", "COCA Frequency 60000");
+    expect(briefOf([coca, card("whack · v. 猛击")], "whack")).toBe("v. 猛击");
+    expect(briefOf([card("v 11677 1278150678 27115425"), card("to hit hard")], "whack")).toBe("to hit hard");
+    expect(briefOf([coca], "whack")).toBeNull();
   });
   it("returns null without hits", () => {
     expect(briefOf([card("x", "miss")], "w")).toBeNull();

@@ -115,6 +115,13 @@ pub fn merge_into(conn: &Connection, from_id: i64, lemma: &str) -> Result<i64> {
     Ok(id)
 }
 
+/// 有简释的词（id, brief），启动时清理用
+pub fn all_briefs(conn: &Connection) -> Result<Vec<(i64, String)>> {
+    let mut st = conn.prepare("SELECT id, brief FROM word WHERE brief IS NOT NULL AND brief <> ''")?;
+    let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+    Ok(rows.collect::<std::result::Result<_, _>>()?)
+}
+
 /// 全部收藏词（id, lemma），启动时整理原形用
 pub fn all_lemmas(conn: &Connection) -> Result<Vec<(i64, String)>> {
     let mut st = conn.prepare("SELECT id, lemma FROM word")?;

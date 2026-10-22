@@ -818,7 +818,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             <caption className="sr-only">{tr("应用内快捷键")}</caption>
             <tbody>
               {SHORTCUTS.map(([k, what]) => (
-                <tr key={k}>
+                <tr key={`${k}·${what}`}>
                   <th scope="row">
                     <kbd>{k}</kbd>
                   </th>

@@ -357,6 +357,9 @@ input[type="range"] {
   width: 34px;
   height: 20px;
   margin: 0;
+  /* 不吃输入框的通用边框和内边距，否则圆钮往右下偏 1px */
+  padding: 0;
+  border: 0;
   border-radius: 10px;
   background: var(--line);
   cursor: pointer;

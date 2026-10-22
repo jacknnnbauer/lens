@@ -77,6 +77,17 @@ pub async fn suggest(state: State<'_, AppState>, prefix: String, limit: usize) -
     Ok(query::prefix_suggestions(&dicts, &prefix, limit.clamp(1, 50)))
 }
 
+/// 语境释义（本地）：这句话里的这个词是哪个意思、依据是什么。前端把命中词典的词条 HTML 传进来（与义项图谱相同）。
+#[tauri::command]
+pub async fn context_sense(state: State<'_, AppState>, mut input: crate::context_sense::ContextInput) -> Result<crate::context_sense::ContextSense> {
+    // 有的词典词头就是查询原文（addressed）：先还原成原形，词性判断要靠「是不是变形」
+    input.word = crate::lemma::base_form(&state, &input.word);
+    let coca = state.coca.read().ok().and_then(|c| c.clone());
+    tauri::async_runtime::spawn_blocking(move || crate::context_sense::analyze(&input, coca.as_deref()))
+        .await
+        .map_err(|e| crate::error::Error::Other(e.to_string()))
+}
+
 /// 义项图谱（实验）：把各词典命中的词条对齐成义项组。前端在查词完成后把命中卡片的词条 HTML 传进来。
 #[tauri::command]
 pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) -> Result<crate::senses::SenseAtlas> {
@@ -86,7 +97,7 @@ pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) ->
 }
 
 /// 搭配、词频类词典（COCA 搭配之类）：背面要的是释义，自动选择时排到最后
-fn is_reference_dict(name: &str) -> bool {
+pub(crate) fn is_reference_dict(name: &str) -> bool {
     let n = name.to_lowercase();
     ["coca", "colloc", "搭配", "词频", "frequen", "同义", "thesaurus", "词根"].iter().any(|k| n.contains(k))
 }

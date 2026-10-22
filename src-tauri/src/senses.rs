@@ -386,12 +386,12 @@ fn is_cjk(c: char) -> bool {
 // —— 相似度 ——
 
 #[derive(Debug, Default)]
-struct Tokens {
-    cjk: BTreeSet<String>,
-    en: BTreeSet<String>,
+pub(crate) struct Tokens {
+    pub(crate) cjk: BTreeSet<String>,
+    pub(crate) en: BTreeSet<String>,
 }
 
-fn stem(w: &str) -> String {
+pub(crate) fn stem(w: &str) -> String {
     for suf in ["ing", "ed", "es", "ly", "s"] {
         if let Some(b) = w.strip_suffix(suf) {
             if b.chars().count() >= 4 {
@@ -402,7 +402,7 @@ fn stem(w: &str) -> String {
     w.to_string()
 }
 
-fn tokens(text: &str, headword: &str) -> Tokens {
+pub(crate) fn tokens(text: &str, headword: &str) -> Tokens {
     let mut t = Tokens::default();
     let head = headword.to_lowercase();
     let mut word = String::new();

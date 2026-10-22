@@ -172,6 +172,28 @@ pub fn clear(conn: &Connection, before: Option<i64>) -> Result<usize> {
 }
 
 /// 某个词最近一次捕获的语境句。
+/// 按 id 取一条语境句（主窗口查词页的「当前语境」用）
+pub fn context_by_id(conn: &Connection, id: i64) -> Result<Option<ContextRow>> {
+    Ok(conn
+        .query_row(
+            "SELECT id, sentence, hl_start, hl_end, app, window_title, url, created_at FROM context WHERE id = ?1",
+            params![id],
+            |r| {
+                Ok(ContextRow {
+                    id: r.get(0)?,
+                    sentence: r.get(1)?,
+                    hl_start: r.get(2)?,
+                    hl_end: r.get(3)?,
+                    app: r.get(4)?,
+                    window_title: r.get(5)?,
+                    url: r.get(6)?,
+                    captured_at: r.get(7)?,
+                })
+            },
+        )
+        .optional()?)
+}
+
 pub fn latest_context(conn: &Connection, lemma: &str) -> Result<Option<ContextRow>> {
     Ok(conn
         .query_row(

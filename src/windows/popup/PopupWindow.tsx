@@ -4,6 +4,7 @@
 // 失焦 300ms 后自动隐藏（钉住时除外）。
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ContextSenseCard, type SentenceCtx } from "../../components/ContextSenseCard";
 import { useInAppLookup } from "../../components/inAppLookup";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ContextSentence, extend } from "../../components/ContextSentence";
@@ -22,6 +23,11 @@ import styles from "./PopupWindow.module.css";
 import { tr } from "../../i18n";
 
 const BLUR_HIDE_MS = 300;
+
+/** 扩展后的语境句（多带了前后句）→ 「当前语境」要的格式 */
+function sentenceOf(e: { text: string; hlStart: number; hlEnd: number }): SentenceCtx {
+  return { sentence: e.text, hlStart: e.hlStart, hlEnd: e.hlEnd };
+}
 
 export function PopupWindow() {
   useInAppLookup(null);
@@ -110,6 +116,8 @@ export function PopupWindow() {
   }, [capture, extra]);
   const active = hits.find((c) => c.id === tab) ?? hits[0];
   const ctx = capture?.sentence ?? null;
+  const showContextSense = useSettings((s) => s.settings?.layout.showContextSense) ?? true;
+  const [pasted, setPasted] = useState<(SentenceCtx & { query: string }) | null>(null);
 
   // Tab / Shift+Tab：滚到下一本 / 上一本词典的卡片（复制等操作针对这本）
   const cycleTab = (dir: 1 | -1) => {
@@ -216,6 +224,19 @@ export function PopupWindow() {
 
       {/* 与简洁单栏一样：每本词典一张卡片，依次排列，不折叠 */}
       <div className={styles.body}>
+        {/* 当前语境：划词时带着句子，直接说明这个词在句中是哪个意思 */}
+        {showContextSense && hits.length > 0 && handle && (
+          <ContextSenseCard
+            word={hits[0]?.entries[0]?.headword || handle.normalized || handle.query}
+            cards={cards}
+            ctx={pasted && pasted.query === handle.query ? pasted : ctx && captureMatches ? sentenceOf(extend(ctx, extra.before, extra.after)) : null}
+            onPick={(w, c) => {
+              setPasted({ ...c, query: w });
+              lookupWord(w);
+            }}
+            hideSentence={!(pasted && pasted.query === handle.query)}
+          />
+        )}
         {hits.length > 0 ? (
           hits.map((c) => (
             <article key={c.id} id={`pcard-${c.id}`} className={styles.card} data-active={(c.id === active?.id && hits.length > 1) || undefined}>

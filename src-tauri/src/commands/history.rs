@@ -73,3 +73,8 @@ pub async fn extend_context(state: State<'_, AppState>, id: i64, sentence: Strin
     }
     state.db.with_conn(|c| history::set_context_sentence(c, id, &sentence, hl_start, hl_end))
 }
+
+#[tauri::command]
+pub async fn get_context(state: State<'_, AppState>, id: i64) -> Result<Option<history::ContextRow>> {
+    state.db.with_conn(|c| history::context_by_id(c, id))
+}

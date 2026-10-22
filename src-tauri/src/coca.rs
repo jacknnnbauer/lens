@@ -41,7 +41,7 @@ pub struct Coca {
 }
 
 impl Coca {
-    fn from_entries(entries: Vec<CocaEntry>) -> Result<Self> {
+    pub(crate) fn from_entries(entries: Vec<CocaEntry>) -> Result<Self> {
         if entries.len() < MIN_ENTRIES {
             return Err(Error::Other(crate::tf!(
                 "只有 {} 个词条，不像完整的 COCA 词频表",

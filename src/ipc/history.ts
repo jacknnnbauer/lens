@@ -58,3 +58,7 @@ export function lookupCount(query: string): Promise<number> {
 export function extendContext(id: number, sentence: string, hlStart: number, hlEnd: number): Promise<void> {
   return invoke("extend_context", { id, sentence, hlStart, hlEnd });
 }
+
+export function getContext(id: number): Promise<ContextRow | null> {
+  return invoke<ContextRow | null>("get_context", { id });
+}

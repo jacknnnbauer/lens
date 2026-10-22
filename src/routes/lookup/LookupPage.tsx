@@ -1,6 +1,8 @@
 // 查词页 · 简洁单栏（画板 05）：搜索行 → 词典跳转条 → 词典卡片。
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { ContextSenseCard, type SentenceCtx } from "../../components/ContextSenseCard";
+import { getContext } from "../../ipc/history";
 import { CardWall } from "../../components/CardWall";
 import { DictCard } from "../../components/DictCard";
 import { ExportDialog } from "../../components/ExportDialog";
@@ -99,6 +101,25 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
   // 历史只记明确发起的查询（Enter、选候选、点词条链接、划词），打字过程中的 n / nu / nua 不记
   const anyHit = cards.some((c) => c.status === "hit");
+
+  // 「当前语境」的句子：划词 / 窗口内查词捕获的语境句，或者自己粘贴的一句话（只对当时选的那个词有效）
+  const showContextSense = useSettings((s) => s.settings?.layout.showContextSense) ?? true;
+  const contextId = useLookup((s) => s.contextId);
+  const [captured, setCaptured] = useState<SentenceCtx | null>(null);
+  const [pasted, setPasted] = useState<(SentenceCtx & { query: string }) | null>(null);
+  useEffect(() => {
+    setCaptured(null);
+    if (contextId == null) return;
+    let alive = true;
+    getContext(contextId).then(
+      (c) => alive && setCaptured(c && { sentence: c.sentence, hlStart: c.hlStart, hlEnd: c.hlEnd }),
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [contextId]);
+  const sentenceCtx = pasted && handle && pasted.query === handle.query ? pasted : captured;
 
   // 在查词页上不必先按 Ctrl+K：焦点不在输入框时，直接打字会落进搜索框（替换掉上一个词），Enter 回到搜索框并全选
   useEffect(() => {
@@ -261,6 +282,18 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         <p role="alert" className={styles.error}>
           {error}
         </p>
+      )}
+
+      {showContextSense && handle && hitCount > 0 && (
+        <ContextSenseCard
+          word={headword || handle.normalized || handle.query}
+          cards={cards}
+          ctx={sentenceCtx}
+          onPick={(w, c) => {
+            setPasted({ ...c, query: w });
+            lookupWord(w);
+          }}
+        />
       )}
 
       {showAtlas && done && hitCount >= 2 && <SenseAtlas word={handle?.normalized || handle?.query || headword} cards={cards} onJump={jumpTo} />}

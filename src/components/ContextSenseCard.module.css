@@ -1,0 +1,157 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 20px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+
+.badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--raised);
+  font-size: 11px;
+  color: var(--sub);
+}
+
+.badge[data-sure] {
+  background: var(--hl);
+  color: var(--text);
+}
+
+.head .link {
+  margin-left: auto;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.entry {
+  display: flex;
+}
+
+.sentence {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.sentence mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--hl);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sense {
+  display: flex;
+  gap: 10px;
+  margin: 2px 0 0;
+  align-items: baseline;
+}
+
+.k {
+  flex: none;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.v {
+  font-family: var(--font-gloss);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.reasons {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.reasons[data-muted] {
+  color: var(--sub);
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.paste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paste textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-gloss);
+  font-size: 15px;
+  resize: vertical;
+}
+
+.words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.words button {
+  padding: 2px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  font-family: var(--font-gloss);
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.words button:hover {
+  border-color: var(--accent);
+}

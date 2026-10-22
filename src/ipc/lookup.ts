@@ -68,3 +68,33 @@ export interface FirstEntry {
 export function firstEntry(query: string): Promise<FirstEntry | null> {
   return invoke<FirstEntry | null>("first_entry", { query });
 }
+
+export interface SenseCandidate {
+  label: string;
+  pos: string | null;
+  dicts: string[];
+  firstDict: string;
+  senseNo: number;
+  score: number;
+}
+
+export interface ContextSenseResult {
+  surface: string;
+  pos: string | null;
+  best: SenseCandidate | null;
+  others: SenseCandidate[];
+  reasons: string[];
+  ruledOut: string[];
+  confident: boolean;
+}
+
+/** 语境释义（本地）：这句话里的这个词是哪个意思、依据（UTF-16 高亮区间） */
+export function contextSense(input: {
+  word: string;
+  sentence: string;
+  hlStart: number;
+  hlEnd: number;
+  dicts: Array<{ id: string; name: string; entries: string[] }>;
+}): Promise<ContextSenseResult> {
+  return invoke<ContextSenseResult>("context_sense", { input });
+}

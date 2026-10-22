@@ -6,6 +6,7 @@ mod capture;
 mod clipboard;
 mod coca;
 mod commands;
+mod context_sense;
 mod db;
 mod dict;
 mod error;
@@ -227,6 +228,7 @@ pub fn run() {
             commands::lookup::lookup,
             commands::lookup::sense_atlas,
             commands::lookup::first_entry,
+            commands::lookup::context_sense,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,
@@ -242,6 +244,7 @@ pub fn run() {
             commands::history::clear_history,
             commands::history::lookup_count,
             commands::history::extend_context,
+            commands::history::get_context,
             commands::words::save_word,
             commands::words::word_id,
             commands::words::list_words,

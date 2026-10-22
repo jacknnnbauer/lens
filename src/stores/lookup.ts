@@ -53,6 +53,8 @@ export interface Card {
 
 interface LookupState {
   handle: LookupHandle | null;
+  /** 本次查询带的语境句 id（划词 / 窗口内查词）；手动输入的查询为 null */
+  contextId: number | null;
   cards: Card[];
   done: boolean;
   suggestions: string[];
@@ -117,6 +119,7 @@ export const useLookup = create<LookupState>((set, get) => ({
   error: null,
   recent: [],
   committed: null,
+  contextId: null,
 
   commit: () => {
     const h = get().handle;
@@ -148,6 +151,7 @@ export const useLookup = create<LookupState>((set, get) => ({
     const seq = ++searchSeq;
     if (opts.commit) set({ committed: { query: query.trim(), seq: ++commitSeq } });
     currentContextId = opts.contextId ?? null;
+    set({ contextId: currentContextId });
     try {
       const handle = await ipcLookup(query);
       if (seq !== searchSeq) {

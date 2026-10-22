@@ -25,6 +25,8 @@ export interface Layout {
   showContext: boolean;
   showStatusBar: boolean;
   showJumpBar: boolean;
+  /** 查词结果上方的「当前语境」 */
+  showContextSense: boolean;
   cardsExpanded: "first2" | "all" | "none";
   /** 每次启动都回到简洁单栏 */
   startCompact: boolean;

@@ -593,6 +593,12 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               onChange={(v) => setL({ showJumpBar: v })}
             />
             <Toggle
+              label={tr("当前语境")}
+              hint={tr("有语境句时（划词、窗口内查词，或自己粘贴一句话），结果上方说明这个词在句中是哪个意思、依据是什么")}
+              checked={l.showContextSense ?? true}
+              onChange={(v) => setL({ showContextSense: v })}
+            />
+            <Toggle
               label={tr("义项图谱（实验）")}
               hint={tr("查词结果上方把几部词典的义项对齐，显示共识与差异")}
               checked={l.showSenseAtlas}

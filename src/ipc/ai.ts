@@ -55,3 +55,23 @@ export function expandCollocate(lemma: string, c: string): string {
   if (s.endsWith("•")) return `${s.slice(0, -1).trim()} ${lemma}`;
   return s;
 }
+
+export interface ModelUsage {
+  model: string;
+  calls: number;
+  input: number;
+  cached: number;
+  output: number;
+  costUsd: number;
+}
+
+export interface UsageSummary {
+  models: ModelUsage[];
+  total: ModelUsage;
+  month: ModelUsage;
+  since: number | null;
+}
+
+/** monthStart：本月 1 日 0 点（本地时间，毫秒） */
+export const aiUsage = (monthStart: number) => invoke<UsageSummary>("ai_usage", { monthStart });
+export const aiUsageClear = () => invoke<void>("ai_usage_clear");

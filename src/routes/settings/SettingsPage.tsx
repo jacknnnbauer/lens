@@ -4,10 +4,10 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { PanelSettings } from "./PanelSettings";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCaptureStatus } from "../../components/HotkeyNotice";
 import { htmlToMarkdown, sourceLine } from "../../copy/convert";
-import { aiKeyStatus, aiSetKey, cocaImport, cocaStatus, type CocaStatus } from "../../ipc/ai";
+import { aiKeyStatus, aiSetKey, aiUsage, aiUsageClear, cocaImport, cocaStatus, type CocaStatus, type ModelUsage, type UsageSummary } from "../../ipc/ai";
 import { appPaths, checkUpdate, type AiPrefs, type AppPaths, type UpdateInfo, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
 import { exportStyleChoices, PAPER_CHOICES } from "../../components/ExportStyleOptions";
@@ -223,8 +223,10 @@ function AiSettings() {
             label={tr("模型")}
             value={ai.model}
             options={[
-              ["claude-opus-4-8", "Claude Opus 4.8（默认，质量最好）"],
-              ["claude-sonnet-5", "Claude Sonnet 5（更便宜）"],
+              ["claude-opus-4-8", "Claude Opus 4.8（默认）"],
+              ["claude-opus-5-5", "Claude Opus 5.5（最新，比 4.8 便宜）"],
+              ["claude-sonnet-5-5", "Claude Sonnet 5.5（更便宜）"],
+              ["claude-sonnet-5", "Claude Sonnet 5"],
               ["claude-haiku-4-5", "Claude Haiku 4.5（最便宜、最快）"],
             ]}
             onChange={(v) => setAi({ model: v })}
@@ -248,6 +250,7 @@ function AiSettings() {
         </p>
       )}
       <p className={styles.hint}>{tr("发给 AI 服务的只有：单词、首部词典的简释、COCA 搭配词。不发送语境句和生词本。")}</p>
+      <AiUsageStats />
     </section>
   );
 }
@@ -291,6 +294,84 @@ function UpdateCheck() {
         <button type="button" className={styles.ghost} disabled={state.kind === "busy"} onClick={() => void run()}>
           {tr("检查更新")}
         </button>
+      )}
+    </div>
+  );
+}
+
+/** token 数简写：12.3k、1.2M */
+function tokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+function usd(n: number): string {
+  if (n === 0) return "$0";
+  return n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`;
+}
+
+/** 设置 › AI 例句 › 用量与花费：按每次调用返回的 token 数和官方单价估算 */
+function AiUsageStats() {
+  const [data, setData] = useState<UsageSummary | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const load = () => {
+    const d = new Date();
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    aiUsage(monthStart).then(setData, () => setData(null));
+  };
+  useEffect(load, []);
+  if (!data) return null;
+  const line = (u: ModelUsage) =>
+    tr("{calls} 次 · 输入 {input} · 输出 {output} tokens · 约 {cost}", {
+      calls: u.calls,
+      input: tokens(u.input + u.cached),
+      output: tokens(u.output),
+      cost: usd(u.costUsd),
+    });
+  return (
+    <div className={styles.usage}>
+      <div className={styles.usageHead}>
+        <strong>{tr("用量与花费（估算）")}</strong>
+        {data.total.calls > 0 &&
+          (confirm ? (
+            <span className={styles.inline}>
+              <button type="button" className={styles.ghost} onClick={() => void aiUsageClear().then(() => (setConfirm(false), load()))}>
+                {tr("确认清零")}
+              </button>
+              <button type="button" className={styles.ghost} onClick={() => setConfirm(false)}>
+                {tr("取消")}
+              </button>
+            </span>
+          ) : (
+            <button type="button" className={styles.ghost} onClick={() => setConfirm(true)}>
+              {tr("清零")}
+            </button>
+          ))}
+      </div>
+      {data.total.calls === 0 ? (
+        <p className={styles.hint}>{tr("还没有调用过 AI。每次生成例句后，这里会记下用了多少 token、大约花了多少钱。")}</p>
+      ) : (
+        <>
+          <dl className={styles.usageList}>
+            <dt>{tr("本月")}</dt>
+            <dd>{line(data.month)}</dd>
+            <dt>{tr("累计")}</dt>
+            <dd>
+              {line(data.total)}
+              {data.since && <small>{tr("（自 {date} 起）", { date: new Date(data.since).toLocaleDateString() })}</small>}
+            </dd>
+            {data.models.map((m) => (
+              <Fragment key={m.model}>
+                <dt>{m.model}</dt>
+                <dd>{line(m)}</dd>
+              </Fragment>
+            ))}
+          </dl>
+          <p className={styles.hint}>
+            {tr("按每次调用返回的 token 数和官方单价估算（2026 年 10 月价格；DeepSeek 按调用时段区分高峰与半价时段），实际以服务商账单为准。只统计例句生成，缓存命中的词不再计费。")}
+          </p>
+        </>
       )}
     </div>
   );

@@ -108,8 +108,13 @@ pub async fn ai_examples(
     })?;
     let hint = coca_of(&state).map(|c| coca::collocation_hint(&c.lookup(&word), 8)).unwrap_or_default();
     let body = ai::body_for(provider, &model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10));
-    let examples = ai::generate(state.online.client(), provider, &key, &body).await?;
-    state.db.with_conn(|c| ai::store(c, &word, &model, &examples, now_ms()))?;
+    let (examples, usage) = ai::generate(state.online.client(), provider, &key, &body).await?;
+    let now = now_ms();
+    state.db.with_conn(|c| {
+        ai::store(c, &word, &model, &examples, now)?;
+        ai::record(c, provider, &model, &word, usage, now)?;
+        Ok(())
+    })?;
     Ok(Some(Examples { word, model, examples, cached_at: None }))
 }
 
@@ -149,4 +154,15 @@ pub async fn vocab_examples(state: State<'_, AppState>, word: String, domain: Op
             None => Err(e),
         },
     }
+}
+
+/// AI 用量汇总（设置 › AI 例句）。month_start：本月 1 日 0 点（本地时间，毫秒）。
+#[tauri::command]
+pub async fn ai_usage(state: State<'_, AppState>, month_start: i64) -> Result<ai::UsageSummary> {
+    state.db.with_conn(|c| ai::summary(c, month_start))
+}
+
+#[tauri::command]
+pub async fn ai_usage_clear(state: State<'_, AppState>) -> Result<()> {
+    state.db.with_conn(ai::clear_usage)
 }

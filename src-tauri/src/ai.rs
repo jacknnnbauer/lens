@@ -120,6 +120,67 @@ pub fn request_body(model: &str, word: &str, brief: Option<&str>, collocations: 
     })
 }
 
+// —— 用量与花费 ——
+
+/// 一次调用用掉的 token（输入里缓存命中的部分单独算，价格低得多）
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Usage {
+    pub input: u64,
+    pub cached: u64,
+    pub output: u64,
+}
+
+/// 每百万 token 的美元价格：(输入, 缓存命中的输入, 输出)。
+/// Claude 取自 platform.claude.com 定价页；DeepSeek 取自 api-docs.deepseek.com（高峰价，非高峰减半）。2026-10 核对。
+fn price(model: &str) -> Option<(f64, f64, f64)> {
+    Some(match model {
+        "claude-opus-5-5" => (4.0, 0.20, 20.0),
+        "claude-opus-4-8" | "claude-opus-4-7" | "claude-opus-4-6" | "claude-opus-5" => (5.0, 0.50, 25.0),
+        "claude-sonnet-5-5" => (2.0, 0.10, 10.0),
+        "claude-sonnet-5" => (2.0, 0.20, 10.0),
+        "claude-haiku-4-5" => (1.0, 0.10, 5.0),
+        "deepseek-flash" | "deepseek-v4-flash" => (0.30, 0.006, 1.20),
+        "deepseek-v4-pro" => (1.32, 0.044, 3.96),
+        _ => return None,
+    })
+}
+
+/// DeepSeek 高峰时段：周一至周五 UTC 01:00–04:00、06:00–10:00；其余时间半价
+pub fn deepseek_peak(ms: i64) -> bool {
+    let secs = ms.div_euclid(1000);
+    let day = secs.div_euclid(86_400);
+    // 1970-01-01 是周四：0 = 周四 … 用 (day + 3) % 7 得到 0 = 周一
+    let weekday = (day + 3).rem_euclid(7);
+    let hour = secs.rem_euclid(86_400) / 3600;
+    weekday < 5 && ((1..4).contains(&hour) || (6..10).contains(&hour))
+}
+
+/// 估算花费（美元）；不认识的模型返回 0
+pub fn cost_usd(provider: Provider, model: &str, u: Usage, at_ms: i64) -> f64 {
+    let Some((input, cached, output)) = price(model) else { return 0.0 };
+    let factor = if provider == Provider::DeepSeek && !deepseek_peak(at_ms) { 0.5 } else { 1.0 };
+    (u.input as f64 * input + u.cached as f64 * cached + u.output as f64 * output) / 1_000_000.0 * factor
+}
+
+/// 从响应里取 usage：Claude 是 input_tokens / cache_read_input_tokens / output_tokens，
+/// DeepSeek（OpenAI 兼容）是 prompt_cache_miss_tokens / prompt_cache_hit_tokens / completion_tokens
+pub fn usage_of(provider: Provider, v: &Value) -> Usage {
+    let n = |p: &str| v.pointer(p).and_then(Value::as_u64).unwrap_or(0);
+    match provider {
+        Provider::Claude => Usage {
+            input: n("/usage/input_tokens") + n("/usage/cache_creation_input_tokens"),
+            cached: n("/usage/cache_read_input_tokens"),
+            output: n("/usage/output_tokens"),
+        },
+        Provider::DeepSeek => {
+            let hit = n("/usage/prompt_cache_hit_tokens");
+            let miss = v.pointer("/usage/prompt_cache_miss_tokens").and_then(Value::as_u64).unwrap_or_else(|| n("/usage/prompt_tokens").saturating_sub(hit));
+            Usage { input: miss, cached: hit, output: n("/usage/completion_tokens") }
+        }
+    }
+}
+
 /// DeepSeek 的 JSON Output 要求提示里出现 "json" 并给出格式示例
 const JSON_FORMAT: &str = "Reply with JSON only, in exactly this format:\n\
 {\"examples\": [{\"en\": \"English sentence\", \"zh\": \"中文翻译\", \"collocation\": \"generation gap\"}]}";
@@ -203,8 +264,8 @@ pub fn body_for(provider: Provider, model: &str, word: &str, brief: Option<&str>
     }
 }
 
-/// 按服务商发送请求（body 来自 body_for）并解析。
-pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, body: &Value) -> Result<Vec<Example>> {
+/// 按服务商发送请求（body 来自 body_for）并解析；同时返回这次用掉的 token。
+pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, body: &Value) -> Result<(Vec<Example>, Usage)> {
     let req = match provider {
         Provider::Claude => client.post(ENDPOINT).header("x-api-key", key).header("anthropic-version", API_VERSION),
         Provider::DeepSeek => client.post(DEEPSEEK_ENDPOINT).bearer_auth(key),
@@ -222,10 +283,80 @@ pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, b
         return Err(http_error(provider, status, &text));
     }
     let v: Value = serde_json::from_str(&text).map_err(|e| Error::Online(e.to_string()))?;
-    match provider {
+    let usage = usage_of(provider, &v);
+    let examples = match provider {
         Provider::Claude => parse_response(&v),
         Provider::DeepSeek => parse_chat_response(&v),
-    }
+    }?;
+    Ok((examples, usage))
+}
+
+// —— 用量记账（迁移 0006 的 ai_usage 表）——
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelUsage {
+    pub model: String,
+    pub calls: u64,
+    pub input: u64,
+    pub cached: u64,
+    pub output: u64,
+    pub cost_usd: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageSummary {
+    /// 全部（按模型）
+    pub models: Vec<ModelUsage>,
+    pub total: ModelUsage,
+    /// 本月（since 之后）
+    pub month: ModelUsage,
+    /// 第一条记录的时间
+    pub since: Option<i64>,
+}
+
+pub fn record(conn: &Connection, provider: Provider, model: &str, word: &str, u: Usage, now: i64) -> Result<f64> {
+    let cost = cost_usd(provider, model, u, now);
+    conn.execute(
+        "INSERT INTO ai_usage (provider, model, word, input_tokens, cached_tokens, output_tokens, cost_usd, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![provider.name().to_lowercase(), model, word, u.input as i64, u.cached as i64, u.output as i64, cost, now],
+    )?;
+    Ok(cost)
+}
+
+fn sum_row(model: String, r: &rusqlite::Row<'_>) -> rusqlite::Result<ModelUsage> {
+    Ok(ModelUsage {
+        model,
+        calls: r.get::<_, i64>(0)?.max(0) as u64,
+        input: r.get::<_, i64>(1)?.max(0) as u64,
+        cached: r.get::<_, i64>(2)?.max(0) as u64,
+        output: r.get::<_, i64>(3)?.max(0) as u64,
+        cost_usd: r.get(4)?,
+    })
+}
+
+const SUMS: &str = "COUNT(*), COALESCE(SUM(input_tokens), 0), COALESCE(SUM(cached_tokens), 0), COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cost_usd), 0.0)";
+
+/// month_start：本月 1 日 0 点（毫秒，前端按本地时间算好传进来）
+pub fn summary(conn: &Connection, month_start: i64) -> Result<UsageSummary> {
+    let mut st = conn.prepare(&format!("SELECT {SUMS}, model FROM ai_usage GROUP BY model ORDER BY SUM(cost_usd) DESC"))?;
+    let models = st
+        .query_map([], |r| {
+            let m: String = r.get(5)?;
+            sum_row(m, r)
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let total = conn.query_row(&format!("SELECT {SUMS} FROM ai_usage"), [], |r| sum_row(String::new(), r))?;
+    let month = conn.query_row(&format!("SELECT {SUMS} FROM ai_usage WHERE created_at >= ?1"), params![month_start], |r| sum_row(String::new(), r))?;
+    let since = conn.query_row("SELECT MIN(created_at) FROM ai_usage", [], |r| r.get::<_, Option<i64>>(0))?;
+    Ok(UsageSummary { models, total, month, since })
+}
+
+pub fn clear_usage(conn: &Connection) -> Result<()> {
+    conn.execute("DELETE FROM ai_usage", [])?;
+    Ok(())
 }
 
 // —— 缓存（迁移 0004 的 ai_examples 表）——
@@ -288,6 +419,35 @@ mod tests {
         assert_eq!(Provider::parse("DeepSeek"), Provider::DeepSeek);
         assert_eq!(Provider::parse("whatever"), Provider::Claude);
         Ok(())
+    }
+
+    #[test]
+    fn usage_and_cost() -> Result<()> {
+        let claude = json!({"usage": {"input_tokens": 1000, "cache_read_input_tokens": 0, "output_tokens": 2000}});
+        let u = usage_of(Provider::Claude, &claude);
+        assert_eq!(u, Usage { input: 1000, cached: 0, output: 2000 });
+        // Opus 4.8：1000 × $5/M + 2000 × $25/M = 0.005 + 0.05
+        assert!((cost_usd(Provider::Claude, "claude-opus-4-8", u, 0) - 0.055).abs() < 1e-9);
+        let ds = json!({"usage": {"prompt_tokens": 900, "prompt_cache_hit_tokens": 100, "prompt_cache_miss_tokens": 800, "completion_tokens": 500}});
+        let u = usage_of(Provider::DeepSeek, &ds);
+        assert_eq!(u, Usage { input: 800, cached: 100, output: 500 });
+        // 2026-10-21 是周三，UTC 07:00 高峰；同日 UTC 12:00 非高峰半价
+        let peak = 1_792_566_000_000; // 2026-10-21T07:00:00Z
+        assert!(deepseek_peak(peak));
+        assert!(!deepseek_peak(peak + 5 * 3_600_000));
+        let full = cost_usd(Provider::DeepSeek, "deepseek-flash", u, peak);
+        assert!((cost_usd(Provider::DeepSeek, "deepseek-flash", u, peak + 5 * 3_600_000) * 2.0 - full).abs() < 1e-12);
+        assert_eq!(cost_usd(Provider::Claude, "unknown-model", u, 0), 0.0);
+
+        let db = Db::open_in_memory()?;
+        db.with_conn(|c| {
+            record(c, Provider::Claude, "claude-opus-4-8", "a", Usage { input: 1000, cached: 0, output: 2000 }, 10)?;
+            record(c, Provider::Claude, "claude-opus-4-8", "b", Usage { input: 1000, cached: 0, output: 2000 }, 100)?;
+            let s = summary(c, 50)?;
+            assert_eq!((s.total.calls, s.month.calls, s.models.len()), (2, 1, 1));
+            assert!((s.total.cost_usd - 0.11).abs() < 1e-9);
+            Ok(())
+        })
     }
 
     #[test]

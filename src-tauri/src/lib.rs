@@ -235,6 +235,8 @@ pub fn run() {
             commands::ai::ai_key_status,
             commands::ai::ai_set_key,
             commands::ai::ai_examples,
+            commands::ai::ai_usage,
+            commands::ai::ai_usage_clear,
             commands::ai::vocab_examples,
             commands::lookup::cancel_lookup,
             commands::lookup::suggest,

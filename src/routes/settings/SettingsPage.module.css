@@ -575,3 +575,46 @@ kbd {
 .hint[data-error] {
   color: var(--warn);
 }
+
+/* AI 用量与花费 */
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.usageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.usageList {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.usageList dt {
+  color: var(--sub);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.usageList dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.usageList small {
+  margin-left: 6px;
+  color: var(--faint);
+}

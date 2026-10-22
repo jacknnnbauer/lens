@@ -61,6 +61,12 @@ pub struct Layout {
     pub context_width: u32,
     /// 右侧栏显示哪些内容、按什么顺序：coca | vocab | ai | query | dicts | dict:<词典 id>
     pub panel: Vec<PanelItem>,
+    /// 卡片墙：各词典卡片按自身高度铺满多列（瀑布流），而不是上下一列
+    pub card_wall: bool,
+    /// 卡片墙每列最小宽度（px），按窗口宽度自动决定列数
+    pub wall_column: u32,
+    /// 卡片墙里单张卡片的最大高度（px），超出在卡片内滚动；0 = 不限
+    pub wall_max_height: u32,
 }
 
 /// 右侧栏的一项
@@ -90,6 +96,9 @@ impl Default for Layout {
             nav_width: 220,
             context_width: 280,
             panel: default_panel(),
+            card_wall: false,
+            wall_column: 380,
+            wall_max_height: 0,
         }
     }
 }

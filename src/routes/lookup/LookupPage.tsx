@@ -1,6 +1,7 @@
 // 查词页 · 简洁单栏（画板 05）：搜索行 → 词典跳转条 → 词典卡片。
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { CardWall } from "../../components/CardWall";
 import { DictCard } from "../../components/DictCard";
 import { ExportDialog } from "../../components/ExportDialog";
 import { DownloadIcon, StarIcon } from "../../components/icons";
@@ -66,6 +67,9 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const canExportRef = useRef(false);
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
   const showAtlas = useSettings((s) => s.settings?.layout.showSenseAtlas) ?? false;
+  const wall = useSettings((s) => s.settings?.layout.cardWall) ?? false;
+  const wallColumn = useSettings((s) => s.settings?.layout.wallColumn) ?? 380;
+  const wallMaxHeight = useSettings((s) => s.settings?.layout.wallMaxHeight) ?? 0;
   const updateSettings = useSettings((s) => s.update);
   const setDefaultFormat = (f: CopyFormat) => {
     updateSettings({ copy: { defaultFormat: f } });
@@ -194,7 +198,11 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   };
 
   return (
-    <div className={styles.column}>
+    <div
+      className={styles.column}
+      data-wall={wall || undefined}
+      style={wall && wallMaxHeight > 0 ? ({ "--card-max-h": `${wallMaxHeight}px`, "--card-overflow": "auto" } as React.CSSProperties) : undefined}
+    >
       <div className={styles.searchRow}>
         <SearchBox ref={searchBox} onSearch={(q, c) => void search(q, { commit: c })} onTabOut={() => cardToggles()[0]?.focus()} />
         <button
@@ -257,18 +265,22 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
       {showAtlas && done && hitCount >= 2 && <SenseAtlas word={handle?.normalized || handle?.query || headword} cards={cards} onJump={jumpTo} />}
 
-      {visible.map((c) => (
-        <DictCard
-          key={c.id}
-          card={c}
-          onEntry={lookupWord}
-          onToggleKeyDown={onToggleKeyDown}
-          copyFormat={copyCfg.defaultFormat}
-          onCopy={(f) => void copyCard(c, f, copyCfg)}
-          onSetDefaultFormat={setDefaultFormat}
-          onQueryOnline={() => void queryOnline(c.id)}
-        />
-      ))}
+      {(() => {
+        const cardOf = (c: (typeof visible)[number]) => (
+          <DictCard
+            key={c.id}
+            card={c}
+            onEntry={lookupWord}
+            onToggleKeyDown={onToggleKeyDown}
+            copyFormat={copyCfg.defaultFormat}
+            onCopy={(f) => void copyCard(c, f, copyCfg)}
+            onSetDefaultFormat={setDefaultFormat}
+            onQueryOnline={() => void queryOnline(c.id)}
+          />
+        );
+        // 卡片墙：按卡片自身高度铺满多列；否则上下一列
+        return wall ? <CardWall minColumn={wallColumn} items={visible.map((c) => ({ key: c.id, node: cardOf(c) }))} /> : visible.map(cardOf);
+      })()}
 
       {allMissed && (
         <section className={styles.empty} aria-live="polite">

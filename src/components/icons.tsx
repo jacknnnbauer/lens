@@ -97,6 +97,16 @@ export const ContextPanelIcon = ({ size = 16 }) => (
 );
 
 /** 沉浸模式：四角向外 */
+/** 卡片墙：高矮不一、上沿对齐的几列卡片 */
+export const WallIcon = ({ size = 18 }) => (
+  <svg {...base(size)}>
+    <rect x="3.5" y="4" width="7" height="9" rx="1.5" />
+    <rect x="13.5" y="4" width="7" height="5.5" rx="1.5" />
+    <rect x="3.5" y="15.5" width="7" height="4.5" rx="1.5" />
+    <rect x="13.5" y="12" width="7" height="8" rx="1.5" />
+  </svg>
+);
+
 export const ImmersiveIcon = ({ size = 18 }) => (
   <svg {...base(size)}>
     <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />

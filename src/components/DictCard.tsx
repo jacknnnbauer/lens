@@ -39,7 +39,9 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
         {/* 标题可聚焦，作为卡片间跳转的落点（不是按钮：卡片不折叠） */}
         <h2 className={styles.heading} tabIndex={0} data-card-toggle={card.id} onKeyDown={onToggleKeyDown}>
           <span className={styles.toggle}>
-            <strong className={styles.name}>{card.name}</strong>
+            <strong className={styles.name} title={card.name}>
+              {card.name}
+            </strong>
             {SOURCE_TAG[card.source] && <span className={styles.tag}>{tr(SOURCE_TAG[card.source] ?? "")}</span>}
             {card.cachedAt != null && (
               <span className={styles.tag} data-stale={card.stale || undefined} title={card.stale ? tr("联网失败：{error}", { error: card.error ?? "" }) : undefined}>
@@ -60,7 +62,7 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
         )}
       </div>
 
-      <div>
+      <div className={styles.body}>
         {pending && (
           <div className={styles.skeleton} aria-label={tr("正在查询")}>
             <span />

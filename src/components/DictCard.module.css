@@ -21,6 +21,7 @@
 }
 
 .toggle {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -29,6 +30,9 @@
 }
 
 .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -47,6 +51,12 @@
   white-space: nowrap;
 }
 
+
+/* 卡片墙设了最大高度时（--card-max-h），超出部分在卡片里滚动 */
+.body {
+  max-height: var(--card-max-h, none);
+  overflow-y: var(--card-overflow, visible);
+}
 
 .entry {
   padding: 0 20px 20px;

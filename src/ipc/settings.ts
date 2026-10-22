@@ -33,6 +33,12 @@ export interface Layout {
   contextWidth: number;
   /** 右侧栏内容与顺序：coca | vocab | ai | query | dicts | dict:<词典 id> */
   panel: PanelItem[];
+  /** 卡片墙（瀑布流）：卡片按自身高度铺满多列 */
+  cardWall: boolean;
+  /** 每列最小宽度（px） */
+  wallColumn: number;
+  /** 单张卡片最大高度（px），0 = 不限 */
+  wallMaxHeight: number;
 }
 
 export interface PanelItem {

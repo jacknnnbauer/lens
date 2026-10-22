@@ -9,7 +9,7 @@ import { BatchChip, BatchDialog, BatchResumeNotice } from "../../components/batc
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ImmersiveBar, useImmersiveMode } from "../../components/ImmersiveBar";
 import { ContextPanel } from "../../components/ContextPanel";
-import { BookmarkIcon, ClockIcon, GearIcon, ImmersiveIcon, LibraryIcon } from "../../components/icons";
+import { ClockIcon, ImmersiveIcon, LibraryIcon, WallIcon } from "../../components/icons";
 import { TitleBar } from "../../components/TitleBar";
 import { useImmersive } from "../../stores/immersive";
 import { SCROLL_ID, scrollRoot } from "./scroll";
@@ -131,6 +131,11 @@ export function MainWindow() {
     useSettings.getState().updateLayout({ showNav: !cur });
   }, []);
   // 标题栏右侧按钮 / Ctrl+Shift+\：右侧上下文栏
+  // 查词页工具栏按钮 / Ctrl+Shift+W：卡片墙
+  const toggleWall = useCallback(() => {
+    const cur = useSettings.getState().settings?.layout.cardWall ?? false;
+    useSettings.getState().updateLayout({ cardWall: !cur });
+  }, []);
   const toggleContext = useCallback(() => {
     const cur = useSettings.getState().settings?.layout.showContext ?? false;
     useSettings.getState().updateLayout({ showContext: !cur });
@@ -139,6 +144,11 @@ export function MainWindow() {
   // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+B 生词本，Ctrl+, 设置，Ctrl+K 回到查词（SPEC 9.4）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "KeyW") {
+        e.preventDefault();
+        toggleWall();
+        return;
+      }
       if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "Backslash") {
         // Ctrl+Shift+\ 显示 / 隐藏右侧上下文栏
         e.preventDefault();
@@ -178,7 +188,7 @@ export function MainWindow() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [profiles, switchProfile, go, focusSearch, toggleNav, toggleContext]);
+  }, [profiles, switchProfile, go, focusSearch, toggleNav, toggleContext, toggleWall]);
 
   // 进入沉浸模式时回到查词页
   useEffect(() => {
@@ -255,19 +265,24 @@ export function MainWindow() {
             onOpenLibrary={() => setLibraryOpen(true)}
             showJumpBar={layout?.showJumpBar ?? true}
             showHeadword={showNav && !immersive}
+            // 只留查词相关的按钮，生词本、设置从左侧导航或 Ctrl+B / Ctrl+, 进入
             actions={
               <>
-                <button type="button" className={styles.iconBtn} aria-label={tr("生词本")} title={tr("生词本（Ctrl+B）")} onClick={() => go("wordbook")}>
-                  <BookmarkIcon />
-                </button>
                 <button type="button" className={styles.iconBtn} aria-label={tr("历史")} title={tr("历史（Ctrl+H）")} onClick={() => go("history")}>
                   <ClockIcon />
                 </button>
                 <button type="button" className={styles.iconBtn} aria-label={tr("词典库")} title={tr("词典库（Ctrl+L）")} onClick={() => setLibraryOpen(true)}>
                   <LibraryIcon />
                 </button>
-                <button type="button" className={styles.iconBtn} aria-label={tr("设置")} title={tr("设置（Ctrl+,）")} onClick={() => go("settings")}>
-                  <GearIcon />
+                <button
+                  type="button"
+                  className={styles.iconBtn}
+                  aria-label={tr("卡片墙")}
+                  aria-pressed={layout?.cardWall ?? false}
+                  title={tr(layout?.cardWall ? "退出卡片墙（Ctrl+Shift+W）" : "卡片墙：词典卡片铺满整个界面（Ctrl+Shift+W）")}
+                  onClick={toggleWall}
+                >
+                  <WallIcon />
                 </button>
                 <button type="button" className={styles.iconBtn} aria-label={tr("沉浸模式")} title={tr("沉浸模式（F11）")} onClick={() => useImmersive.getState().enter()}>
                   <ImmersiveIcon />

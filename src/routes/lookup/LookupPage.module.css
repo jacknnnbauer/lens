@@ -8,6 +8,20 @@
   gap: 16px;
 }
 
+/* 卡片墙：结果铺满整个中间区域；搜索行、词典名称条仍居中，不拉得太长 */
+.column[data-wall] {
+  max-width: none;
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
+.column[data-wall] > .searchRow,
+.column[data-wall] > .jump {
+  width: 100%;
+  max-width: 820px;
+  align-self: center;
+}
+
 .searchRow {
   display: flex;
   flex-wrap: wrap;

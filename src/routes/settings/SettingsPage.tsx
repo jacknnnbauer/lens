@@ -54,6 +54,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ["Ctrl+B / Ctrl+H / Ctrl+L", "生词本 / 历史 / 词典库"],
   ["F11 / Esc", "进入 / 退出沉浸模式"],
   ["Ctrl+\\", "显示 / 隐藏左侧导航"],
+  ["Ctrl+Shift+W", "卡片墙 开 / 关"],
   ["Ctrl+,", "设置"],
   ["鼠标侧键 · Alt+← / Alt+→", "主窗口：后退 / 前进（回到刚才查的词或页面）"],
   ["Enter", "查词小窗：展开到主窗口（改过词时先在小窗里查）"],
@@ -599,6 +600,34 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
             <Toggle label={tr("启动时回到简洁单栏")} hint={tr("不管上次用的是哪种布局")} checked={l.startCompact} onChange={(v) => setL({ startCompact: v })} />
           </div>
+          <fieldset className={styles.fieldset}>
+            <legend>{tr("卡片墙")}</legend>
+            <p className={styles.hint}>{tr("各词典卡片按自身长短铺满整个界面：第一排上沿对齐，同一列上下紧挨，列底参差。查词页工具栏的卡片墙按钮或 Ctrl+Shift+W 一键开关。")}</p>
+            <div className={styles.grid2}>
+              <Toggle label={tr("使用卡片墙")} checked={l.cardWall} onChange={(v) => setL({ cardWall: v })} />
+              <Select
+                label={tr("每列宽度")}
+                value={l.wallColumn}
+                options={[
+                  [300, "窄（300 px，列多）"],
+                  [380, "适中（380 px）"],
+                  [460, "宽（460 px，列少）"],
+                ]}
+                onChange={(v) => setL({ wallColumn: v })}
+              />
+              <Select
+                label={tr("卡片最大高度")}
+                value={l.wallMaxHeight}
+                options={[
+                  [0, "不限（显示完整词条）"],
+                  [480, "480 px，超出在卡片内滚动"],
+                  [640, "640 px，超出在卡片内滚动"],
+                  [800, "800 px，超出在卡片内滚动"],
+                ]}
+                onChange={(v) => setL({ wallMaxHeight: v })}
+              />
+            </div>
+          </fieldset>
           <PanelSettings />
         </section>
 

@@ -118,6 +118,26 @@
   --warn: #A6501A;
 }
 
+/* 雾紫：冷灰纸面 + 点阵底纹，卡片是从暖灰到浅紫灰的渐变、无硬边框、柔和阴影，蓝紫强调色 */
+[data-theme="mist"] {
+  color-scheme: light;
+  --bg: #F6F7F9;
+  --panel: #FFFFFF;
+  --raised: #EFEEF2;
+  --line: #E3E2E8;
+  --text: #1D1D29;
+  --sub: #4F4F63;
+  --faint: #66667A;
+  --accent: #5B5FC7;
+  --accent-ink: #FFFFFF;
+  --warn: #A3561C;
+  /* 只有这套主题用到的卡片质感（其他主题不设，卡片照旧是纯色 + 细边框） */
+  --card-bg: linear-gradient(180deg, #F7F6F4 0%, #EFEEF2 100%);
+  --card-border: transparent;
+  --card-shadow: 0 1px 2px rgb(29 29 41 / 4%), 0 10px 28px rgb(29 29 41 / 6%);
+  --bg-texture: radial-gradient(rgb(29 29 41 / 7%) 1px, transparent 1px);
+}
+
 /* 午夜蓝（自带强调色） */
 [data-theme="midnight"] {
   color-scheme: dark;

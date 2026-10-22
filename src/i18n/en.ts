@@ -917,4 +917,6 @@ export const en: Record<string, string> = {
   "拼写相近、容易用错": "Similar spelling, easy to mix up",
   "COCA 近义词": "COCA synonyms",
   "查词结果里把派生词、同根词、易混词、近义词画成一张网，点任何一个词就查它（离线）": "Draw derived words, same-root words, confusables and synonyms as a network in the results; click any word to look it up (offline)",
+  "雾紫": "Mist",
+  "冷灰纸面、暖灰渐变卡片、柔和阴影，低调的高级感": "Cool grey paper, warm-grey gradient cards and soft shadows: quietly premium",
 };

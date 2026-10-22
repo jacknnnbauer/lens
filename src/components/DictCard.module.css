@@ -1,6 +1,7 @@
 .card {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: var(--card-bg, var(--panel));
+  border: 1px solid var(--card-border, var(--line));
+  box-shadow: var(--card-shadow, none);
   border-radius: 14px;
   scroll-margin-top: 16px;
 }

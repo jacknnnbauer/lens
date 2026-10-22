@@ -18,6 +18,10 @@ body,
 
 body {
   background: var(--bg);
+  /* 有的主题（雾紫）在底色上加一层淡点阵 */
+  background-image: var(--bg-texture, none);
+  background-size: 22px 22px;
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-ui);
   font-size: 14px;

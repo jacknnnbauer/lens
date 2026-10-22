@@ -399,9 +399,10 @@
   flex-direction: column;
   gap: 8px;
   padding: 16px 18px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border, var(--line));
   border-radius: 14px;
-  background: var(--panel);
+  background: var(--card-bg, var(--panel));
+  box-shadow: var(--card-shadow, none);
 }
 
 .card[data-flipped] {

@@ -1,4 +1,4 @@
-// 主题库（SPEC 9.5、画板 09）：11 套内置主题 + 自定义主题；大预览、复制并编辑、导入导出 .lens-theme。
+// 主题库（SPEC 9.5、画板 09）：12 套内置主题 + 自定义主题；大预览、复制并编辑、导入导出 .lens-theme。
 // 颜色格式由 Rust 校验；对比度在这里检查（编辑时实时提示，导入后报告）。
 
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";

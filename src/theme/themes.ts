@@ -7,6 +7,7 @@ export const BUILTIN_THEMES = [
   { id: "xuan", name: "宣纸", dark: false, accentable: false, note: "米黄纸色配朱砂红，东方书卷气" },
   { id: "sepia", name: "护眼棕", dark: false, accentable: false, note: "经典棕褐阅读色，长时间看不累" },
   { id: "frost", name: "霜蓝", dark: false, accentable: false, note: "浅灰蓝底配深青，冷静的工具感" },
+  { id: "mist", name: "雾紫", dark: false, accentable: false, note: "冷灰纸面、暖灰渐变卡片、柔和阴影，低调的高级感" },
   { id: "eink", name: "墨水屏", dark: false, accentable: false, note: "纯黑白、零彩色，适合打印和墨水屏" },
   { id: "dark", name: "石墨", dark: true, accentable: true, note: "默认暗色，低眩光，夜间与编程" },
   { id: "midnight", name: "午夜蓝", dark: true, accentable: false, note: "深海军蓝配金色，夜读的书房感" },

@@ -35,7 +35,6 @@ export function CardDefinition({ word, onLookup }: { word: string; onLookup: (w:
   if (!shown) return <p className={styles.note}>{tr("本地词典里没有找到释义")}</p>;
   return (
     <section className={styles.box} aria-label={tr("释义")}>
-      <h3 className={styles.name}>{shown.name}</h3>
       <div className={styles.body}>
         {shown.html.map((h, i) => (
           <DictBody key={i} html={h} onEntry={onLookup} dictId={shown.dictId} />

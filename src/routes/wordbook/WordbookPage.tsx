@@ -2,6 +2,7 @@
 // 复习（M8）：「开始复习」进入 ReviewSession，调度由 Rust 的 FSRS 完成。
 
 import { SourceLink, sourceText } from "../../components/SourceLink";
+import { CardWall } from "../../components/CardWall";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -179,7 +180,6 @@ function ContextCard({ word, onLookup }: { word: Word; onLookup: (w: string) => 
     >
       {!flipped ? (
         <>
-          <span className={styles.cardSide}>{tr("正面 · 你当时读到的句子")}</span>
           {ctx ? (
             <span className={styles.cardQuote}>
               “<Sentence ctx={ctx} />”
@@ -191,9 +191,7 @@ function ContextCard({ word, onLookup }: { word: Word; onLookup: (w: string) => 
         </>
       ) : (
         <>
-          <span className={styles.cardSide}>{tr("背面")}</span>
           <span className={styles.cardWord}>{word.lemma}</span>
-          {word.brief && <span className={styles.cardBrief}>{word.brief}</span>}
           {ctx && (
             <span className={styles.cardBackQuote}>
               “<Sentence ctx={ctx} />”
@@ -407,11 +405,8 @@ export function WordbookPage({ onLookup, active }: Props) {
           {tr(stats?.total ? "没有符合条件的词。" : "生词本还是空的。查词时按 Ctrl+S（或点星标）收藏，划词收藏会带上原句。")}
         </p>
       ) : view === "cards" ? (
-        <div className={styles.cardGrid}>
-          {words.map((w) => (
-            <ContextCard key={w.id} word={w} onLookup={onLookup} />
-          ))}
-        </div>
+        // 语境卡用卡片墙：同一列上下紧挨，翻到背面变长也不留空
+        <CardWall minColumn={260} gap={12} items={words.map((w) => ({ key: String(w.id), node: <ContextCard word={w} onLookup={onLookup} /> }))} />
       ) : (
         <ul className={styles.list}>
           {words.map((w) => {

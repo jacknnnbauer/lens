@@ -13,10 +13,7 @@
   color: var(--faint);
 }
 
-/* 词条可能很长：卡片里限高滚动 */
 .body {
-  max-height: 320px;
-  overflow-y: auto;
   font-size: 14px;
 }
 

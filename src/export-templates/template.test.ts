@@ -12,7 +12,7 @@ const base: ExportInput = {
     { id: "a", name: "朗文", entries: [`<span class="phon">/ˈkʌlə/</span><span class="x">ex</span><a data-sound="u" href="#">🔊</a><a href="#" data-entry="hue">hue</a>`] },
     { id: "b", name: "牛津", entries: ["<p>one</p>", "<p>two</p>"] },
   ],
-  context: { id: 1, sentence: "They made colour <bold>.", hlStart: 10, hlEnd: 16, app: "msedge.exe", windowTitle: "Art", url: "https://e.com/a" },
+  context: { id: 1, sentence: "They made colour <bold>.", hlStart: 10, hlEnd: 16, app: "msedge.exe", windowTitle: "Art and 1 more page - Personal - Microsoft Edge", url: "https://e.com/a", capturedAt: new Date(2026, 9, 7, 9, 5).getTime() },
 };
 
 const parse = (html: string) => {
@@ -29,7 +29,9 @@ describe("buildExportBody", () => {
     expect(body.match(/<article class="card">/g)).toHaveLength(2);
     expect(body.match(/shadowrootmode="open" shadowrootserializable/g)).toHaveLength(3);
     expect(body).toContain("They made <mark>colour</mark> &lt;bold&gt;.");
-    expect(body).toContain('<a href="https://e.com/a">');
+    // 句子在上，来源（去掉浏览器尾巴、可点）和读到的时间在下；没有「语境句」字样
+    expect(body).toContain('<p>“They made <mark>colour</mark> &lt;bold&gt;.”</p><div class="source"><a href="https://e.com/a">Art</a> · <time>2026-10-07 09:05</time></div>');
+    expect(body).not.toContain("语境句");
     expect(body).toContain(COPYRIGHT);
     expect(body).not.toContain("🔊");
   });
@@ -40,7 +42,7 @@ describe("buildExportBody", () => {
     expect(body).toContain('<span class="no">01</span>朗文');
     expect(body).toContain('<span class="no">02</span>牛津');
     expect(body).toContain("收录词典：朗文 · 牛津");
-    expect(body).toContain("我的语境");
+    expect(body).toContain('<div class="source">');
   });
 
   it("respects the options", () => {

@@ -153,11 +153,12 @@ mod tests {
                         app: Some("msedge.exe".into()),
                         window_title: Some("NYT <Opinion>".into()),
                         url: Some("https://nytimes.com/a".into()),
+                        captured_at: 0,
                     },
                     created_at: 0,
                 },
                 WordContext {
-                    context: ContextRow { id: 2, sentence: "A recapture\tlater.".into(), hl_start: 2, hl_end: 11, app: None, window_title: None, url: None },
+                    context: ContextRow { id: 2, sentence: "A recapture\tlater.".into(), hl_start: 2, hl_end: 11, app: None, window_title: None, url: None, captured_at: 0 },
                     created_at: 0,
                 },
             ],
@@ -191,7 +192,7 @@ mod tests {
 
     #[test]
     fn bad_offsets_do_not_panic() {
-        let c = ContextRow { id: 1, sentence: "短句".into(), hl_start: 1, hl_end: 99, app: None, window_title: None, url: None };
+        let c = ContextRow { id: 1, sentence: "短句".into(), hl_start: 1, hl_end: 99, app: None, window_title: None, url: None, captured_at: 0 };
         assert_eq!(sentence_html(&c), "短句");
     }
 }

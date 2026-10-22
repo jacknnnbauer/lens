@@ -80,6 +80,8 @@ pub struct ContextRow {
     pub app: Option<String>,
     pub window_title: Option<String>,
     pub url: Option<String>,
+    /// 捕获这句的时间（毫秒），导出时写在来源后面
+    pub captured_at: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -111,7 +113,7 @@ pub fn list(conn: &Connection, f: &HistoryFilter) -> Result<Vec<HistoryItem>> {
     let mut stmt = conn.prepare(
         "SELECT h.id, h.query, h.lemma, h.source, h.created_at,
                 c.id, c.sentence, c.hl_start, c.hl_end, c.app, c.window_title, c.url,
-                (SELECT COUNT(*) FROM history h2 WHERE h2.lemma = h.lemma)
+                (SELECT COUNT(*) FROM history h2 WHERE h2.lemma = h.lemma), c.created_at
          FROM history h LEFT JOIN context c ON c.id = h.context_id
          WHERE (?1 IS NULL OR h.created_at >= ?1)
            AND (?2 IS NULL OR h.created_at < ?2)
@@ -129,6 +131,7 @@ pub fn list(conn: &Connection, f: &HistoryFilter) -> Result<Vec<HistoryItem>> {
                 app: r.get(9)?,
                 window_title: r.get(10)?,
                 url: r.get(11)?,
+                captured_at: r.get(13)?,
             }),
             None => None,
         };
@@ -172,7 +175,7 @@ pub fn clear(conn: &Connection, before: Option<i64>) -> Result<usize> {
 pub fn latest_context(conn: &Connection, lemma: &str) -> Result<Option<ContextRow>> {
     Ok(conn
         .query_row(
-            "SELECT id, sentence, hl_start, hl_end, app, window_title, url FROM context
+            "SELECT id, sentence, hl_start, hl_end, app, window_title, url, created_at FROM context
              WHERE lemma = ?1 ORDER BY created_at DESC, id DESC LIMIT 1",
             params![lemma],
             |r| {
@@ -184,6 +187,7 @@ pub fn latest_context(conn: &Connection, lemma: &str) -> Result<Option<ContextRo
                     app: r.get(4)?,
                     window_title: r.get(5)?,
                     url: r.get(6)?,
+                    captured_at: r.get(7)?,
                 })
             },
         )

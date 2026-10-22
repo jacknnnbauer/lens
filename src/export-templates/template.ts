@@ -2,6 +2,7 @@
 // 每部词典的正文放在声明式 Shadow DOM 里（<template shadowrootmode>），词典 CSS 只作用于自己的卡片。
 
 import { escapeHtml, isExample, isPhonetic } from "../copy/convert";
+import { cleanTitle } from "../components/cleanTitle";
 import { BASE_CSS } from "../dict-render/DictBody";
 import { tr } from "../i18n";
 import type { ContextRow } from "../ipc/history";
@@ -89,16 +90,28 @@ function entriesHtml(card: ExportCard, input: ExportInput): string {
     .join("");
 }
 
-function contextHtml(input: ExportInput, label: string): string {
+/** 2026-10-22 14:05（本地时间，精确到分钟） */
+export function isoMinute(ms: number): string {
+  const d = new Date(ms);
+  return `${isoDate(d)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// 语境句：句子在上；下面一行是来源（网页标题，有网址时可点）和读到这句、查这个词的时间
+function contextHtml(input: ExportInput): string {
   const c = input.context;
   if (!c || !input.options.context) return "";
   const s = c.sentence;
   const quote = `${escapeHtml(s.slice(0, c.hlStart))}<mark>${escapeHtml(s.slice(c.hlStart, c.hlEnd))}</mark>${escapeHtml(s.slice(c.hlEnd))}`;
-  // 只写窗口标题，不写 msedge 之类的进程名
-  const src = c.windowTitle ? [escapeHtml(c.windowTitle)] : [];
-  const url = c.url && /^https?:/i.test(c.url) ? ` · <a href="${escapeHtml(c.url)}">${escapeHtml(c.url)}</a>` : "";
-  const meta = input.options.sourceDate && src.length ? ` · ${src.join(" · ")}${url}` : "";
-  return `<section class="context"><div class="label">${tr(label)}${meta}</div><p>“${quote}”</p></section>`;
+  let meta = "";
+  if (input.options.sourceDate) {
+    // 只写网页 / 窗口标题，不写 msedge 之类的进程名和浏览器尾巴
+    const title = c.windowTitle ? escapeHtml(cleanTitle(c.windowTitle)) : "";
+    const web = c.url && /^https?:/i.test(c.url) ? escapeHtml(c.url) : "";
+    const src = web ? `<a href="${web}">${title || web}</a>` : title;
+    const time = c.capturedAt ? `<time>${isoMinute(c.capturedAt)}</time>` : "";
+    meta = [src, time].filter(Boolean).join(" · ");
+  }
+  return `<section class="context"><p>“${quote}”</p>${meta ? `<div class="source">${meta}</div>` : ""}</section>`;
 }
 
 // 语境句紧跟在词头下面（第二行），词典释义在后
@@ -112,7 +125,7 @@ function cardsLayout(input: ExportInput): string {
         `<article class="card">${names ? `<header><strong>${escapeHtml(c.name)}</strong>${c.online ? `<span>${tr("在线")}</span>` : ""}</header>` : ""}${entriesHtml(c, input)}</article>`,
     )
     .join("");
-  return `<div class="wordbox"><h1>${escapeHtml(input.word)}</h1>${meta}</div>${contextHtml(input, "语境句")}${tags}${cards}`;
+  return `<div class="wordbox"><h1>${escapeHtml(input.word)}</h1>${meta}</div>${contextHtml(input)}${tags}${cards}`;
 }
 
 function documentLayout(input: ExportInput): string {
@@ -129,7 +142,7 @@ function documentLayout(input: ExportInput): string {
         }${entriesHtml(c, input)}</section>`,
     )
     .join("");
-  return `<header class="doc-head">${row}<h1>${escapeHtml(input.word)}</h1>${dicts}</header>${contextHtml(input, "我的语境")}${sections}`;
+  return `<header class="doc-head">${row}<h1>${escapeHtml(input.word)}</h1>${dicts}</header>${contextHtml(input)}${sections}`;
 }
 
 function wordInner(input: ExportInput): string {

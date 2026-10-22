@@ -10,6 +10,8 @@ export interface ContextRow {
   app: string | null;
   windowTitle: string | null;
   url: string | null;
+  /** 捕获这句的时间（毫秒） */
+  capturedAt: number;
 }
 
 export interface HistoryItem {

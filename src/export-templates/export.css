@@ -182,9 +182,14 @@ body {
   break-inside: avoid;
 }
 
-.context .label {
+.context .source {
   font-size: 12px;
   color: var(--sub);
+  overflow-wrap: anywhere;
+}
+
+.context .source a {
+  color: inherit;
 }
 
 .context p {

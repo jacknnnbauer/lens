@@ -243,7 +243,7 @@ pub async fn lookup_word(state: &AppState, sources: &BatchSources, cfg: &setting
         })
         .collect();
     let suggestions = if cards.is_empty() { query::fuzzy_suggestions(&sources.locals(), &lemma_word) } else { Vec::new() };
-    let context = state.db.with_conn(|c| history::latest_context(c, &normalize_key(&lemma_word))).ok().flatten();
+    let context = state.db.with_conn(|c| history::latest_context(c, &crate::lemma::base_form(state, &lemma_word))).ok().flatten();
     WordResult { seq, word: word.to_string(), cards, notes, suggestions, context }
 }
 

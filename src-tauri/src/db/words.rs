@@ -228,6 +228,7 @@ fn contexts_of(conn: &Connection, word_id: i64) -> Result<Vec<WordContext>> {
                 app: r.get(4)?,
                 window_title: r.get(5)?,
                 url: r.get(6)?,
+                captured_at: r.get(7)?,
             },
             created_at: r.get(7)?,
         })

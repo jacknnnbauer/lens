@@ -4,10 +4,8 @@ use tauri::{AppHandle, State, WebviewWindow};
 
 use crate::app_state::AppState;
 use crate::db::history::{self, ContextRow};
-use crate::dict::index::normalize_key;
 use crate::error::Result;
 use crate::export::{self, Paper};
-use crate::query::normalize_query;
 
 /// 确保导出窗口存在；返回是否为新建（新建时前端要等它报告就绪）。
 #[tauri::command]
@@ -32,6 +30,6 @@ pub async fn export_save_html(path: PathBuf, html: String) -> Result<()> {
 /// 这个词最近一次划词捕获的语境句（导出「我的语境」用）。
 #[tauri::command]
 pub async fn latest_context(state: State<'_, AppState>, query: String) -> Result<Option<ContextRow>> {
-    let lemma = normalize_key(&normalize_query(&query));
+    let lemma = crate::lemma::base_form(&state, &query);
     state.db.with_conn(|c| history::latest_context(c, &lemma))
 }

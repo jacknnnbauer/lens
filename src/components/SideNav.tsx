@@ -25,7 +25,7 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLi
   const recent = useLookup((s) => s.recent);
 
   return (
-    <nav aria-label={tr("主导航")} className={styles.nav}>
+    <nav aria-label={tr("主导航")} className={styles.nav} data-ui="nav">
       <div className={styles.group}>
         <button type="button" className={styles.item} aria-current={page === "lookup" ? "page" : undefined} onClick={onFocusSearch}>
           {tr("查词")}<kbd>Ctrl+K</kbd>

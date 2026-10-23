@@ -80,7 +80,7 @@ export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence }: Pro
   }
 
   return (
-    <section className={styles.card} aria-label={tr("当前语境")} data-word-lookup="">
+    <section className={styles.card} aria-label={tr("当前语境")} data-word-lookup="" data-ui="card">
       <header className={styles.head}>
         <span className={styles.title}>{tr("当前语境")}</span>
         {result?.best && <span className={styles.badge} data-sure={result.confident || undefined}>{tr(result.confident ? "有把握" : "初步判断")}</span>}

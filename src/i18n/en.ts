@@ -919,4 +919,8 @@ export const en: Record<string, string> = {
   "查词结果里把派生词、同根词、易混词、近义词画成一张网，点任何一个词就查它（离线）": "Draw derived words, same-root words, confusables and synonyms as a network in the results; click any word to look it up (offline)",
   "雾紫": "Mist",
   "冷灰纸面、暖灰渐变卡片、柔和阴影，低调的高级感": "Cool grey paper, warm-grey gradient cards and soft shadows: quietly premium",
+  "铜版": "Etching",
+  "旧报纸版面：双线栏目、斜体报头、下划线搜索框": "Old newspaper layout: double-rule sections, italic masthead, underlined search",
+  "构成": "Bauhaus",
+  "包豪斯平面：粗黑框、硬投影、红蓝黄色块标题": "Bauhaus graphics: heavy black frames, hard shadows, red/blue/yellow title blocks",
 };

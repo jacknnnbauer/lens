@@ -76,7 +76,7 @@ export function CopyMenu({ label, defaultFormat, disabled, onCopy, onSetDefault 
 
   return (
     <div ref={wrap} className={styles.wrap}>
-      <div className={styles.split}>
+      <div className={styles.split} data-ui="split">
         <button
           type="button"
           className={styles.main}

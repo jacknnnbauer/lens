@@ -1,4 +1,5 @@
 @import "./tokens.css";
+@import "./layouts.css";
 
 *,
 *::before,
@@ -27,6 +28,16 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* 窗口边缘：一条跟主题走的细线，盖在最上层、不挡鼠标；最大化时不画 */
+html:not([data-maximized]) body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  border: 1px solid var(--window-edge);
+  pointer-events: none;
 }
 
 button,

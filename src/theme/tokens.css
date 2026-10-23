@@ -1,7 +1,8 @@
 /*
  * 主题变量（SPEC 9.5）。前端所有颜色只能引用这里的变量。
- * <html data-theme="paper|light|xuan|sepia|frost|eink|dark|midnight|moss|dusk|contrast" data-accent="blue|teal|amber|violet|rose">
- * 11 套内置主题（SPEC 9.5）；强调色只对纸本 / 冷白 / 石墨生效，其余主题自带强调色。
+ * <html data-theme="paper|light|xuan|sepia|frost|mist|etching|bauhaus|eink|dark|midnight|moss|dusk|contrast" data-accent="blue|teal|amber|violet|rose">
+ * 14 套内置主题（SPEC 9.5）；强调色只对纸本 / 冷白 / 石墨生效，其余主题自带强调色。
+ * 铜版、构成两套还改版式（卡片、标题、搜索框的形状），规则在 layouts.css，颜色仍只在这里。
  * 自定义主题不在这里：由 applyTheme 把变量直接写到 <html> 的内联样式上。
  */
 
@@ -10,6 +11,8 @@
   /* Georgia 在宋体之前：字体未随包分发前，西文不至于落到宋体的等宽字形；中文仍由后面的中文字体接管 */
   --font-gloss: "Source Serif 4", Georgia, "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
   --font-mono: "JetBrains Mono", Consolas, monospace;
+  /* 窗口边缘的细线（系统边框关掉了，自己画）：默认是很淡的正文色，主题可以改 */
+  --window-edge: color-mix(in srgb, var(--text) 14%, transparent);
 }
 
 /* 纸本（默认） */
@@ -136,6 +139,48 @@
   --card-border: transparent;
   --card-shadow: 0 1px 2px rgb(29 29 41 / 4%), 0 10px 28px rgb(29 29 41 / 6%);
   --bg-texture: radial-gradient(rgb(29 29 41 / 7%) 1px, transparent 1px);
+}
+
+/* 铜版：旧报纸 / 铜版画。米色新闻纸、油墨黑、细线排版，一点牛血红 */
+[data-theme="etching"] {
+  color-scheme: light;
+  --bg: #F3EEE3;
+  --panel: #F8F4EA;
+  --raised: #ECE5D6;
+  --line: #CFC6B3;
+  --text: #1B1814;
+  --sub: #4A443B;
+  --faint: #675F53;
+  --accent: #8E2B1E;
+  --accent-ink: #FFF8EE;
+  --warn: #8E2B1E;
+  /* 铜版画的排线：极淡的横线 */
+  --bg-texture: repeating-linear-gradient(0deg, rgb(27 24 20 / 3.5%) 0 1px, transparent 1px 5px);
+  --window-edge: rgb(27 24 20 / 32%);
+  --font-display: "Palatino Linotype", "Book Antiqua", Georgia, "Noto Serif SC", "SimSun", serif;
+}
+
+/* 构成：包豪斯 / 瑞士平面。暖白底、粗黑框、硬投影，红蓝黄色块 */
+[data-theme="bauhaus"] {
+  color-scheme: light;
+  --bg: #EFECE4;
+  --panel: #FBFAF6;
+  --raised: #E4E0D5;
+  --line: #C9C4B8;
+  --text: #141414;
+  --sub: #3B3B3B;
+  --faint: #5C5C5C;
+  --accent: #D2341A;
+  --accent-ink: #FFFFFF;
+  --warn: #B3300F;
+  --block-ink: #141414;
+  --block-red: #D2341A;
+  --block-blue: #1D4FB8;
+  --block-yellow: #F0B71F;
+  /* 淡淡的网格纸 */
+  --bg-texture: linear-gradient(rgb(20 20 20 / 6%) 1px, transparent 1px), linear-gradient(90deg, rgb(20 20 20 / 6%) 1px, transparent 1px);
+  --window-edge: #141414;
+  --font-display: Bahnschrift, "DIN Alternate", "Segoe UI", "Microsoft YaHei UI", sans-serif;
 }
 
 /* 午夜蓝（自带强调色） */

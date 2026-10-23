@@ -20,7 +20,12 @@ export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext 
 
   useEffect(() => {
     const w = getCurrentWindow();
-    const sync = () => void w.isMaximized().then(setMaximized, () => undefined);
+    // 最大化时 <html data-maximized>：不画窗口边缘那条细线
+    const sync = () =>
+      void w.isMaximized().then((m) => {
+        setMaximized(m);
+        document.documentElement.toggleAttribute("data-maximized", m);
+      }, () => undefined);
     sync();
     const off = w.onResized(sync);
     return () => void off.then((f) => f());
@@ -28,7 +33,7 @@ export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext 
 
   const w = getCurrentWindow();
   return (
-    <header className={styles.bar} data-tauri-drag-region>
+    <header className={styles.bar} data-tauri-drag-region data-ui="titlebar">
       <button
         type="button"
         className={styles.navBtn}

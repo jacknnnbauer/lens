@@ -140,7 +140,7 @@ export function WordFamily({ word, onLookup }: { word: string; onLookup: (w: str
   const cy = HEIGHT / 2;
 
   return (
-    <section className={styles.card} aria-label={tr("词汇网络")}>
+    <section className={styles.card} aria-label={tr("词汇网络")} data-ui="card">
       <header className={styles.head}>
         <button type="button" className={styles.title} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {tr("词汇网络")}
@@ -151,7 +151,7 @@ export function WordFamily({ word, onLookup }: { word: string; onLookup: (w: str
 
       {open && (
         <>
-          <div ref={box} className={styles.canvas}>
+          <div ref={box} className={styles.canvas} data-ui="canvas">
             {error && <p className={styles.note}>{error}</p>}
             {!data && !error && <p className={styles.note}>{tr("整理中…")}</p>}
             {data && total === 0 && <p className={styles.note}>{tr("本地词典里没找到相关的词")}</p>}

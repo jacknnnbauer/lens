@@ -245,6 +245,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         <button
           type="button"
           className={styles.star}
+          data-ui="tool"
           aria-pressed={saved}
           aria-label={tr(saved ? "已收藏（Ctrl+S 追加语境）" : "收藏到生词本（Ctrl+S）")}
           title={tr(saved ? "已收藏 · Ctrl+S 追加语境" : "收藏到生词本 · Ctrl+S")}
@@ -256,6 +257,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         <button
           type="button"
           className={styles.star}
+          data-ui="tool"
           aria-label={tr("导出 PDF 或 HTML（Ctrl+E）")}
           title={tr("导出 PDF 或 HTML · Ctrl+E")}
           disabled={!anyHit}
@@ -267,7 +269,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
       </div>
 
       {showHeadword && headword && (
-        <header className={styles.headword}>
+        <header className={styles.headword} data-ui="headword">
           <h1>{headword}</h1>
           <span>
             {tr("{hits}/{total} 部词典命中", { hits: hitCount, total: cards.length })}
@@ -282,6 +284,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
               key={c.id}
               href={`#dict-${c.id}`}
               className={styles.pill}
+              data-ui="chip"
               data-pending={c.status === "pending" || undefined}
               onClick={(e) => {
                 e.preventDefault();

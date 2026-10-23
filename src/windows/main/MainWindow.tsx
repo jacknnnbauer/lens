@@ -287,15 +287,15 @@ export function MainWindow() {
             // 只留查词相关的按钮，生词本、设置从左侧导航或 Ctrl+B / Ctrl+, 进入
             actions={
               <>
-                <button type="button" className={styles.iconBtn} aria-label={tr("历史")} title={tr("历史（Ctrl+H）")} onClick={() => go("history")}>
+                <button type="button" className={styles.iconBtn} data-ui="tool" aria-label={tr("历史")} title={tr("历史（Ctrl+H）")} onClick={() => go("history")}>
                   <ClockIcon />
                 </button>
-                <button type="button" className={styles.iconBtn} aria-label={tr("词典库")} title={tr("词典库（Ctrl+L）")} onClick={() => setLibraryOpen(true)}>
+                <button type="button" className={styles.iconBtn} data-ui="tool" aria-label={tr("词典库")} title={tr("词典库（Ctrl+L）")} onClick={() => setLibraryOpen(true)}>
                   <LibraryIcon />
                 </button>
                 <button
                   type="button"
-                  className={styles.iconBtn}
+                  className={styles.iconBtn} data-ui="tool"
                   aria-label={tr("卡片墙")}
                   aria-pressed={layout?.cardWall ?? false}
                   title={tr(layout?.cardWall ? "退出卡片墙（Ctrl+Shift+W）" : "卡片墙：词典卡片铺满整个界面（Ctrl+Shift+W）")}
@@ -303,7 +303,7 @@ export function MainWindow() {
                 >
                   <WallIcon />
                 </button>
-                <button type="button" className={styles.iconBtn} aria-label={tr("沉浸模式")} title={tr("沉浸模式（F11）")} onClick={() => useImmersive.getState().enter()}>
+                <button type="button" className={styles.iconBtn} data-ui="tool" aria-label={tr("沉浸模式")} title={tr("沉浸模式（F11）")} onClick={() => useImmersive.getState().enter()}>
                   <ImmersiveIcon />
                 </button>
               </>

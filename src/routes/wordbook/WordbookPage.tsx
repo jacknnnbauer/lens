@@ -170,7 +170,7 @@ function ContextCard({ word, onLookup }: { word: Word; onLookup: (w: string) => 
   const [flipped, setFlipped] = useState(false);
   const ctx = word.contexts[0];
   return (
-    <div className={styles.card} data-flipped={flipped || undefined}>
+    <div className={styles.card} data-flipped={flipped || undefined} data-ui="card">
     <button
       type="button"
       className={styles.cardFlip}

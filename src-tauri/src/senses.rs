@@ -94,7 +94,7 @@ pub struct SenseAtlas {
 
 // —— HTML → 文本 ——
 
-fn decode_entities(s: &str) -> String {
+pub(crate) fn decode_entities(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(i) = rest.find('&') {

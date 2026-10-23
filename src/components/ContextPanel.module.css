@@ -77,10 +77,8 @@
   color: var(--faint);
 }
 
-/* 右侧栏里的词典释义：窄栏里字号小一点，长词条限高滚动 */
+/* 右侧栏里的词典释义：窄栏里字号小一点；整段展开，跟着侧栏一起滚，不再单独出滚动条 */
 .dict {
-  max-height: 420px;
-  overflow-y: auto;
   /* 词条在 Shadow DOM 里，字号走 --gloss-size */
   --gloss-size: 14px;
 }

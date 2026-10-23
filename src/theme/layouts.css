@@ -1,0 +1,270 @@
+/*
+ * 会改版式的主题（铜版、构成）：不只换颜色，卡片、词头、搜索框、按钮的形状也跟着变。
+ * 组件在关键部件上标了 data-ui（card / card-head / card-name / headword / search / tool / chip / canvas / titlebar / nav / split），
+ * 这里按主题给这些部件换样式。颜色只用 tokens.css 里的变量。
+ */
+
+/* ———————— 铜版：报纸版面 ———————— */
+
+/* 卡片不再是盒子：上面一道双线（报纸栏线），下面一道细线，直接印在纸上 */
+[data-theme="etching"] [data-ui="card"] {
+  border: 0;
+  border-top: 3px double var(--text);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 栏目名：小号大写、拉开字距，前面一个红色的 § */
+[data-theme="etching"] [data-ui="card-name"] {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+[data-theme="etching"] [data-ui="card-name"]::before {
+  content: "§ ";
+  color: var(--accent);
+}
+
+/* 词头像报头：大号斜体衬线，下面一道粗线 */
+[data-theme="etching"] [data-ui="headword"] {
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--text);
+}
+
+[data-theme="etching"] [data-ui="headword"] h1 {
+  font-family: var(--font-display);
+  font-size: 58px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="etching"] [data-ui="headword"] span {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* 搜索框只剩一道下划线，像在纸上填空 */
+[data-theme="etching"] [data-ui="search"] {
+  border: 0;
+  border-bottom: 2px solid var(--text);
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-theme="etching"] [data-ui="search"]:focus-within {
+  border-bottom-color: var(--accent);
+  box-shadow: none;
+}
+
+[data-theme="etching"] [data-ui="tool"] {
+  border-radius: 0;
+  border-color: var(--line);
+}
+
+/* 词典名条：去掉胶囊，改成带下划线的目录 */
+[data-theme="etching"] [data-ui="chip"] {
+  padding: 2px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+}
+
+[data-theme="etching"] [data-ui="chip"]:hover {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+[data-theme="etching"] [data-ui="canvas"] {
+  border-radius: 0;
+  background-color: transparent;
+}
+
+/* 标题栏下面也是双线 */
+[data-theme="etching"] [data-ui="titlebar"] {
+  background: var(--bg);
+  border-bottom: 3px double var(--text);
+}
+
+[data-theme="etching"] [data-ui="split"],
+[data-theme="etching"] [data-ui="split"] button {
+  border-radius: 0;
+}
+
+/* 左侧导航：当前项不是色块，是左边一道红线 + 斜体 */
+[data-theme="etching"] [data-ui="nav"] button {
+  border-radius: 0;
+}
+
+[data-theme="etching"] [data-ui="nav"] button[aria-current="page"],
+[data-theme="etching"] [data-ui="nav"] button[aria-pressed="true"] {
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--accent);
+  font-family: var(--font-display);
+  font-style: italic;
+}
+
+/* 词汇网络的词：直角小标签 */
+[data-theme="etching"] [data-ui="canvas"] rect {
+  rx: 2px;
+}
+
+/* ———————— 构成：包豪斯 / 瑞士平面 ———————— */
+
+/* 卡片：粗黑框、直角、硬投影 */
+[data-theme="bauhaus"] [data-ui="card"] {
+  border: 2px solid var(--block-ink);
+  border-radius: 0;
+  background: var(--panel);
+  box-shadow: 6px 6px 0 var(--block-ink);
+}
+
+/* 卡片标题是实心色块，红、蓝、黄轮流 */
+[data-theme="bauhaus"] [data-ui="card-head"] {
+  background: var(--block-red);
+  color: var(--accent-ink);
+  border-bottom: 2px solid var(--block-ink);
+}
+
+[data-theme="bauhaus"] article[data-ui="card"]:nth-of-type(3n + 2) [data-ui="card-head"] {
+  background: var(--block-blue);
+}
+
+[data-theme="bauhaus"] article[data-ui="card"]:nth-of-type(3n) [data-ui="card-head"] {
+  background: var(--block-yellow);
+  color: var(--block-ink);
+}
+
+[data-theme="bauhaus"] [data-ui="card-head"] * {
+  color: inherit;
+}
+
+[data-theme="bauhaus"] [data-ui="card-head"] h2 {
+  border-radius: 0;
+}
+
+[data-theme="bauhaus"] [data-ui="card-name"] {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* 词头：粗无衬线大字，前面一块红色方块；命中数做成黑底反白的标签 */
+[data-theme="bauhaus"] [data-ui="headword"] {
+  align-items: center;
+}
+
+[data-theme="bauhaus"] [data-ui="headword"] h1 {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-display);
+  font-size: 60px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="bauhaus"] [data-ui="headword"] h1::before {
+  content: "";
+  flex: none;
+  width: 22px;
+  height: 22px;
+  background: var(--block-red);
+}
+
+[data-theme="bauhaus"] [data-ui="headword"] span {
+  padding: 3px 10px;
+  background: var(--block-ink);
+  color: var(--panel);
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+[data-theme="bauhaus"] [data-ui="search"] {
+  border: 2px solid var(--block-ink);
+  border-radius: 0;
+  box-shadow: 4px 4px 0 var(--block-ink);
+}
+
+[data-theme="bauhaus"] [data-ui="search"]:focus-within {
+  box-shadow: 4px 4px 0 var(--block-red);
+}
+
+[data-theme="bauhaus"] [data-ui="tool"] {
+  border: 2px solid var(--block-ink);
+  border-radius: 0;
+  color: var(--block-ink);
+}
+
+[data-theme="bauhaus"] [data-ui="tool"]:hover:not(:disabled) {
+  background: var(--block-yellow);
+}
+
+[data-theme="bauhaus"] [data-ui="chip"] {
+  border: 2px solid var(--block-ink);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--block-ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+[data-theme="bauhaus"] [data-ui="chip"]:hover {
+  background: var(--block-yellow);
+}
+
+[data-theme="bauhaus"] [data-ui="canvas"] {
+  border: 2px solid var(--block-ink);
+  border-radius: 0;
+}
+
+[data-theme="bauhaus"] [data-ui="titlebar"] {
+  border-bottom: 2px solid var(--block-ink);
+}
+
+/* 色块标题上的复制按钮：直角、跟标题同色的描边 */
+[data-theme="bauhaus"] [data-ui="split"],
+[data-theme="bauhaus"] [data-ui="split"] button {
+  border-color: currentColor;
+  border-radius: 0;
+}
+
+/* 左侧导航：当前项是黑底反白的整块 */
+[data-theme="bauhaus"] [data-ui="nav"] {
+  border-right: 2px solid var(--block-ink);
+}
+
+[data-theme="bauhaus"] [data-ui="nav"] button {
+  border-radius: 0;
+  font-family: var(--font-display);
+}
+
+[data-theme="bauhaus"] [data-ui="nav"] button[aria-current="page"],
+[data-theme="bauhaus"] [data-ui="nav"] button[aria-pressed="true"] {
+  background: var(--block-ink);
+  color: var(--panel);
+}
+
+[data-theme="bauhaus"] [data-ui="nav"] button[aria-current="page"] *,
+[data-theme="bauhaus"] [data-ui="nav"] button[aria-pressed="true"] * {
+  color: inherit;
+}
+
+/* 词汇网络：直角方块、粗描边 */
+[data-theme="bauhaus"] [data-ui="canvas"] rect {
+  rx: 0;
+  stroke-width: 2px;
+}

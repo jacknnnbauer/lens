@@ -92,6 +92,25 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// 无边框窗口的阴影。系统自带的做法（tao 的 shadow）保留了一圈系统边框，Windows 10 上是一条很显眼的深色线；
+/// 这里关掉它，改成把 DWM 框架向客户区延伸 1 像素：系统照样画阴影，那 1 像素被页面盖住，
+/// 窗口边缘那条细线由界面按主题自己画（--window-edge）。
+#[cfg(windows)]
+pub(crate) fn soften_frame(w: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;
+    use windows::Win32::UI::Controls::MARGINS;
+    let Ok(h) = w.hwnd() else { return };
+    let margins = MARGINS { cxLeftWidth: 1, cxRightWidth: 1, cyTopHeight: 1, cyBottomHeight: 1 };
+    // SAFETY: hwnd 来自刚创建的窗口；DwmExtendFrameIntoClientArea 只读 margins
+    if let Err(e) = unsafe { DwmExtendFrameIntoClientArea(HWND(h.0 as _), &margins) } {
+        tracing::warn!(error = %e, "设置窗口阴影失败");
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn soften_frame(_w: &tauri::WebviewWindow) {}
+
 static MAIN_SHOWN: std::sync::Once = std::sync::Once::new();
 static POPUP_CREATED: std::sync::Once = std::sync::Once::new();
 
@@ -129,9 +148,11 @@ pub(crate) fn ensure_popup(app: &tauri::AppHandle) {
             .min_inner_size(capture::POPUP_MIN_W, capture::POPUP_MIN_H)
             .visible(false)
             .focused(false)
+            .shadow(false)
             .build();
-        if let Err(e) = built {
-            tracing::error!(error = %e, "创建查词弹窗失败");
+        match built {
+            Ok(w) => soften_frame(&w),
+            Err(e) => tracing::error!(error = %e, "创建查词弹窗失败"),
         }
     });
 }
@@ -237,6 +258,7 @@ pub fn run() {
                 if main.is_maximized().unwrap_or(false) {
                     let _ = main.unmaximize();
                 }
+                soften_frame(&main);
                 fit_to_work_area(&main);
             }
             let handle = app.handle().clone();

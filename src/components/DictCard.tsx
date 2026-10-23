@@ -34,12 +34,12 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
   const pending = card.status === "pending";
 
   return (
-    <article id={`dict-${card.id}`} className={styles.card} aria-busy={pending}>
-      <div className={styles.header} data-wall-handle="">
+    <article id={`dict-${card.id}`} className={styles.card} aria-busy={pending} data-ui="card">
+      <div className={styles.header} data-wall-handle="" data-ui="card-head">
         {/* 标题可聚焦，作为卡片间跳转的落点（不是按钮：卡片不折叠） */}
         <h2 className={styles.heading} tabIndex={0} data-card-toggle={card.id} onKeyDown={onToggleKeyDown}>
           <span className={styles.toggle}>
-            <strong className={styles.name} title={card.name}>
+            <strong className={styles.name} title={card.name} data-ui="card-name">
               {card.name}
             </strong>
             {SOURCE_TAG[card.source] && <span className={styles.tag}>{tr(SOURCE_TAG[card.source] ?? "")}</span>}

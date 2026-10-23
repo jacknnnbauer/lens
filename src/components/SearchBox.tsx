@@ -116,7 +116,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
 
   return (
     <div className={styles.wrap}>
-      <label className={styles.box}>
+      <label className={styles.box} data-ui="search">
         <span className={styles.icon}>
           <SearchIcon />
         </span>

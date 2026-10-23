@@ -1,5 +1,5 @@
 // 设置页（SPEC 14、画板 06）：左侧分类、右侧分节，改动立即生效，300ms 防抖写回 settings.json。
-// 完整的主题库（12 套内置 + 自定义）在单独的页面（routes/themes）。
+// 完整的主题库（14 套内置 + 自定义）在单独的页面（routes/themes）。
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { PanelSettings } from "./PanelSettings";

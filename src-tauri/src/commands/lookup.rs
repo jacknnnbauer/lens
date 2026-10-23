@@ -98,7 +98,19 @@ pub async fn word_family(state: State<'_, AppState>, query: String) -> Result<cr
         let lemmas = coca.as_ref().map(|c| c.lemmas()).unwrap_or_default();
         let synonyms = coca.as_ref().map(|c| c.synonyms_of(&word)).unwrap_or_default();
         let search = |p: &str, limit: usize| query::prefix_suggestions(&dicts, p, limit).into_iter().map(|w| w.to_lowercase()).collect::<Vec<_>>();
-        crate::word_family::build(&word, &search, &lemmas, &synonyms)
+        // 词条正文里的词：只看释义词典（同义词、搭配、词频类会列一堆不相干的词）
+        let defining: Vec<&LoadedDict> = dicts.iter().filter(|d| !is_reference_dict(&d.source.meta().name)).collect();
+        let mentions = |w: &str| -> std::collections::BTreeSet<String> {
+            let mut out = std::collections::BTreeSet::new();
+            for d in &defining {
+                for e in d.source.lookup(w).unwrap_or_default() {
+                    let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
+                    out.extend(crate::word_family::entry_words(t));
+                }
+            }
+            out
+        };
+        crate::word_family::build(&word, &search, &mentions, &lemmas, &synonyms)
     })
     .await
     .map_err(|e| crate::error::Error::Other(e.to_string()))

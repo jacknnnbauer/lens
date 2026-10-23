@@ -243,7 +243,7 @@ export function MainWindow() {
       style={{ "--nav-w": `${navWidth}px`, "--context-w": `${contextWidth}px` } as React.CSSProperties}
     >
       {showNav && (
-        <div className={styles.side}>
+        <div className={styles.side} data-ui="side">
           <ResizeHandle
             side="left"
             label={tr("拖动调整左侧导航宽度（双击恢复默认）")}

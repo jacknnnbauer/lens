@@ -1,8 +1,8 @@
 /*
  * 主题变量（SPEC 9.5）。前端所有颜色只能引用这里的变量。
- * <html data-theme="paper|light|xuan|sepia|frost|mist|etching|bauhaus|eink|dark|midnight|moss|dusk|contrast" data-accent="blue|teal|amber|violet|rose">
- * 14 套内置主题（SPEC 9.5）；强调色只对纸本 / 冷白 / 石墨生效，其余主题自带强调色。
- * 铜版、构成两套还改版式（卡片、标题、搜索框的形状），规则在 layouts.css，颜色仍只在这里。
+ * <html data-theme="paper|light|xuan|sepia|frost|mist|etching|bauhaus|glass|eink|dark|midnight|moss|dusk|contrast" data-accent="blue|teal|amber|violet|rose">
+ * 15 套内置主题（SPEC 9.5）；强调色只对纸本 / 冷白 / 石墨生效，其余主题自带强调色。
+ * 铜版、构成、柔光三套还改版式（卡片、标题、搜索框的形状），规则在 layouts.css，颜色仍只在这里。
  * 自定义主题不在这里：由 applyTheme 把变量直接写到 <html> 的内联样式上。
  */
 
@@ -181,6 +181,29 @@
   --bg-texture: linear-gradient(rgb(20 20 20 / 6%) 1px, transparent 1px), linear-gradient(90deg, rgb(20 20 20 / 6%) 1px, transparent 1px);
   --window-edge: #141414;
   --font-display: Bahnschrift, "DIN Alternate", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+
+/* 柔光：日落渐变的底，上面是磨砂玻璃面板（半透明白、模糊背景、白色高光边、大圆角） */
+[data-theme="glass"] {
+  color-scheme: light;
+  --bg: #F2DED6;
+  --panel: #FFF9F6;
+  --raised: #F6E8E2;
+  --line: #E2D0CA;
+  --text: #2A2230;
+  --sub: #574B5C;
+  --faint: #6B5F70;
+  --accent: #B04F36;
+  --accent-ink: #FFFFFF;
+  --warn: #A64F0C;
+  --bg-texture: linear-gradient(180deg, #F8DED3 0%, #F4D6C0 36%, #E6CDD2 68%, #CBBDD3 100%);
+  --bg-size: 100% 100%;
+  --glass: rgb(255 255 255 / 46%);
+  --glass-strong: rgb(255 255 255 / 80%);
+  --glass-edge: rgb(255 255 255 / 72%);
+  --glass-dash: rgb(42 34 48 / 20%);
+  --glass-shadow: 0 12px 32px rgb(70 45 60 / 12%), inset 0 1px 0 rgb(255 255 255 / 80%);
+  --window-edge: rgb(90 60 80 / 24%);
 }
 
 /* 午夜蓝（自带强调色） */

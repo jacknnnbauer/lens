@@ -40,11 +40,11 @@ describe("resolveTheme", () => {
 });
 
 describe("themes", () => {
-  it("lists 14 built-ins before customs", () => {
+  it("lists 15 built-ins before customs", () => {
     const all = allThemes([custom]);
-    expect(all).toHaveLength(15);
+    expect(all).toHaveLength(16);
     expect(all.filter((t) => t.accentable).map((t) => t.id)).toEqual(["paper", "light", "dark"]);
-    expect(all[14].custom).toBe(custom);
+    expect(all[15].custom).toBe(custom);
   });
 
   it("computes WCAG contrast", () => {

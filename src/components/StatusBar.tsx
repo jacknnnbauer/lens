@@ -15,7 +15,7 @@ export function StatusBar({ capture }: { capture: CaptureStatus | null }) {
   const profile = profiles.find((p) => p.id === active);
 
   return (
-    <footer className={styles.bar}>
+    <footer className={styles.bar} data-ui="statusbar">
       <span className={styles.item}>
         <span className={styles.dot} aria-hidden="true" />
         {tr("{n} 部离线词典 · 索引就绪", { n: loaded })}

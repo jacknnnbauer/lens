@@ -21,7 +21,8 @@ body {
   background: var(--bg);
   /* 有的主题（雾紫）在底色上加一层淡点阵 */
   background-image: var(--bg-texture, none);
-  background-size: 22px 22px;
+  /* 点阵、网格按 22px 平铺；渐变类主题（柔光）铺满窗口 */
+  background-size: var(--bg-size, 22px 22px);
   background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-ui);

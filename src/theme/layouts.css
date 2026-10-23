@@ -1,6 +1,6 @@
 /*
- * 会改版式的主题（铜版、构成）：不只换颜色，卡片、词头、搜索框、按钮的形状也跟着变。
- * 组件在关键部件上标了 data-ui（card / card-head / card-name / headword / search / tool / chip / canvas / titlebar / nav / split），
+ * 会改版式的主题（铜版、构成、柔光）：不只换颜色，卡片、词头、搜索框、按钮的形状也跟着变。
+ * 组件在关键部件上标了 data-ui（card / card-head / card-name / headword / search / tool / chip / canvas / titlebar / nav / split / side / statusbar），
  * 这里按主题给这些部件换样式。颜色只用 tokens.css 里的变量。
  */
 
@@ -267,4 +267,87 @@
 [data-theme="bauhaus"] [data-ui="canvas"] rect {
   rx: 0;
   stroke-width: 2px;
+}
+
+/* ———————— 柔光：磨砂玻璃 ———————— */
+
+/* 窗口里的大块面板（侧栏、标题栏、状态栏）都是玻璃，透出背后的渐变 */
+[data-theme="glass"] [data-ui="side"],
+[data-theme="glass"] [data-ui="titlebar"],
+[data-theme="glass"] [data-ui="statusbar"] {
+  background: var(--glass);
+  border-color: var(--glass-edge);
+  backdrop-filter: blur(22px) saturate(140%);
+}
+
+[data-theme="glass"] [data-ui="card"] {
+  border: 1px solid var(--glass-edge);
+  border-radius: 22px;
+  background: var(--glass);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+[data-theme="glass"] [data-ui="card-name"] {
+  font-weight: 650;
+}
+
+[data-theme="glass"] [data-ui="search"] {
+  border: 1px solid var(--glass-edge);
+  border-radius: 18px;
+  background: var(--glass-strong);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(20px);
+}
+
+[data-theme="glass"] [data-ui="search"]:focus-within {
+  box-shadow: var(--glass-shadow), 0 0 0 3px var(--glass-edge);
+}
+
+/* 工具按钮、词典名：像参考图里的视图方块——虚线描边的玻璃块，悬停或选中时变成实心白 */
+[data-theme="glass"] [data-ui="tool"],
+[data-theme="glass"] [data-ui="chip"] {
+  border: 1px dashed var(--glass-dash);
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+}
+
+[data-theme="glass"] [data-ui="tool"] {
+  border-radius: 14px;
+}
+
+[data-theme="glass"] [data-ui="tool"]:hover:not(:disabled),
+[data-theme="glass"] [data-ui="tool"][aria-pressed="true"],
+[data-theme="glass"] [data-ui="chip"]:hover {
+  border: 1px solid var(--glass-edge);
+  background: var(--glass-strong);
+  box-shadow: var(--glass-shadow);
+}
+
+[data-theme="glass"] [data-ui="split"],
+[data-theme="glass"] [data-ui="split"] button {
+  border-color: var(--glass-edge);
+  background: var(--glass);
+}
+
+[data-theme="glass"] [data-ui="headword"] span {
+  padding: 2px 10px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: var(--glass);
+}
+
+[data-theme="glass"] [data-ui="canvas"] {
+  border-radius: 16px;
+  background-color: var(--glass);
+}
+
+[data-theme="glass"] [data-ui="nav"] button {
+  border-radius: 12px;
+}
+
+[data-theme="glass"] [data-ui="nav"] button[aria-current="page"],
+[data-theme="glass"] [data-ui="nav"] button[aria-pressed="true"] {
+  background: var(--glass-strong);
+  box-shadow: var(--glass-shadow);
 }

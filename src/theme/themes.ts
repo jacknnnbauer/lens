@@ -10,6 +10,7 @@ export const BUILTIN_THEMES = [
   { id: "mist", name: "雾紫", dark: false, accentable: false, note: "冷灰纸面、暖灰渐变卡片、柔和阴影，低调的高级感" },
   { id: "etching", name: "铜版", dark: false, accentable: false, note: "旧报纸版面：双线栏目、斜体报头、下划线搜索框" },
   { id: "bauhaus", name: "构成", dark: false, accentable: false, note: "包豪斯平面：粗黑框、硬投影、红蓝黄色块标题" },
+  { id: "glass", name: "柔光", dark: false, accentable: false, note: "日落渐变底上的磨砂玻璃面板，柔和通透" },
   { id: "eink", name: "墨水屏", dark: false, accentable: false, note: "纯黑白、零彩色，适合打印和墨水屏" },
   { id: "dark", name: "石墨", dark: true, accentable: true, note: "默认暗色，低眩光，夜间与编程" },
   { id: "midnight", name: "午夜蓝", dark: true, accentable: false, note: "深海军蓝配金色，夜读的书房感" },

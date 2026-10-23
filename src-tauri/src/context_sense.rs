@@ -58,6 +58,15 @@ pub struct ContextSense {
     pub confident: bool,
 }
 
+/// 以 -ly 结尾但不是副词的常见词（名词、形容词、动词）
+const LY_NOT_ADVERB: &[&str] = &[
+    "family", "supply", "reply", "apply", "ally", "rally", "belly", "jelly", "bully", "fly", "july", "italy", "assembly",
+    "anomaly", "monopoly", "melancholy", "holy", "ugly", "friendly", "lovely", "likely", "unlikely", "early", "daily",
+    "weekly", "monthly", "yearly", "only", "silly", "elderly", "costly", "lonely", "lively", "deadly", "orderly", "worldly",
+    "timely", "manly", "womanly", "cowardly", "scholarly", "heavenly", "lowly", "comely", "curly", "burly", "surly", "oily",
+    "chilly", "hilly", "jolly", "woolly", "smelly", "bubbly", "wobbly", "prickly", "ghostly", "kindly", "sickly", "homely",
+];
+
 const DETERMINERS: &[&str] = &[
     "the", "a", "an", "this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their", "some", "any", "no",
     "every", "each", "another", "such", "what", "which", "whose",
@@ -125,7 +134,7 @@ fn guess_pos(words: &[(String, usize)], at: usize, headword: &str) -> (Option<&'
     let inflected_ing = w != headword && w.ends_with("ing");
     let in_list = |list: &[&str], x: Option<&str>| x.is_some_and(|x| list.contains(&x));
 
-    if w.len() > 4 && w.ends_with("ly") && !headword.ends_with("ly") {
+    if w.len() > 4 && w.ends_with("ly") && !LY_NOT_ADVERB.contains(&w) {
         return (Some("adv."), format!("{w} 以 -ly 结尾，是副词"));
     }
     if prev == Some("to") && w == headword && in_list(OBJECT_STARTS, next) {
@@ -180,6 +189,40 @@ fn guess_pos(words: &[(String, usize)], at: usize, headword: &str) -> (Option<&'
     (None, String::new())
 }
 
+/// 义项图谱里每一组都标了词性、且全是同一个时返回它（有没标词性的组就不下结论：table 的动词义项可能恰好没标）
+fn single_pos(atlas: &SenseAtlas) -> Option<&'static str> {
+    let mut seen: Option<&'static str> = None;
+    for c in &atlas.clusters {
+        let p = norm_pos(&cluster_pos(c)?)?;
+        match seen {
+            None => seen = Some(p),
+            Some(q) if q == p => {}
+            Some(_) => return None,
+        }
+    }
+    seen
+}
+
+/// COCA 里这个词只有一种（我们关心的）词性
+fn coca_single_pos(coca: &Coca, headword: &str) -> Option<&'static str> {
+    let poses: BTreeSet<&'static str> = coca.lookup(headword).iter().filter_map(|e| coca_pos(&e.pos)).collect();
+    if poses.len() == 1 {
+        poses.into_iter().next()
+    } else {
+        None
+    }
+}
+
+fn norm_pos(p: &str) -> Option<&'static str> {
+    match p {
+        "n." => Some("n."),
+        "v." => Some("v."),
+        "adj." => Some("adj."),
+        "adv." => Some("adv."),
+        _ => None,
+    }
+}
+
 /// COCA 的单字母词性 → n. / v. / adj. / adv.
 fn coca_pos(p: &str) -> Option<&'static str> {
     match p {
@@ -229,9 +272,28 @@ pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
         words.iter().position(|(w, _)| w.starts_with(&headword) || headword.starts_with(w.as_str()))
     });
     let surface = at.map(|i| words[i].0.clone()).unwrap_or_else(|| headword.clone());
-    let (pos, pos_reason) = match at {
+    // 句首、后面紧跟逗号：Significantly, the vote …
+    let at_sentence_start = at == Some(0) && {
+        let end16 = at.and_then(|i| words.get(i)).map_or(0, |(w, s)| s + w.encode_utf16().count());
+        input.sentence.encode_utf16().skip(end16).take(2).any(|u| u == u16::from(b','))
+    };
+    // 同义词词典、搭配、词频类词典只列词，不是释义，不当候选
+    let defining: Vec<AtlasInput> = input.dicts.iter().filter(|d| !crate::commands::lookup::is_reference_dict(&d.name)).cloned().collect();
+    let atlas: SenseAtlas = senses::build(&headword, if defining.is_empty() { &input.dicts } else { &defining });
+
+    let (guessed, guess_reason) = match at {
         Some(i) => guess_pos(&words, i, &headword),
         None => (None, String::new()),
+    };
+    // 这个词只有一种词性（词典义项全是副词，或 COCA 里只作副词）：直接用，句中位置的猜测让位
+    let only_pos = single_pos(&atlas).or_else(|| coca.and_then(|c| coca_single_pos(c, &headword)));
+    // 句中是变形（tabled、running）时，词形本身就是证据，不让「只有一种词性」盖过它（table 在 COCA 里只列了名词）
+    let inflected = surface != headword && !surface.ends_with("ly");
+    let (pos, pos_reason) = match (only_pos, guessed) {
+        (Some(only), Some(g)) if only == g => (Some(g), guess_reason),
+        (Some(_), Some(g)) if inflected => (Some(g), guess_reason),
+        (Some(only), _) => (Some(only), format!("{surface} 在词典里只有{}的用法", pos_name(only))),
+        (None, g) => (g, guess_reason),
     };
 
     // 句中实词：紧跟在后面的（宾语、介词宾语）最能说明意思，前面的主语次之，远处的更弱
@@ -290,9 +352,6 @@ pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
     }
     let colloc = collocates_of(coca, &headword, pos);
 
-    // 同义词词典、搭配、词频类词典只列词，不是释义，不当候选
-    let defining: Vec<AtlasInput> = input.dicts.iter().filter(|d| !crate::commands::lookup::is_reference_dict(&d.name)).cloned().collect();
-    let atlas: SenseAtlas = senses::build(&headword, if defining.is_empty() { &input.dicts } else { &defining });
     let mut scored: Vec<(f64, usize, Vec<String>)> = Vec::new();
     for (ci, c) in atlas.clusters.iter().enumerate() {
         let text: String = c.senses.iter().map(|s| s.text.as_str()).collect::<Vec<_>>().join(" ");
@@ -331,6 +390,14 @@ pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
         if c.senses.iter().all(|s| is_phrase_sense(&s.text, &headword)) {
             score -= 2.5;
         }
+        // 「it is significant that…」这类句子副词的义项：只有在句首、后面跟逗号时才是它（Significantly, …）
+        let sentence_adverb = c.senses.iter().all(|s| {
+            let t = s.text.trim_start().to_lowercase();
+            t.starts_with("it is ") || t.starts_with("it was ") || t.starts_with("used to say") || t.starts_with("used for saying")
+        });
+        if sentence_adverb && !at_sentence_start {
+            score -= 2.0;
+        }
         // 共识：几本词典都有这个意思；先列的义项更常用
         score += (0.15 * c.dicts.len() as f64).min(0.6);
         let first_index = c.senses.iter().map(|s| s.index).min().unwrap_or(0);
@@ -346,13 +413,15 @@ pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
     let candidate = |ci: usize, score: f64| -> Candidate {
         let c = &atlas.clusters[ci];
         let first = c.senses.iter().min_by_key(|s| s.dict).cloned();
-        // 显示组里最完整的那条释义（有的词典只写一个词，如 candle）
+        // 显示组里最完整、最干净的那条释义（有的词典只写一个词，如 candle；
+        // vocabulary.com 的正文带着「Definitions of …」「Primary Meanings of …」这类标题，去掉）
         let label = c
             .senses
             .iter()
-            .map(|s| s.text.trim())
-            .max_by_key(|t| t.chars().count().min(120))
-            .map(|t| if t.chars().count() > 140 { format!("{}…", t.chars().take(140).collect::<String>()) } else { t.to_string() })
+            .map(|s| clean_label(&s.text))
+            .filter(|t| !t.is_empty())
+            .max_by_key(|t| (!t.contains("Antonyms") && !t.contains("Synonyms"), t.chars().count().min(120)))
+            .map(|t| if t.chars().count() > 140 { format!("{}…", t.chars().take(140).collect::<String>()) } else { t })
             .unwrap_or_else(|| c.label.clone());
         Candidate {
             label,
@@ -399,6 +468,22 @@ pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
     let evidence = scored.first().is_some_and(|(_, _, why)| !why.is_empty()) || !hits.is_empty();
     let confident = pos.is_some() && evidence && margin >= 1.0;
     ContextSense { surface, pos: pos.map(str::to_string), best, others, reasons, ruled_out, confident }
+}
+
+/// 去掉释义开头的「Definitions of X」「Primary Meanings of X」和紧跟的序号、词性缩写
+fn clean_label(text: &str) -> String {
+    let mut t = text.trim();
+    for head in ["Definitions of ", "Primary Meanings of ", "Full Definitions of "] {
+        if let Some(rest) = t.strip_prefix(head) {
+            // 跳过标题里的词本身，以及「1」「adv」「n」这类粘在一起的序号 / 词性
+            let rest = rest.trim_start_matches(|c: char| c.is_alphabetic());
+            let rest = rest.trim_start_matches(|c: char| c.is_ascii_digit() || c == '.' || c.is_whitespace());
+            let rest = ["adv", "adj", "n", "v"].iter().find_map(|p| rest.strip_prefix(p)).unwrap_or(rest);
+            t = rest.trim_start();
+            break;
+        }
+    }
+    t.to_string()
 }
 
 /// 义项是不是习语 / 短语：英文部分开头几个词里就出现了这个词本身（或其变形）
@@ -492,6 +577,50 @@ mod tests {
         let r = analyze(&input("Please write your address on the form.", "address", address_dict()), None);
         assert_eq!(r.pos.as_deref(), Some("n."));
         assert!(r.best.is_some_and(|b| b.pos.as_deref() == Some("n.")));
+    }
+
+    #[test]
+    fn adverbs_are_adverbs() {
+        let w = words_of("with significantly enhanced capabilities");
+        assert_eq!(guess_pos(&w, 1, "significantly").0, Some("adv."), "词头本身带 -ly 也是副词");
+        let w = words_of("my family is large");
+        assert_ne!(guess_pos(&w, 1, "family").0, Some("adv."));
+        let mw = r#"<span class="pos">adverb</span><span class="def">in a significant manner; to a significant degree</span>
+            <span class="def">it is significant</span>"#;
+        let s = "DeepSeek has been updated, with significantly enhanced capabilities.";
+        let start = s.find("significantly").unwrap_or(0);
+        let r = analyze(
+            &ContextInput {
+                word: "significantly".into(),
+                sentence: s.into(),
+                hl_start: start,
+                hl_end: start + "significantly".len(),
+                dicts: vec![dict("mw", mw)],
+            },
+            None,
+        );
+        assert_eq!(r.pos.as_deref(), Some("adv."));
+        assert!(r.best.is_some_and(|b| b.label.contains("significant degree") || b.label.contains("manner")), "不在句首，不选「it is significant」");
+    }
+
+    #[test]
+    fn inflected_form_beats_single_pos() {
+        let html = r#"<span class="pos">noun</span><span class="def">a piece of furniture with a flat top</span>
+            <span class="def">a list of facts or numbers arranged in rows</span>"#;
+        let s = "They tabled the motion.";
+        let start = s.find("tabled").unwrap_or(0);
+        let r = analyze(
+            &ContextInput { word: "table".into(), sentence: s.into(), hl_start: start, hl_end: start + 6, dicts: vec![dict("x", html)] },
+            None,
+        );
+        assert_eq!(r.pos.as_deref(), Some("v."), "tabled + 宾语是动词，即使词典只抽出了名词义项");
+    }
+
+    #[test]
+    fn labels_are_cleaned() {
+        assert_eq!(clean_label("Definitions of significantly1advin a significant manner"), "in a significant manner");
+        assert_eq!(clean_label("Primary Meanings of table1.na piece of furniture"), "a piece of furniture");
+        assert_eq!(clean_label("to deal with"), "to deal with");
     }
 
     #[test]

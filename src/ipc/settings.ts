@@ -1,6 +1,9 @@
 // settings 相关命令的类型化封装（SPEC 5.1、14）。
 
 import { invoke } from "@tauri-apps/api/core";
+
+/** 主窗口画好第一帧，请后端显示窗口 */
+export const mainReady = () => invoke<void>("main_ready").catch(() => undefined);
 import type { ExportStyle, Paper } from "../export-templates/template";
 import type { CustomTheme } from "../theme/themes";
 

@@ -92,6 +92,50 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+static MAIN_SHOWN: std::sync::Once = std::sync::Once::new();
+static POPUP_CREATED: std::sync::Once = std::sync::Once::new();
+
+/// 启动时第一次显示主窗口；之后再调不做事
+pub(crate) fn first_show_main(app: &tauri::AppHandle) {
+    MAIN_SHOWN.call_once(|| {
+        if let Some(main) = app.get_webview_window("main") {
+            let _ = main.show();
+            let _ = main.set_focus();
+        }
+        tracing::info!("启动：主窗口已显示");
+        // 主窗口出来后再建迷你弹窗：两个 WebView 同时加载会互相抢 CPU，拖慢主窗口
+        let app = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            ensure_popup(&app);
+        });
+    });
+}
+
+/// 迷你弹窗：主窗口出来后创建、常驻隐藏，用时 show/hide（SPEC 5）
+pub(crate) fn ensure_popup(app: &tauri::AppHandle) {
+    POPUP_CREATED.call_once(|| {
+        if app.get_webview_window(capture::POPUP).is_some() {
+            return;
+        }
+        let built = WebviewWindowBuilder::new(app, capture::POPUP, WebviewUrl::App("index.html".into()))
+            .title("词镜 Lens · 查词")
+            .inner_size(capture::POPUP_W, capture::POPUP_H)
+            .decorations(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            // 拖动边缘调大小，松开后记住（隐藏时写回设置）
+            .resizable(true)
+            .min_inner_size(capture::POPUP_MIN_W, capture::POPUP_MIN_H)
+            .visible(false)
+            .focused(false)
+            .build();
+        if let Err(e) = built {
+            tracing::error!(error = %e, "创建查词弹窗失败");
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -155,16 +199,18 @@ pub fn run() {
             logging::install_panic_hook();
             app.manage(LogGuard(guard));
 
+            let t_setup = std::time::Instant::now();
             let state = AppState::init(&root)?;
             let schema = state.db.with_conn(db::migrations::current_version)?;
             let dicts = state.dicts.len()?;
             tracing::info!(root = %state.root.display(), version = env!("CARGO_PKG_VERSION"), schema, dicts, "Lens 启动");
             let capture_settings = state.settings.get()?.capture;
             app.manage(state);
-            // 以前按屈折形式收藏的词并到原形下（后台做，不拖慢启动）
+            // 后台：读 COCA 词频表，再把以前按屈折形式收藏的词并到原形下（不拖慢启动）
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let state = handle.state::<AppState>();
+                state.load_coca();
                 if let Err(e) = lemma::normalize_saved(&state) {
                     tracing::warn!(error = %e, "整理生词本原形失败");
                 }
@@ -172,20 +218,6 @@ pub fn run() {
                     tracing::warn!(error = %e, "清理生词本简释失败");
                 }
             });
-
-            // 迷你弹窗：启动时创建、常驻隐藏，用时 show/hide（SPEC 5）
-            WebviewWindowBuilder::new(app, capture::POPUP, WebviewUrl::App("index.html".into()))
-                .title("词镜 Lens · 查词")
-                .inner_size(capture::POPUP_W, capture::POPUP_H)
-                .decorations(false)
-                .always_on_top(true)
-                .skip_taskbar(true)
-                // 拖动边缘调大小，松开后记住（隐藏时写回设置）
-                .resizable(true)
-                .min_inner_size(capture::POPUP_MIN_W, capture::POPUP_MIN_H)
-                .visible(false)
-                .focused(false)
-                .build()?;
 
             let service = capture::start(app.handle().clone(), capture_settings.double_copy)?;
             // 快捷键被其他程序占用时不影响启动，状态交给界面提示
@@ -198,20 +230,25 @@ pub fn run() {
                 tracing::warn!(error = %e, "创建托盘图标失败");
             }
             app.manage(batch::BatchManager::default());
-            // 主窗口配置为先隐藏：取消最大化、缩到屏幕以内并居中之后再显示，
-            // 避免一打开就铺满整个屏幕（无边框窗口铺满时看起来像沉浸模式）
+            tracing::info!(ms = t_setup.elapsed().as_millis() as u64, "启动：后端就绪");
+            // 主窗口配置为先隐藏：取消最大化、缩到屏幕以内并居中，等界面画好第一帧（main_ready）再显示，
+            // 避免先闪一个空白窗口；界面迟迟不报到也在 3 秒后显示
             if let Some(main) = app.get_webview_window("main") {
                 if main.is_maximized().unwrap_or(false) {
                     let _ = main.unmaximize();
                 }
                 fit_to_work_area(&main);
-                let _ = main.show();
-                let _ = main.set_focus();
             }
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                first_show_main(&handle);
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_settings,
+            commands::settings::main_ready,
             commands::settings::hide_to_tray,
             commands::settings::quit_app,
             commands::settings::check_update,

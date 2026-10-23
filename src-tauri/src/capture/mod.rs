@@ -405,6 +405,7 @@ pub fn show_in_app(app: &AppHandle, text: &str, paragraph: Option<&str>, sel16: 
     if anchor.is_some() {
         show_popup(app, &event, anchor)
     } else {
+        crate::ensure_popup(app);
         let win = app.get_webview_window(POPUP).ok_or_else(|| Error::Other("弹窗窗口不存在".into()))?;
         win.emit_to(POPUP, EVENT_TRIGGERED, &event)?;
         win.show()?;
@@ -414,6 +415,7 @@ pub fn show_in_app(app: &AppHandle, text: &str, paragraph: Option<&str>, sel16: 
 }
 
 fn show_popup(app: &AppHandle, event: &CaptureEvent, anchor: Option<Anchor>) -> Result<()> {
+    crate::ensure_popup(app);
     let win = app.get_webview_window(POPUP).ok_or_else(|| Error::Other("弹窗窗口不存在".into()))?;
     #[cfg(windows)]
     let cursor = win::cursor_pos();

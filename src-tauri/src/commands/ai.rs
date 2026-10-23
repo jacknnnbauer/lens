@@ -21,7 +21,7 @@ pub struct CocaStatus {
 }
 
 fn coca_of(state: &AppState) -> Option<Arc<Coca>> {
-    state.coca.read().ok().and_then(|c| c.clone())
+    state.coca()
 }
 
 #[tauri::command]

@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Condvar, Mutex};
 
 use crate::db::{now_ms, Db};
 use crate::dict::{import, DictRegistry};
@@ -20,8 +20,9 @@ pub struct AppState {
     pub online: OnlineRegistry,
     pub res_cache: ResourceCache,
     pub lookups: Arc<Cancels>,
-    /// COCA 词频表（导入过才有）
+    /// COCA 词频表（导入过才有）。启动时在后台读，读完前用 `coca()` 取会稍等
     pub coca: std::sync::RwLock<Option<Arc<crate::coca::Coca>>>,
+    coca_pending: (Mutex<bool>, Condvar),
 }
 
 impl AppState {
@@ -57,24 +58,9 @@ impl AppState {
         }) {
             tracing::warn!(error = %e, "整理未完成的批量导出失败");
         }
-        // COCA 词频表：导入过就在启动时读进来；读不了只记日志
-        let coca_path = root.join(crate::coca::FILE);
-        let coca = if coca_path.exists() {
-            match crate::coca::Coca::load(&coca_path) {
-                Ok(c) => {
-                    tracing::info!(entries = c.len(), "已加载 COCA 词频表");
-                    Some(Arc::new(c))
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "COCA 词频表读取失败");
-                    None
-                }
-            }
-        } else {
-            None
-        };
         Ok(Self {
-            coca: std::sync::RwLock::new(coca),
+            coca: std::sync::RwLock::new(None),
+            coca_pending: (Mutex::new(root.join(crate::coca::FILE).exists()), Condvar::new()),
             root: root.to_path_buf(),
             db,
             settings,
@@ -83,5 +69,35 @@ impl AppState {
             res_cache: ResourceCache::default(),
             lookups: Arc::new(Cancels::default()),
         })
+    }
+
+    /// COCA 词频表：导入过就读进来（9 MB 的 JSON，放在启动后的后台线程里，不拖慢窗口出现）；读不了只记日志
+    pub fn load_coca(&self) {
+        let path = self.root.join(crate::coca::FILE);
+        if path.exists() {
+            match crate::coca::Coca::load(&path) {
+                Ok(c) => {
+                    tracing::info!(entries = c.len(), "已加载 COCA 词频表");
+                    if let Ok(mut slot) = self.coca.write() {
+                        *slot = Some(Arc::new(c));
+                    }
+                }
+                Err(e) => tracing::warn!(error = %e, "COCA 词频表读取失败"),
+            }
+        }
+        let (pending, done) = &self.coca_pending;
+        if let Ok(mut p) = pending.lock() {
+            *p = false;
+        }
+        done.notify_all();
+    }
+
+    /// 当前的 COCA 词频表；启动时还在读就等它读完（最多几百毫秒）
+    pub fn coca(&self) -> Option<Arc<crate::coca::Coca>> {
+        let (pending, done) = &self.coca_pending;
+        if let Ok(p) = pending.lock() {
+            let _ = done.wait_timeout_while(p, std::time::Duration::from_secs(5), |p| *p);
+        }
+        self.coca.read().ok().and_then(|c| c.clone())
     }
 }

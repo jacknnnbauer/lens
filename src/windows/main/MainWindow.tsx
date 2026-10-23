@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { checkUpdate } from "../../ipc/settings";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { checkUpdate, mainReady } from "../../ipc/settings";
 import { toast } from "../../stores/toast";
 import { TrayHint } from "../../components/TrayHint";
 import { useNavHistory } from "./navHistory";
@@ -18,11 +18,7 @@ import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
 import { Toast } from "../../components/Toast";
 import { onMainLookup } from "../../ipc/capture";
-import { HistoryPage } from "../../routes/history/HistoryPage";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
-import { SettingsPage } from "../../routes/settings/SettingsPage";
-import { ThemeLibraryPage } from "../../routes/themes/ThemeLibraryPage";
-import { WordbookPage } from "../../routes/wordbook/WordbookPage";
 import { subscribeBatchEvents, useBatch } from "../../stores/batch";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
@@ -37,6 +33,16 @@ import { tr } from "../../i18n";
  * 状态栏与跳转条可单独开关。目前只有查词页；其他路由随后续里程碑加入。
  */
 /** 侧栏宽度范围（px） */
+// 查词页以外的页面不在启动路径上：窗口出来后再在后台加载，第一次点开时已经就绪
+const loadHistory = () => import("../../routes/history/HistoryPage");
+const loadWordbook = () => import("../../routes/wordbook/WordbookPage");
+const loadSettingsPage = () => import("../../routes/settings/SettingsPage");
+const loadThemes = () => import("../../routes/themes/ThemeLibraryPage");
+const HistoryPage = lazy(() => loadHistory().then((m) => ({ default: m.HistoryPage })));
+const WordbookPage = lazy(() => loadWordbook().then((m) => ({ default: m.WordbookPage })));
+const SettingsPage = lazy(() => loadSettingsPage().then((m) => ({ default: m.SettingsPage })));
+const ThemeLibraryPage = lazy(() => loadThemes().then((m) => ({ default: m.ThemeLibraryPage })));
+
 const NAV_DEFAULT = 220;
 const NAV_MIN = 160;
 const CONTEXT_DEFAULT = 280;
@@ -52,6 +58,19 @@ export function MainWindow() {
   const refreshDicts = useDicts((s) => s.refresh);
   const profiles = useDicts((s) => s.profiles);
   useApplyTheme();
+  // 设置读到、主题套上、界面渲染好后再显示窗口（启动时窗口先隐藏，免得闪一下空白）。
+  // 这里已经提交到 DOM，直接通知；隐藏的 WebView 里 requestAnimationFrame 不跑、setTimeout 被压到每秒一次
+  const shown = useRef(false);
+  useEffect(() => {
+    if (shown.current || (!layout && !settingsError)) return;
+    shown.current = true;
+    performance.mark("lens-ready");
+    void mainReady().then(() =>
+      setTimeout(() => {
+        for (const load of [loadSettingsPage, loadWordbook, loadHistory, loadThemes]) void load().catch(() => undefined);
+      }, 1500),
+    );
+  }, [layout, settingsError]);
   const immersive = useImmersiveMode();
   const immersivePrefs = useSettings((s) => s.settings?.immersive);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -291,10 +310,12 @@ export function MainWindow() {
             }
           />
         </div>
-        {page === "history" && <HistoryPage active onLookup={lookupWord} />}
-        {page === "wordbook" && <WordbookPage active onLookup={lookupWord} />}
-        {page === "settings" && <SettingsPage onBack={focusSearch} onOpenThemes={() => go("themes")} />}
-        {page === "themes" && <ThemeLibraryPage onBack={() => go("settings")} />}
+        <Suspense fallback={null}>
+          {page === "history" && <HistoryPage active onLookup={lookupWord} />}
+          {page === "wordbook" && <WordbookPage active onLookup={lookupWord} />}
+          {page === "settings" && <SettingsPage onBack={focusSearch} onOpenThemes={() => go("themes")} />}
+          {page === "themes" && <ThemeLibraryPage onBack={() => go("settings")} />}
+        </Suspense>
       </main>
 
       {showContext && (

@@ -82,7 +82,7 @@ pub async fn suggest(state: State<'_, AppState>, prefix: String, limit: usize) -
 pub async fn context_sense(state: State<'_, AppState>, mut input: crate::context_sense::ContextInput) -> Result<crate::context_sense::ContextSense> {
     // 有的词典词头就是查询原文（addressed）：先还原成原形，词性判断要靠「是不是变形」
     input.word = crate::lemma::base_form(&state, &input.word);
-    let coca = state.coca.read().ok().and_then(|c| c.clone());
+    let coca = state.coca();
     tauri::async_runtime::spawn_blocking(move || crate::context_sense::analyze(&input, coca.as_deref()))
         .await
         .map_err(|e| crate::error::Error::Other(e.to_string()))
@@ -93,7 +93,7 @@ pub async fn context_sense(state: State<'_, AppState>, mut input: crate::context
 pub async fn word_family(state: State<'_, AppState>, query: String) -> Result<crate::word_family::WordFamily> {
     let word = crate::lemma::base_form(&state, &query);
     let dicts = locals(profile_sources(&state)?);
-    let coca = state.coca.read().ok().and_then(|c| c.clone());
+    let coca = state.coca();
     tauri::async_runtime::spawn_blocking(move || {
         let lemmas = coca.as_ref().map(|c| c.lemmas()).unwrap_or_default();
         let synonyms = coca.as_ref().map(|c| c.synonyms_of(&word)).unwrap_or_default();

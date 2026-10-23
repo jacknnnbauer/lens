@@ -11,7 +11,7 @@ use crate::query::normalize_query;
 /// 由查询词得到原形（小写、归一化）。短语原样返回。
 pub fn base_form(state: &AppState, query: &str) -> String {
     let word = normalize_key(&normalize_query(query));
-    let coca = state.coca.read().ok().and_then(|c| c.clone());
+    let coca = state.coca();
     let dicts = state.dicts.all().unwrap_or_default();
     resolve(
         &word,

@@ -8,6 +8,12 @@ use crate::capture::{self, CaptureService};
 use crate::error::Result;
 use crate::settings::Settings;
 
+/// 主窗口画好第一帧：现在显示它（启动时先隐藏，免得闪空白窗口）
+#[tauri::command]
+pub fn main_ready(app: tauri::AppHandle) {
+    crate::first_show_main(&app);
+}
+
 #[tauri::command]
 pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings> {
     state.settings.get()

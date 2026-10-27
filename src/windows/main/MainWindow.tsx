@@ -38,10 +38,14 @@ const loadHistory = () => import("../../routes/history/HistoryPage");
 const loadWordbook = () => import("../../routes/wordbook/WordbookPage");
 const loadSettingsPage = () => import("../../routes/settings/SettingsPage");
 const loadThemes = () => import("../../routes/themes/ThemeLibraryPage");
+const loadSearch = () => import("../../routes/search/SearchPage");
+const loadScan = () => import("../../routes/scan/ScanPage");
 const HistoryPage = lazy(() => loadHistory().then((m) => ({ default: m.HistoryPage })));
 const WordbookPage = lazy(() => loadWordbook().then((m) => ({ default: m.WordbookPage })));
 const SettingsPage = lazy(() => loadSettingsPage().then((m) => ({ default: m.SettingsPage })));
 const ThemeLibraryPage = lazy(() => loadThemes().then((m) => ({ default: m.ThemeLibraryPage })));
+const SearchPage = lazy(() => loadSearch().then((m) => ({ default: m.SearchPage })));
+const ScanPage = lazy(() => loadScan().then((m) => ({ default: m.ScanPage })));
 
 const NAV_DEFAULT = 220;
 const NAV_MIN = 160;
@@ -67,7 +71,7 @@ export function MainWindow() {
     performance.mark("lens-ready");
     void mainReady().then(() =>
       setTimeout(() => {
-        for (const load of [loadSettingsPage, loadWordbook, loadHistory, loadThemes]) void load().catch(() => undefined);
+        for (const load of [loadSettingsPage, loadWordbook, loadHistory, loadThemes, loadSearch, loadScan]) void load().catch(() => undefined);
       }, 1500),
     );
   }, [layout, settingsError]);
@@ -168,6 +172,12 @@ export function MainWindow() {
         toggleWall();
         return;
       }
+      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "KeyF") {
+        // Ctrl+Shift+F 反查与全文
+        e.preventDefault();
+        go("search");
+        return;
+      }
       if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "Backslash") {
         // Ctrl+Shift+\ 显示 / 隐藏右侧上下文栏
         e.preventDefault();
@@ -261,6 +271,8 @@ export function MainWindow() {
             onFocusSearch={focusSearch}
             onOpenHistory={() => go("history")}
             onOpenWordbook={() => go("wordbook")}
+            onOpenSearch={() => go("search")}
+            onOpenScan={() => go("scan")}
             onOpenLibrary={() => setLibraryOpen(true)}
             onOpenSettings={() => go("settings")}
             onOpenBatch={() => useBatch.getState().openDialog()}
@@ -282,6 +294,7 @@ export function MainWindow() {
           <LookupPage
             ref={lookupPage}
             onOpenLibrary={() => setLibraryOpen(true)}
+            onOpenSearch={() => go("search")}
             showJumpBar={layout?.showJumpBar ?? true}
             showHeadword={showNav && !immersive}
             // 只留查词相关的按钮，生词本、设置从左侧导航或 Ctrl+B / Ctrl+, 进入
@@ -313,6 +326,8 @@ export function MainWindow() {
         <Suspense fallback={null}>
           {page === "history" && <HistoryPage active onLookup={lookupWord} />}
           {page === "wordbook" && <WordbookPage active onLookup={lookupWord} />}
+          {page === "search" && <SearchPage active onLookup={lookupWord} />}
+          {page === "scan" && <ScanPage onLookup={lookupWord} />}
           {page === "settings" && <SettingsPage onBack={focusSearch} onOpenThemes={() => go("themes")} />}
           {page === "themes" && <ThemeLibraryPage onBack={() => go("settings")} />}
         </Suspense>

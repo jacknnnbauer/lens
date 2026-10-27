@@ -74,7 +74,6 @@ impl EntryTable {
         Ok(Self { data, count })
     }
 
-    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.count
     }

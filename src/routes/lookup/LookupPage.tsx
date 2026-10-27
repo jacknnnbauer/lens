@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { WordFamily } from "../../components/WordFamily";
+import { ReverseStrip } from "../../components/ReverseStrip";
 import { ContextSenseCard, type SentenceCtx } from "../../components/ContextSenseCard";
 import { getContext } from "../../ipc/history";
 import { CardWall } from "../../components/CardWall";
@@ -35,6 +36,8 @@ interface Props {
   /** 搜索行右侧的按钮（词典库、外观…） */
   actions: React.ReactNode;
   onOpenLibrary: () => void;
+  /** 反查条的「全部」：到反查与全文页 */
+  onOpenSearch: () => void;
   showJumpBar: boolean;
   /** 双栏/三栏：结果上方显示大号词头（画板 01） */
   showHeadword: boolean;
@@ -45,7 +48,7 @@ function cardToggles(): HTMLElement[] {
 }
 
 export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPage(
-  { actions, onOpenLibrary, showJumpBar, showHeadword },
+  { actions, onOpenLibrary, onOpenSearch, showJumpBar, showHeadword },
   ref,
 ) {
   const { handle, cards, done, suggestions, error, search, queryOnline } = useLookup();
@@ -302,6 +305,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           {error}
         </p>
       )}
+
+      {handle && <ReverseStrip query={handle.query} onLookup={lookupWord} onOpenSearch={onOpenSearch} />}
 
       {showContextSense && handle && hitCount > 0 && (
         <ContextSenseCard

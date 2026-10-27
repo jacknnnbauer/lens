@@ -109,3 +109,26 @@ export function reviewRate(id: number, rating: number): Promise<number> {
 export function exportWordbook(path: string, format: "anki" | "csv", q: { status?: WordStatus; tag?: string; search?: string } = {}): Promise<number> {
   return invoke<number>("export_wordbook", { path, format, status: q.status ?? null, tag: q.tag ?? null, search: q.search || null });
 }
+
+export interface AnkiOptions {
+  deck: string;
+  /** 识记卡（单词 → 释义） */
+  recall: boolean;
+  /** 语境卡（挖空的原句 → 单词） */
+  context: boolean;
+  /** 从本地词典取发音 */
+  audio: boolean;
+  accent: "us" | "uk";
+}
+
+export interface AnkiExportResult {
+  words: number;
+  cards: number;
+  /** 带上了发音的词数 */
+  audio: number;
+}
+
+/** 导出 Anki 牌组包（.apkg，按筛选）：笔记类型、卡片模板、发音都在里面，双击就能导入 */
+export function exportAnkiPackage(path: string, options: AnkiOptions, q: { status?: WordStatus; tag?: string; search?: string } = {}): Promise<AnkiExportResult> {
+  return invoke<AnkiExportResult>("export_anki_package", { path, options, status: q.status ?? null, tag: q.tag ?? null, search: q.search || null });
+}

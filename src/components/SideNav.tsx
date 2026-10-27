@@ -11,6 +11,8 @@ interface Props {
   onFocusSearch: () => void;
   onOpenHistory: () => void;
   onOpenWordbook: () => void;
+  onOpenSearch: () => void;
+  onOpenScan: () => void;
   onOpenLibrary: () => void;
   onOpenSettings: () => void;
   onOpenBatch: () => void;
@@ -18,7 +20,7 @@ interface Props {
   onLookup: (word: string) => void;
 }
 
-export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLibrary, onOpenSettings, onOpenBatch, onSwitchProfile, onLookup }: Props) {
+export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenSearch, onOpenScan, onOpenLibrary, onOpenSettings, onOpenBatch, onSwitchProfile, onLookup }: Props) {
   const page = useRoute((s) => s.page);
   const profiles = useDicts((s) => s.profiles);
   const active = useSettings((s) => s.settings?.activeProfile);
@@ -35,6 +37,12 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenLi
         </button>
         <button type="button" className={styles.item} aria-current={page === "history" ? "page" : undefined} onClick={onOpenHistory}>
           {tr("历史")}<kbd>Ctrl+H</kbd>
+        </button>
+        <button type="button" className={styles.item} aria-current={page === "search" ? "page" : undefined} onClick={onOpenSearch}>
+          {tr("反查与全文")}<kbd>Ctrl+Shift+F</kbd>
+        </button>
+        <button type="button" className={styles.item} aria-current={page === "scan" ? "page" : undefined} onClick={onOpenScan}>
+          {tr("文章生词扫描")}
         </button>
         <button type="button" className={styles.item} onClick={onOpenLibrary}>
           {tr("词典库")}<kbd>Ctrl+L</kbd>

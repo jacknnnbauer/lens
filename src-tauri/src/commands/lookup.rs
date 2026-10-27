@@ -8,7 +8,7 @@ use crate::error::Result;
 use crate::query::{self, LookupHandle, Source};
 
 /// 当前场景配置组里启用且已加载的词典（本地 + 在线），按顺序。
-fn profile_sources(state: &AppState) -> Result<Vec<Source>> {
+pub(crate) fn profile_sources(state: &AppState) -> Result<Vec<Source>> {
     let profile = state.settings.get()?.active_profile;
     sources_for_profile(state, &profile)
 }
@@ -27,7 +27,7 @@ pub fn sources_for_profile(state: &AppState, profile: &str) -> Result<Vec<Source
     Ok(out)
 }
 
-fn locals(sources: Vec<Source>) -> Vec<LoadedDict> {
+pub(crate) fn locals(sources: Vec<Source>) -> Vec<LoadedDict> {
     sources
         .into_iter()
         .filter_map(|s| match s {

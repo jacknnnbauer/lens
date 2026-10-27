@@ -121,22 +121,8 @@ pub async fn review_rate(state: State<'_, AppState>, id: i64, rating: u8) -> Res
     state.db.with_conn(|c| crate::db::review::rate(c, id, rating, now_ms()))
 }
 
-/// 导出生词本（按当前筛选）：format = anki（Anki 可直接导入的 .txt）| csv。返回导出的词数。
-#[tauri::command]
-pub async fn export_wordbook(
-    state: State<'_, AppState>,
-    path: std::path::PathBuf,
-    format: String,
-    status: Option<String>,
-    tag: Option<String>,
-    search: Option<String>,
-) -> Result<usize> {
-    if !path.is_absolute() {
-        return Err(crate::error::Error::Other(
-            crate::i18n::t("保存位置需要是完整路径（从盘符开始）", "The save location must be a full path, starting with the drive letter").into(),
-        ));
-    }
-    // 列表查询一次最多 1000 条：分页取完
+/// 生词本按筛选全部取出（列表查询一次最多 1000 条，分页取完）
+fn filtered_words(state: &AppState, status: Option<String>, tag: Option<String>, search: Option<String>) -> Result<Vec<Word>> {
     const PAGE: i64 = 1000;
     let mut f = WordFilter { status, tag, search: search.filter(|s| !s.trim().is_empty()), sort: Some("added".into()), id: None, limit: PAGE, offset: 0 };
     let mut list = Vec::new();
@@ -149,6 +135,111 @@ pub async fn export_wordbook(
         }
         f.offset += PAGE;
     }
+    Ok(list)
+}
+
+fn require_absolute(path: &std::path::Path) -> Result<()> {
+    if path.is_absolute() {
+        Ok(())
+    } else {
+        Err(crate::error::Error::Other(
+            crate::i18n::t("保存位置需要是完整路径（从盘符开始）", "The save location must be a full path, starting with the drive letter").into(),
+        ))
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnkiOptions {
+    /// 牌组名
+    pub deck: String,
+    /// 识记卡（单词 → 释义）
+    pub recall: bool,
+    /// 语境卡（挖空的原句 → 单词）
+    pub context: bool,
+    /// 从本地词典取发音
+    pub audio: bool,
+    /// 发音偏好：us | uk
+    pub accent: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnkiExportResult {
+    pub words: usize,
+    pub cards: usize,
+    /// 带上了发音的词数
+    pub audio: usize,
+}
+
+/// 导出 Anki 牌组包（.apkg，按当前筛选）：笔记类型、卡片模板、发音都打包在里面，双击就能导入。
+#[tauri::command]
+pub async fn export_anki_package(
+    state: State<'_, AppState>,
+    path: std::path::PathBuf,
+    status: Option<String>,
+    tag: Option<String>,
+    search: Option<String>,
+    options: AnkiOptions,
+) -> Result<AnkiExportResult> {
+    require_absolute(&path)?;
+    let list = filtered_words(&state, status, tag, search)?;
+    let mut dicts = crate::commands::lookup::locals(crate::commands::lookup::profile_sources(&state)?);
+    let chosen = state.settings.get()?.wordbook.card_dict;
+    dicts.sort_by_key(|d| {
+        let m = d.source.meta();
+        (m.id != chosen, crate::commands::lookup::is_reference_dict(&m.name))
+    });
+    let wordnet = state.wordnet();
+    tauri::async_runtime::spawn_blocking(move || -> Result<AnkiExportResult> {
+        let mut notes = Vec::with_capacity(list.len());
+        let mut media: Vec<crate::anki_pkg::Media> = Vec::new();
+        for w in &list {
+            let pos = wordnet
+                .as_ref()
+                .and_then(|wn| crate::wordnet::pos_labels(wn.poses(&w.lemma)))
+                .or_else(|| crate::gloss::pos_by_suffix(&w.lemma).map(str::to_string));
+            let meaning = if w.brief.as_deref().is_some_and(|b| !b.trim().is_empty()) {
+                None
+            } else {
+                dicts.iter().filter(|d| !crate::commands::lookup::is_reference_dict(&d.source.meta().name)).find_map(|d| {
+                    d.source.lookup(&w.lemma).ok()?.iter().find_map(|e| {
+                        let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
+                        crate::gloss::chinese_gloss(t)
+                    })
+                })
+            };
+            let mut sound = String::new();
+            if options.audio {
+                if let Some(m) = crate::audio_pick::find(&dicts, &w.lemma, &options.accent) {
+                    sound = format!("[sound:{}]", m.name);
+                    if !media.iter().any(|x| x.name == m.name) {
+                        media.push(m);
+                    }
+                }
+            }
+            notes.push(crate::wordbook_export::anki_note(w, pos, meaning, sound));
+        }
+        let deck = if options.deck.trim().is_empty() { crate::i18n::t("词镜 Lens 生词本", "Lens wordbook").to_string() } else { options.deck.trim().to_string() };
+        let cards = crate::anki_pkg::write(&path, &deck, &notes, &media, crate::anki_pkg::Cards { recall: options.recall, context: options.context }, now_ms())?;
+        Ok(AnkiExportResult { words: notes.len(), cards, audio: media.len() })
+    })
+    .await
+    .map_err(|e| crate::error::Error::Other(e.to_string()))?
+}
+
+/// 导出生词本（按当前筛选）：format = anki（Anki 可直接导入的 .txt）| csv。返回导出的词数。
+#[tauri::command]
+pub async fn export_wordbook(
+    state: State<'_, AppState>,
+    path: std::path::PathBuf,
+    format: String,
+    status: Option<String>,
+    tag: Option<String>,
+    search: Option<String>,
+) -> Result<usize> {
+    require_absolute(&path)?;
+    let list = filtered_words(&state, status, tag, search)?;
     let text = if format == "csv" { crate::wordbook_export::csv(&list) } else { crate::wordbook_export::anki(&list) };
     std::fs::write(&path, text)?;
     Ok(list.len())

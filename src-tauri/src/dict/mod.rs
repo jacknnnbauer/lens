@@ -75,6 +75,13 @@ pub trait DictSource: Send + Sync {
     fn lookup(&self, key: &str) -> Result<Vec<RawEntry>>;
     /// 读取资源（mdd 里的图片/音频/CSS），路径为词典内相对路径
     fn resource(&self, path: &str) -> Result<Option<Vec<u8>>>;
+    /// 词条总数（遍历进度用）
+    fn entry_total(&self) -> u64 {
+        self.meta().entry_count
+    }
+    /// 按词典顺序遍历全部词条（全文索引用）：`f(序号, 词头, 正文)`，返回 false 时停止。
+    /// 跳转词条（mdx 的 `@@@LINK=`）和同一记录的重复词头不回调；序号是遍历位置，只用于进度。
+    fn for_each_entry(&self, f: &mut dyn FnMut(u64, &str, &EntryBody) -> bool) -> Result<()>;
 }
 
 /// 读词典目录下的散装资源文件（mdx 同目录的 CSS、StarDict 的 res/）。

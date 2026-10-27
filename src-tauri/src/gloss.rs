@@ -19,7 +19,7 @@ const MAX_RUN: usize = 14;
 const MAX_GLOSS: usize = 18;
 
 /// 词条 HTML → 纯文本（去掉 <style>、<script> 的内容和所有标签）
-fn plain_text(html: &str) -> String {
+pub(crate) fn plain_text(html: &str) -> String {
     let mut out = String::with_capacity(html.len() / 2);
     let mut rest = html;
     while let Some(i) = rest.find('<') {
@@ -46,7 +46,7 @@ fn plain_text(html: &str) -> String {
     crate::senses::decode_entities(&out)
 }
 
-fn is_cjk(c: char) -> bool {
+pub(crate) fn is_cjk(c: char) -> bool {
     matches!(c, '\u{4E00}'..='\u{9FFF}' | '\u{3400}'..='\u{4DBF}' | '\u{F900}'..='\u{FAFF}')
 }
 
@@ -97,6 +97,73 @@ pub fn chinese_gloss(html: &str) -> Option<String> {
         Some(second) if first.chars().count() + second.chars().count() < MAX_GLOSS => Some(format!("{first}；{second}")),
         _ => Some(first),
     }
+}
+
+/// 反查索引里每段中文最多这么多个汉字
+const MAX_SEGMENT: usize = 12;
+/// 每个词条最多收这么多段
+const MAX_SEGMENTS: usize = 60;
+/// 词典里的语体、词性标签：不当释义收（否则反查「正式」会列出所有标了「正式」的词）
+const LABELS: &[&str] = &[
+    "名词", "动词", "形容词", "副词", "介词", "连词", "代词", "感叹词", "数词", "冠词", "及物动词", "不及物动词",
+    "复数", "单数", "过去式", "过去分词", "现在分词", "比较级", "最高级", "缩写", "简称", "同义词", "反义词",
+    "正式", "非正式", "口语", "书面语", "俚语", "贬义", "褒义", "比喻", "幽默", "旧式", "过时", "文学", "术语",
+    "英式", "美式", "英国英语", "美国英语", "尤用于", "常用于", "用于", "亦作", "又作", "参见", "见", "例句",
+];
+
+/// 按「；，、」切开，括号里的不切：「放弃（权利、要求）」是一段
+fn split_top(s: &str) -> Vec<&str> {
+    let (mut out, mut depth, mut start) = (Vec::new(), 0i32, 0);
+    for (i, c) in s.char_indices() {
+        match c {
+            '（' => depth += 1,
+            '）' => depth = (depth - 1).max(0),
+            '；' | '，' | '、' if depth == 0 => {
+                out.push(&s[start..i]);
+                start = i + c.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    out.push(&s[start..]);
+    out
+}
+
+/// 词条纯文本里所有像释义的中文短语（反查索引用）：
+/// 连续的汉字（可夹释义标点）按「；，、」切成段，每段 2–12 个汉字；
+/// 以句号、问号、叹号结尾的是例句译文，整段跳过；语体、词性标签不收；同一段只收一次。
+pub fn chinese_segments(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let flush = |cur: &str, out: &mut Vec<String>| {
+        for seg in split_top(cur) {
+            let seg = seg.trim_matches(|c: char| matches!(c, '…' | '·') || c.is_whitespace());
+            // 只剩半边括号时去掉：「（使）生锈」保留，「生锈）」→「生锈」
+            let seg = if seg.contains('（') == seg.contains('）') { seg } else { seg.trim_matches(['（', '）']) };
+            let n = seg.chars().filter(|c| is_cjk(*c)).count();
+            if (2..=MAX_SEGMENT).contains(&n) && !LABELS.contains(&seg) && !out.iter().any(|s| s == seg) {
+                out.push(seg.to_string());
+            }
+        }
+    };
+    for c in text.chars() {
+        if is_cjk(c) || c == '（' || (is_gloss_punct(c) && !cur.is_empty()) {
+            cur.push(c);
+        } else if !cur.is_empty() {
+            if !matches!(c, '。' | '！' | '？') {
+                flush(&cur, &mut out);
+            }
+            cur.clear();
+            if out.len() >= MAX_SEGMENTS {
+                return out;
+            }
+        }
+    }
+    if !cur.is_empty() {
+        flush(&cur, &mut out);
+    }
+    out.truncate(MAX_SEGMENTS);
+    out
 }
 
 /// WordNet 里没有的词，按词尾猜词性（rustily → adv.、rustable → adj.）
@@ -169,5 +236,11 @@ mod tests {
     #[test]
     fn strips_tags_and_entities() {
         assert_eq!(plain_text("<b>a</b>&amp;<script>x()</script>b").split_whitespace().collect::<Vec<_>>(), vec!["a", "&", "b"]);
+    }
+
+    #[test]
+    fn segments_skip_sentences_and_labels() {
+        let text = "ubiquitous adj. 正式 无所不在的；普遍存在的，随处可见的 Mobile phones are ubiquitous. 手机随处可见。 （使）生锈、腐蚀 放弃（权利、要求）";
+        assert_eq!(chinese_segments(text), vec!["无所不在的", "普遍存在的", "随处可见的", "（使）生锈", "腐蚀", "放弃（权利、要求）"]);
     }
 }

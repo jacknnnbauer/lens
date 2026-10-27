@@ -20,6 +20,8 @@ pub struct AppState {
     pub online: OnlineRegistry,
     pub res_cache: ResourceCache,
     pub lookups: Arc<Cancels>,
+    /// 全文索引（反查、正文搜索）的建索引队列
+    pub fulltext: crate::commands::fulltext::Jobs,
     /// COCA 词频表（导入过才有）。启动时在后台读，读完前用 `coca()` 取会稍等
     pub coca: std::sync::RwLock<Option<Arc<crate::coca::Coca>>>,
     coca_pending: (Mutex<bool>, Condvar),
@@ -73,6 +75,7 @@ impl AppState {
             online,
             res_cache: ResourceCache::default(),
             lookups: Arc::new(Cancels::default()),
+            fulltext: Default::default(),
         })
     }
 

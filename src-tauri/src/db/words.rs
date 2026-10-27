@@ -122,6 +122,27 @@ pub fn all_briefs(conn: &Connection) -> Result<Vec<(i64, String)>> {
     Ok(rows.collect::<std::result::Result<_, _>>()?)
 }
 
+/// 文章生词扫描里标了「认识」的词
+pub fn known_lemmas(conn: &Connection) -> Result<Vec<String>> {
+    let mut st = conn.prepare("SELECT lemma FROM known_word")?;
+    let rows = st.query_map([], |r| r.get(0))?;
+    Ok(rows.collect::<std::result::Result<_, _>>()?)
+}
+
+/// 标记 / 取消「认识」
+pub fn set_known(conn: &Connection, lemmas: &[String], known: bool) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    for l in lemmas.iter().map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty()) {
+        if known {
+            tx.execute("INSERT OR IGNORE INTO known_word (lemma, created_at) VALUES (?1, ?2)", params![l, now_ms()])?;
+        } else {
+            tx.execute("DELETE FROM known_word WHERE lemma = ?1", params![l])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
+
 /// 全部收藏词（id, lemma），启动时整理原形用
 pub fn all_lemmas(conn: &Connection) -> Result<Vec<(i64, String)>> {
     let mut st = conn.prepare("SELECT id, lemma FROM word")?;

@@ -1,0 +1,11 @@
+wordfreq_en.txt.gz is derived from the English word frequency data of wordfreq 3.1
+by Robyn Speer (https://github.com/rspeer/wordfreq), built with scripts/build_freq.py
+(inflected forms merged into lemmas using WordNet 3.1).
+
+The wordfreq data is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International License: https://creativecommons.org/licenses/by-sa/4.0/
+This derived file is distributed under the same license.
+
+wordfreq's data includes material from Google Books Ngrams, SUBTLEX, OpenSubtitles,
+the Leeds Internet Corpus, Wikipedia, Reddit, Twitter and other sources; see
+https://github.com/rspeer/wordfreq#license for the full attribution.

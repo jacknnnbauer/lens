@@ -64,25 +64,54 @@ fn date(ms: i64) -> String {
     format!("{y:04}-{m:02}-{d:02}")
 }
 
+/// 单词挖空的原句（Anki 语境卡正面）；定位不到单词时为空
+fn cloze_html(c: &ContextRow) -> String {
+    let (a, b, z) = split_highlight(c);
+    if b.is_empty() {
+        return String::new();
+    }
+    format!("{}<span class=\"blank\">&nbsp;</span>{}", html_escape(&a), html_escape(&z))
+}
+
+fn more_contexts(w: &Word) -> String {
+    w.contexts
+        .iter()
+        .skip(1)
+        .map(|c| {
+            let src = source_html(&c.context);
+            if src.is_empty() {
+                sentence_html(&c.context)
+            } else {
+                format!("{} — {}", sentence_html(&c.context), src)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("<br><br>")
+}
+
+/// Anki 牌组包的一条笔记。`meaning`：简释（生词本里没有时由调用方从词典取）；`pronunciation`：`[sound:…]` 或空
+pub fn anki_note(w: &Word, pos: Option<String>, meaning: Option<String>, pronunciation: String) -> crate::anki_pkg::Note {
+    let first = w.contexts.first().map(|c| &c.context);
+    crate::anki_pkg::Note {
+        word: html_escape(&w.lemma),
+        pronunciation,
+        pos: html_escape(pos.as_deref().unwrap_or_default()),
+        meaning: html_escape(w.brief.as_deref().filter(|b| !b.trim().is_empty()).or(meaning.as_deref()).unwrap_or_default()),
+        sentence: first.map(sentence_html).unwrap_or_default(),
+        cloze: first.map(cloze_html).unwrap_or_default(),
+        source: first.map(source_html).unwrap_or_default(),
+        more: more_contexts(w),
+        added: date(w.created_at),
+        tags: anki_tags(w).split(' ').map(str::to_string).collect(),
+    }
+}
+
 /// Anki 文本：单词 · 释义 · 语境句 · 来源 · 更多语境 · 标签 · 收藏日期
 pub fn anki(words: &[Word]) -> String {
     let mut out = String::from("#separator:tab\n#html:true\n#columns:Word\tDefinition\tSentence\tSource\tMoreContexts\tTags\tAdded\n#tags column:6\n");
     for w in words {
         let first = w.contexts.first();
-        let more = w
-            .contexts
-            .iter()
-            .skip(1)
-            .map(|c| {
-                let src = source_html(&c.context);
-                if src.is_empty() {
-                    sentence_html(&c.context)
-                } else {
-                    format!("{} — {}", sentence_html(&c.context), src)
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("<br><br>");
+        let more = more_contexts(w);
         let cols = [
             html_escape(&w.lemma),
             html_escape(w.brief.as_deref().unwrap_or_default()),
@@ -179,6 +208,17 @@ mod tests {
         assert_eq!(cols[4], "A <b>recapture</b> later.", "制表符换成空格");
         assert_eq!(cols[5], "news_report Lens");
         assert_eq!(cols[6], "2025-10-09");
+    }
+
+    #[test]
+    fn anki_note_blanks_the_word_and_falls_back_to_dict_meaning() {
+        let mut w = word();
+        w.brief = None;
+        let n = anki_note(&w, Some("v.".into()), Some("夺回".into()), String::new());
+        assert_eq!(n.cloze, "Its forces <span class=\"blank\">&nbsp;</span> &quot;400&quot; miles, again.");
+        assert_eq!(n.meaning, "夺回");
+        assert_eq!(n.tags, vec!["news_report", "Lens"]);
+        assert_eq!(anki_note(&word(), None, Some("夺回".into()), String::new()).meaning, "to capture again", "生词本里的简释优先");
     }
 
     #[test]

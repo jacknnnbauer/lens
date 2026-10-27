@@ -52,6 +52,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ["Ctrl+E", "导出当前词"],
   ["Ctrl+1 / 2 / 3", "切换场景配置组"],
   ["Ctrl+B / Ctrl+H / Ctrl+L", "生词本 / 历史 / 词典库"],
+  ["Ctrl+Shift+F", "反查与全文搜索"],
   ["F11 / Esc", "进入 / 退出沉浸模式"],
   ["Ctrl+\\", "显示 / 隐藏左侧导航"],
   ["Ctrl+Shift+W", "卡片墙 开 / 关"],
@@ -1025,6 +1026,9 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
           </p>
           <p className={styles.hint}>
             {tr("词性、近义词、派生关系用到了内置的 WordNet 3.1（Copyright 2011 Princeton University，按 WordNet 许可分发）。")}
+          </p>
+          <p className={styles.hint}>
+            {tr("文章生词扫描的内置词频表来自 wordfreq 3.1（Robyn Speer），按 CC BY-SA 4.0 许可分发。")}
           </p>
           <UpdateCheck />
         </section>

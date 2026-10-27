@@ -261,6 +261,22 @@ impl DictSource for StarDict {
     fn resource(&self, path: &str) -> Result<Option<Vec<u8>>> {
         read_local_resource(&self.res_dir, path)
     }
+
+    fn for_each_entry(&self, f: &mut dyn FnMut(u64, &str, &EntryBody) -> bool) -> Result<()> {
+        let (mut pos, mut n) = (0usize, 0u64);
+        while pos < self.idx.len() {
+            let (word, offset, size, next) = read_idx_record(&self.idx, pos, self.offset_bits)?;
+            pos = next;
+            let data = self.data.read(offset, size)?;
+            if let Some(body) = decode(&data, self.sametypesequence.as_deref())? {
+                if !f(n, &String::from_utf8_lossy(word), &body) {
+                    break;
+                }
+            }
+            n += 1;
+        }
+        Ok(())
+    }
 }
 
 /// 按类型字符拆字段。小写类型以 `\0` 结尾，大写类型前有 4 字节 BE 长度；

@@ -3,11 +3,9 @@
 
 import { SourceLink, sourceText } from "../../components/SourceLink";
 import { CardWall } from "../../components/CardWall";
-import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import {
   deleteWord,
-  exportWordbook,
   listTags,
   listWords,
   reviewCounts,
@@ -26,6 +24,7 @@ import { useBatch } from "../../stores/batch";
 import { toast } from "../../stores/toast";
 import { formatInterval, ReviewSession, startOfToday } from "./ReviewSession";
 import { Sentence } from "./Sentence";
+import { AnkiExportDialog } from "./AnkiExportDialog";
 import { CardDefinition } from "../../components/CardDefinition";
 import { useDicts } from "../../stores/dicts";
 import { useSettings } from "../../stores/settings";
@@ -217,6 +216,7 @@ export function WordbookPage({ onLookup, active }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<ReviewCounts | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -262,25 +262,6 @@ export function WordbookPage({ onLookup, active }: Props) {
 
   const toReview = counts ? counts.due + counts.new : 0;
 
-  // 生词本 → Anki（.txt，带文件头）/ CSV；按当前的状态、标签、搜索筛选
-  const exportWords = async () => {
-    const path = await saveDialog({
-      title: tr("导出生词本"),
-      defaultPath: `Lens-wordbook_${new Date().toISOString().slice(0, 10)}.txt`,
-      filters: [
-        { name: tr("Anki 文本（导入到 Anki）"), extensions: ["txt"] },
-        { name: "CSV（Excel）", extensions: ["csv"] },
-      ],
-    });
-    if (!path) return;
-    try {
-      const n = await exportWordbook(path, /\.csv$/i.test(path) ? "csv" : "anki", { status: query.status, tag: query.tag, search });
-      toast(tr("已导出 {n} 个词", { n }), path);
-    } catch (e) {
-      setError(String(e));
-    }
-  };
-
   return (
     <div className={styles.column}>
       <header className={styles.head}>
@@ -300,8 +281,8 @@ export function WordbookPage({ onLookup, active }: Props) {
         <button type="button" className={styles.ghost} onClick={() => useBatch.getState().openDialog("wordbook")}>
           {tr("批量导出…")}
         </button>
-        <button type="button" className={styles.ghost} title={tr("按当前筛选导出：Anki 可直接导入的文本，或 Excel 能打开的 CSV")} onClick={() => void exportWords()}>
-          {tr("导出到 Anki / CSV…")}
+        <button type="button" className={styles.ghost} title={tr("按当前筛选导出：Anki 牌组包（带发音和卡片模板）、Anki 文本或 CSV")} onClick={() => setExportOpen(true)}>
+          {tr("导出到 Anki…")}
         </button>
         <button type="button" className={styles.reviewBtn} disabled={toReview === 0} onClick={() => setReviewing(true)}>
           {tr("开始复习 · {n}", { n: toReview })}
@@ -452,6 +433,7 @@ export function WordbookPage({ onLookup, active }: Props) {
           })}
         </ul>
       )}
+      <AnkiExportDialog open={exportOpen} onClose={() => setExportOpen(false)} query={{ status: query.status, tag: query.tag, search }} />
     </div>
   );
 }

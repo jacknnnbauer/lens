@@ -116,6 +116,15 @@ impl DictSource for JsonDict {
     fn resource(&self, _path: &str) -> Result<Option<Vec<u8>>> {
         Ok(None)
     }
+
+    fn for_each_entry(&self, f: &mut dyn FnMut(u64, &str, &EntryBody) -> bool) -> Result<()> {
+        for (i, e) in self.entries.iter().enumerate() {
+            if !f(i as u64, &e.headword, &EntryBody::Html(e.html.clone())) {
+                break;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

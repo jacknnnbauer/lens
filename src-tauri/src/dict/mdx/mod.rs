@@ -187,6 +187,15 @@ impl Mdx {
         Ok(text.trim_end_matches(['\0', '\r', '\n', ' ', '\t']).to_string())
     }
 
+    fn body_of(&self, text: String) -> EntryBody {
+        if self.main.header.format_text {
+            EntryBody::Text(text)
+        } else {
+            let styled = header::apply_stylesheet(&text, &self.main.header.stylesheet);
+            EntryBody::Html(styled.trim_end().to_string())
+        }
+    }
+
     fn resolve(&self, i: u64, depth: usize, seen: &mut HashSet<u64>, out: &mut Vec<RawEntry>) -> Result<()> {
         let e = self.entries.get(i)?;
         let text = self.record_text(e.start, e.end)?;
@@ -204,13 +213,7 @@ impl Mdx {
         if !seen.insert(e.start) {
             return Ok(());
         }
-        let body = if self.main.header.format_text {
-            EntryBody::Text(text)
-        } else {
-            let styled = header::apply_stylesheet(&text, &self.main.header.stylesheet);
-            EntryBody::Html(styled.trim_end().to_string())
-        };
-        out.push(RawEntry { headword: e.headword.to_string(), body });
+        out.push(RawEntry { headword: e.headword.to_string(), body: self.body_of(text) });
         Ok(())
     }
 }
@@ -227,6 +230,30 @@ impl DictSource for Mdx {
             self.resolve(i, 0, &mut seen, &mut out)?;
         }
         Ok(out)
+    }
+
+    fn entry_total(&self) -> u64 {
+        self.entries.len() as u64
+    }
+
+    fn for_each_entry(&self, f: &mut dyn FnMut(u64, &str, &EntryBody) -> bool) -> Result<()> {
+        let mut last_start = None;
+        for i in 0..self.entries.len() as u64 {
+            let e = self.entries.get(i)?;
+            // 同一条记录的多个词头（键按记录顺序排列时相邻）只算一次
+            if last_start == Some(e.start) {
+                continue;
+            }
+            last_start = Some(e.start);
+            let text = self.record_text(e.start, e.end)?;
+            if text.trim_start().starts_with("@@@LINK=") {
+                continue;
+            }
+            if !f(i, e.headword, &self.body_of(text)) {
+                break;
+            }
+        }
+        Ok(())
     }
 
     /// 先找 mdx 同目录的散装文件（用户改过的 CSS 优先生效），再按顺序找各个 mdd。

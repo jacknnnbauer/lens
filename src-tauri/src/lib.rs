@@ -1,6 +1,8 @@
 mod ai;
+mod anki_pkg;
 mod app_state;
 mod audio;
+mod audio_pick;
 mod batch;
 mod capture;
 mod clipboard;
@@ -11,6 +13,8 @@ mod db;
 mod dict;
 mod error;
 mod export;
+mod freq;
+mod fulltext;
 mod gloss;
 mod i18n;
 mod lemma;
@@ -19,6 +23,7 @@ mod online;
 mod protocol;
 mod query;
 mod review;
+mod scan;
 mod senses;
 mod settings;
 mod themes;
@@ -294,6 +299,15 @@ pub fn run() {
             commands::lookup::context_sense,
             commands::lookup::word_family,
             commands::lookup::word_glosses,
+            commands::fulltext::fulltext_status,
+            commands::fulltext::fulltext_build,
+            commands::fulltext::fulltext_cancel,
+            commands::fulltext::fulltext_delete,
+            commands::fulltext::reverse_lookup,
+            commands::fulltext::fulltext_search,
+            commands::scan::scan_text,
+            commands::scan::set_known_words,
+            commands::scan::save_scanned_words,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,
@@ -316,6 +330,7 @@ pub fn run() {
             commands::words::word_id,
             commands::words::list_words,
             commands::words::export_wordbook,
+            commands::words::export_anki_package,
             commands::words::update_word,
             commands::words::delete_word,
             commands::words::unlink_word_context,

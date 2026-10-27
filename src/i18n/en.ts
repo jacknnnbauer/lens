@@ -925,4 +925,12 @@ export const en: Record<string, string> = {
   "包豪斯平面：粗黑框、硬投影、红蓝黄色块标题": "Bauhaus graphics: heavy black frames, hard shadows, red/blue/yellow title blocks",
   "柔光": "Soft Glass",
   "日落渐变底上的磨砂玻璃面板，柔和通透": "Frosted-glass panels over a sunset gradient: soft and airy",
+  "词汇网络的显示方式": "Word network view",
+  "放射图": "Radial graph",
+  "表格（词性 + 中文释义）": "Table (part of speech + Chinese gloss)",
+  "词性": "POS",
+  "中文释义": "Chinese gloss",
+  "单词": "Word",
+  "（本地词典里没有中文释义）": "(no Chinese gloss in local dictionaries)",
+  "词性、近义词、派生关系用到了内置的 WordNet 3.1（Copyright 2011 Princeton University，按 WordNet 许可分发）。": "Parts of speech, synonyms and derivations use the bundled WordNet 3.1 (Copyright 2011 Princeton University, distributed under the WordNet license).",
 };

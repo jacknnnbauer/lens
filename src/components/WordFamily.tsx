@@ -1,9 +1,11 @@
 // 词汇网络：一个词在中间，派生词、同根词、易混词、近义词四组向外炸开；点任何一个词就查它。
-// 数据全在本地算（Rust word_family）：词典词头前缀检索 + COCA 词表 / 近义词。
+// 数据全在本地算（Rust word_family）：词典词头前缀检索 + 词典正文核对 + 内置 WordNet / COCA。
+// 设置 › 布局里可以换成表格视图：每个词一行，带词性（WordNet）和中文释义（本地双解词典）。
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { tr } from "../i18n";
-import { wordFamily, type WordFamily as Family } from "../ipc/lookup";
+import { wordFamily, wordGlosses, type WordFamily as Family, type WordGloss } from "../ipc/lookup";
+import { useSettings } from "../stores/settings";
 import styles from "./WordFamily.module.css";
 
 const KINDS = [
@@ -37,6 +39,22 @@ export function WordFamily({ word, onLookup }: { word: string; onLookup: (w: str
   const [hover, setHover] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(720);
+  const view = useSettings((s) => s.settings?.layout.wordFamilyView ?? "graph");
+  const [glosses, setGlosses] = useState<Map<string, WordGloss>>(new Map());
+
+  // 表格视图：一次取齐所有词（含中心词）的词性和中文释义
+  useEffect(() => {
+    if (view !== "table" || !data) return;
+    let alive = true;
+    const words = [data.word, ...data.groups.flatMap((g) => g.words)];
+    wordGlosses(Array.from(new Set(words))).then(
+      (list) => alive && setGlosses(new Map(list.map((g) => [g.word, g]))),
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [view, data]);
 
   useEffect(() => {
     let alive = true;
@@ -64,7 +82,7 @@ export function WordFamily({ word, onLookup }: { word: string; onLookup: (w: str
     const ro = new ResizeObserver(() => setWidth(el.clientWidth || 720));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [open]);
+  }, [open, view]);
 
   const centerWord = data?.word ?? word;
   const groups = useMemo(() => (data?.groups ?? []).filter((g) => !hidden.has(g.kind as Kind)), [data, hidden]);
@@ -151,11 +169,14 @@ export function WordFamily({ word, onLookup }: { word: string; onLookup: (w: str
 
       {open && (
         <>
-          <div ref={box} className={styles.canvas} data-ui="canvas">
+          {view === "table" && data && total > 0 && (
+            <FamilyTable data={data} groups={groups} glosses={glosses} onLookup={onLookup} />
+          )}
+          <div ref={box} className={styles.canvas} data-ui="canvas" hidden={view === "table" && !!data && total > 0}>
             {error && <p className={styles.note}>{error}</p>}
             {!data && !error && <p className={styles.note}>{tr("整理中…")}</p>}
             {data && total === 0 && <p className={styles.note}>{tr("本地词典里没找到相关的词")}</p>}
-            {data && total > 0 && (
+            {data && total > 0 && view === "graph" && (
               <svg width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} role="group" aria-label={tr("「{word}」的相关词", { word: data.word })}>
                 {nodes.map((n) => (
                   <line
@@ -238,5 +259,73 @@ export function WordFamily({ word, onLookup }: { word: string; onLookup: (w: str
         </>
       )}
     </section>
+  );
+}
+
+/** 表格视图：中心词一行说明，下面每组一张表（单词 · 词性 · 中文释义），点词查它 */
+function FamilyTable({
+  data,
+  groups,
+  glosses,
+  onLookup,
+}: {
+  data: Family;
+  groups: Family["groups"];
+  glosses: Map<string, WordGloss>;
+  onLookup: (w: string) => void;
+}) {
+  const head = glosses.get(data.word);
+  const link = (w: string) => (
+    <a
+      href={`#${w}`}
+      onClick={(e) => {
+        e.preventDefault();
+        onLookup(w);
+      }}
+    >
+      {w}
+    </a>
+  );
+  return (
+    <div className={styles.tableView}>
+      <p className={styles.tableHead}>
+        <strong>{data.word}</strong>
+        {head?.pos && <span className={styles.pos}>{head.pos}</span>}
+        {head?.gloss && <span>{head.gloss}</span>}
+      </p>
+      {groups.map((g) => {
+        const kind = KINDS.find((k) => k.kind === g.kind);
+        return (
+          <section key={g.kind} className={styles.group} data-kind={g.kind}>
+            <h3 title={kind ? tr(kind.hint) : undefined}>
+              <i />
+              {kind ? tr(kind.name) : g.kind}
+              <small>{g.words.length}</small>
+            </h3>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th scope="col">{tr("单词")}</th>
+                  <th scope="col">{tr("词性")}</th>
+                  <th scope="col">{tr("中文释义")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.words.map((w) => {
+                  const info = glosses.get(w);
+                  return (
+                    <tr key={w}>
+                      <td>{link(w)}</td>
+                      <td className={styles.pos}>{info?.pos ?? "—"}</td>
+                      <td>{info ? (info.gloss ?? <span className={styles.none} title={tr("（本地词典里没有中文释义）")}>—</span>) : "…"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+        );
+      })}
+    </div>
   );
 }

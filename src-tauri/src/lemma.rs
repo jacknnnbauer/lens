@@ -1,6 +1,6 @@
 //! 生词本、语境句用的原形（ran → run，convulsed → convulse）。
 //! 很多词典把屈折形式也收成词条（多半是 `@@@LINK` 跳到原形），所以「词典里查得到」不能说明它就是原形。
-//! 判断顺序：不规则表 → COCA 原形表（只收原形）→ 词典里这个词跳转到的词头 → 原样。
+//! 判断顺序：不规则表（内置 + WordNet）→ COCA 原形表（只收原形；没导入 COCA 时用 WordNet 词表）→ 词典里这个词跳转到的词头 → 原样。
 
 use crate::app_state::AppState;
 use crate::batch::parse::{irregular, suffix_candidates};
@@ -12,10 +12,28 @@ use crate::query::normalize_query;
 pub fn base_form(state: &AppState, query: &str) -> String {
     let word = normalize_key(&normalize_query(query));
     let coca = state.coca();
+    let wordnet = state.wordnet();
+    if irregular(&word).is_none() {
+        if let Some(base) = wordnet.as_ref().and_then(|wn| wn.irregular(&word)) {
+            return base.to_string();
+        }
+    }
     let dicts = state.dicts.all().unwrap_or_default();
     resolve(
         &word,
-        &|w| coca.as_ref().is_some_and(|c| c.has_lemma(w)),
+        &|w| match (&coca, &wordnet) {
+            (Some(c), _) => c.has_lemma(w),
+            // WordNet 把 rusted、tired 这类分词形容词也收成词：只当形容词、又有更短的原形（rust、tire）时不算原形；
+            // building、meeting 这种还能当名词的照常算
+            (None, Some(wn)) => {
+                wn.has(w)
+                    && !(w == word.as_str()
+                        && (w.ends_with("ed") || w.ends_with("ing"))
+                        && wn.poses(w) == crate::wordnet::ADJ
+                        && suffix_candidates(w).iter().any(|c| c != w && wn.has(c)))
+            }
+            (None, None) => false,
+        },
         &|w| redirect_targets(&dicts, w),
     )
 }

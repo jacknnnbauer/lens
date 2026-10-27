@@ -685,6 +685,17 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               checked={l.showWordFamily ?? true}
               onChange={(v) => setL({ showWordFamily: v })}
             />
+            {(l.showWordFamily ?? true) && (
+              <Select
+                label="词汇网络的显示方式"
+                value={l.wordFamilyView ?? "graph"}
+                options={[
+                  ["graph", "放射图"],
+                  ["table", "表格（词性 + 中文释义）"],
+                ]}
+                onChange={(v) => setL({ wordFamilyView: v })}
+              />
+            )}
             <Toggle
               label={tr("义项图谱（实验）")}
               hint={tr("查词结果上方把几部词典的义项对齐，显示共识与差异")}
@@ -1011,6 +1022,9 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             词镜 Lens {paths ? `v${paths.version}` : ""}
             <br />
             {tr("离线多词典查词、划词取句、复制与导出。软件不附带任何词典；释义内容版权归各词典所有，仅供个人学习使用。")}
+          </p>
+          <p className={styles.hint}>
+            {tr("词性、近义词、派生关系用到了内置的 WordNet 3.1（Copyright 2011 Princeton University，按 WordNet 许可分发）。")}
           </p>
           <UpdateCheck />
         </section>

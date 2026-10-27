@@ -12,6 +12,7 @@ use std::collections::{BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 
 use crate::coca::Coca;
+use crate::wordnet::WordNet;
 use crate::senses::{self, AtlasInput, Cluster, SenseAtlas};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -265,7 +266,8 @@ fn collocates_of(coca: Option<&Coca>, headword: &str, pos: Option<&str>) -> BTre
     out
 }
 
-pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
+/// coca、wordnet 都可以没有：COCA 给近义词和搭配，WordNet（内置）在没有 COCA 时补上近义词和词性
+pub fn analyze(input: &ContextInput, coca: Option<&Coca>, wordnet: Option<&WordNet>) -> ContextSense {
     let headword = input.word.trim().to_lowercase();
     let words = words_of(&input.sentence);
     let at = words.iter().position(|(_, s)| *s >= input.hl_start && *s < input.hl_end.max(input.hl_start + 1)).or_else(|| {
@@ -286,7 +288,9 @@ pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
         None => (None, String::new()),
     };
     // 这个词只有一种词性（词典义项全是副词，或 COCA 里只作副词）：直接用，句中位置的猜测让位
-    let only_pos = single_pos(&atlas).or_else(|| coca.and_then(|c| coca_single_pos(c, &headword)));
+    let only_pos = single_pos(&atlas)
+        .or_else(|| coca.and_then(|c| coca_single_pos(c, &headword)))
+        .or_else(|| wordnet.and_then(|wn| wn.single_pos(&headword)));
     // 句中是变形（tabled、running）时，词形本身就是证据，不让「只有一种词性」盖过它（table 在 COCA 里只列了名词）
     let inflected = surface != headword && !surface.ends_with("ly");
     let (pos, pos_reason) = match (only_pos, guessed) {
@@ -346,6 +350,16 @@ pub fn analyze(input: &ContextInput, coca: Option<&Coca>) -> ContextSense {
                             partners.entry(senses::stem(&c)).or_insert((format!("{w}\u{1}{c}"), weight * factor));
                         }
                     }
+                }
+            }
+        }
+    } else if let Some(wn) = wordnet {
+        // 没有 COCA：句中实词的近义词从 WordNet 取（能当名词的只看名词义项，和上面一样）
+        for (w, weight) in &context {
+            let pos = if wn.poses(w) & crate::wordnet::NOUN != 0 { crate::wordnet::NOUN } else { 0 };
+            for s in wn.synonyms(w, pos, 12) {
+                if s != headword {
+                    synonyms.entry(senses::stem(&s)).or_insert((format!("{w}\u{1}{s}"), weight * 0.7));
                 }
             }
         }
@@ -563,7 +577,7 @@ mod tests {
     #[test]
     fn picks_deal_with_for_address_the_issue() {
         let c = coca();
-        let r = analyze(&input("The company addressed the issue.", "addressed", address_dict()), Some(&c));
+        let r = analyze(&input("The company addressed the issue.", "addressed", address_dict()), Some(&c), None);
         assert_eq!(r.pos.as_deref(), Some("v."));
         let best = r.best.clone().expect("有候选");
         assert!(best.label.contains("deal with") || best.label.contains("problem"), "{best:?}");
@@ -574,7 +588,7 @@ mod tests {
 
     #[test]
     fn noun_after_determiner() {
-        let r = analyze(&input("Please write your address on the form.", "address", address_dict()), None);
+        let r = analyze(&input("Please write your address on the form.", "address", address_dict()), None, None);
         assert_eq!(r.pos.as_deref(), Some("n."));
         assert!(r.best.is_some_and(|b| b.pos.as_deref() == Some("n.")));
     }
@@ -598,6 +612,7 @@ mod tests {
                 dicts: vec![dict("mw", mw)],
             },
             None,
+            None,
         );
         assert_eq!(r.pos.as_deref(), Some("adv."));
         assert!(r.best.is_some_and(|b| b.label.contains("significant degree") || b.label.contains("manner")), "不在句首，不选「it is significant」");
@@ -611,6 +626,7 @@ mod tests {
         let start = s.find("tabled").unwrap_or(0);
         let r = analyze(
             &ContextInput { word: "table".into(), sentence: s.into(), hl_start: start, hl_end: start + 6, dicts: vec![dict("x", html)] },
+            None,
             None,
         );
         assert_eq!(r.pos.as_deref(), Some("v."), "tabled + 宾语是动词，即使词典只抽出了名词义项");

@@ -32,6 +32,8 @@ export interface Layout {
   showContextSense: boolean;
   /** 查词结果里的「词汇网络」 */
   showWordFamily: boolean;
+  /** 词汇网络：放射图 / 表格 */
+  wordFamilyView: "graph" | "table";
   cardsExpanded: "first2" | "all" | "none";
   /** 每次启动都回到简洁单栏 */
   startCompact: boolean;

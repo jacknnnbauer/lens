@@ -11,6 +11,7 @@ mod db;
 mod dict;
 mod error;
 mod export;
+mod gloss;
 mod i18n;
 mod lemma;
 mod logging;
@@ -24,6 +25,7 @@ mod themes;
 mod update;
 mod vocab;
 mod word_family;
+mod wordnet;
 mod wordbook_export;
 
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -231,6 +233,7 @@ pub fn run() {
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let state = handle.state::<AppState>();
+                state.load_wordnet();
                 state.load_coca();
                 if let Err(e) = lemma::normalize_saved(&state) {
                     tracing::warn!(error = %e, "整理生词本原形失败");
@@ -290,6 +293,7 @@ pub fn run() {
             commands::lookup::first_entry,
             commands::lookup::context_sense,
             commands::lookup::word_family,
+            commands::lookup::word_glosses,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,

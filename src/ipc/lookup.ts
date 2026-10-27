@@ -108,6 +108,17 @@ export interface WordFamily {
 }
 
 /** 词汇网络（离线）：派生词、同根词、易混词、近义词 */
+export interface WordGloss {
+  word: string;
+  pos: string | null;
+  gloss: string | null;
+}
+
+/** 词汇网络表格视图：每个词的词性和第一段中文释义 */
+export function wordGlosses(words: string[]): Promise<WordGloss[]> {
+  return invoke<WordGloss[]>("word_glosses", { words });
+}
+
 export function wordFamily(query: string): Promise<WordFamily> {
   return invoke<WordFamily>("word_family", { query });
 }

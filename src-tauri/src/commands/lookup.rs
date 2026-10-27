@@ -83,7 +83,8 @@ pub async fn context_sense(state: State<'_, AppState>, mut input: crate::context
     // 有的词典词头就是查询原文（addressed）：先还原成原形，词性判断要靠「是不是变形」
     input.word = crate::lemma::base_form(&state, &input.word);
     let coca = state.coca();
-    tauri::async_runtime::spawn_blocking(move || crate::context_sense::analyze(&input, coca.as_deref()))
+    let wordnet = state.wordnet();
+    tauri::async_runtime::spawn_blocking(move || crate::context_sense::analyze(&input, coca.as_deref(), wordnet.as_deref()))
         .await
         .map_err(|e| crate::error::Error::Other(e.to_string()))
 }
@@ -94,9 +95,18 @@ pub async fn word_family(state: State<'_, AppState>, query: String) -> Result<cr
     let word = crate::lemma::base_form(&state, &query);
     let dicts = locals(profile_sources(&state)?);
     let coca = state.coca();
+    let wordnet = state.wordnet();
     tauri::async_runtime::spawn_blocking(move || {
+        // 近义词：有 COCA 用 COCA，没有就用内置 WordNet
+        // 易混词按拼写找，候选词表要是常用词：只用 COCA 2 万词；WordNet 近 15 万词、没有词频，会找出一堆生僻词
         let lemmas = coca.as_ref().map(|c| c.lemmas()).unwrap_or_default();
-        let synonyms = coca.as_ref().map(|c| c.synonyms_of(&word)).unwrap_or_default();
+        let synonyms = match (&coca, &wordnet) {
+            (Some(c), _) => c.synonyms_of(&word),
+            (None, Some(wn)) => wn.synonyms(&word, 0, 12),
+            _ => Vec::new(),
+        };
+        // WordNet 记录的派生关系（rust ↔ rusty）：直接算派生词
+        let wn_derived = wordnet.as_ref().map(|wn| wn.derived(&word)).unwrap_or_default();
         let search = |p: &str, limit: usize| query::prefix_suggestions(&dicts, p, limit).into_iter().map(|w| w.to_lowercase()).collect::<Vec<_>>();
         // 词条正文里的词：只看释义词典（同义词、搭配、词频类会列一堆不相干的词）
         let defining: Vec<&LoadedDict> = dicts.iter().filter(|d| !is_reference_dict(&d.source.meta().name)).collect();
@@ -110,7 +120,45 @@ pub async fn word_family(state: State<'_, AppState>, query: String) -> Result<cr
             }
             out
         };
-        crate::word_family::build(&word, &search, &mentions, &lemmas, &synonyms)
+        let is_lemma = |w: &str| wordnet.as_ref().is_some_and(|wn| wn.has(w));
+        crate::word_family::build(&word, &search, &mentions, &lemmas, &synonyms, &wn_derived, &is_lemma)
+    })
+    .await
+    .map_err(|e| crate::error::Error::Other(e.to_string()))
+}
+
+/// 词汇网络表格视图：每个词的词性（内置 WordNet）和第一段中文释义（当前配置组里的本地双解词典）。
+#[tauri::command]
+pub async fn word_glosses(state: State<'_, AppState>, words: Vec<String>) -> Result<Vec<crate::gloss::WordGloss>> {
+    let dicts: Vec<LoadedDict> = locals(profile_sources(&state)?).into_iter().filter(|d| !is_reference_dict(&d.source.meta().name)).collect();
+    let wordnet = state.wordnet();
+    tauri::async_runtime::spawn_blocking(move || {
+        words
+            .into_iter()
+            .take(80)
+            .map(|word| {
+                let pos = wordnet
+                    .as_ref()
+                    .and_then(|wn| crate::wordnet::pos_labels(wn.poses(&word)))
+                    .or_else(|| crate::gloss::pos_by_suffix(&word).map(str::to_string));
+                let gloss_of = |w: &str| {
+                    dicts.iter().find_map(|d| {
+                        d.source.lookup(w).ok()?.iter().find_map(|e| {
+                            let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
+                            crate::gloss::chinese_gloss(t)
+                        })
+                    })
+                };
+                // 词典没收这个变形（corroded、tarnished）：用原形（corrode、tarnish）的释义；候选原形要在 WordNet 里
+                let gloss = gloss_of(&word).or_else(|| {
+                    crate::batch::parse::suffix_candidates(&word)
+                        .into_iter()
+                        .filter(|c| c != &word && wordnet.as_ref().is_none_or(|wn| wn.has(c)))
+                        .find_map(|c| gloss_of(&c))
+                });
+                crate::gloss::WordGloss { word, pos, gloss }
+            })
+            .collect()
     })
     .await
     .map_err(|e| crate::error::Error::Other(e.to_string()))

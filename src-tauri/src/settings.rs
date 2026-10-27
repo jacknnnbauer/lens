@@ -56,6 +56,8 @@ pub struct Layout {
     pub show_context_sense: bool,
     /// 查词结果里显示「词汇网络」：派生词、同根词、易混词、近义词
     pub show_word_family: bool,
+    /// 词汇网络的显示方式：graph（放射图）| table（表格：词性 + 中文释义）
+    pub word_family_view: String,
     /// 默认展开哪些卡片：first2 | all | none（卡片已改为始终展开，保留字段以兼容旧设置）
     pub cards_expanded: String,
     /// 每次启动都回到简洁单栏
@@ -97,6 +99,7 @@ impl Default for Layout {
             show_jump_bar: true,
             show_context_sense: true,
             show_word_family: true,
+            word_family_view: "graph".into(),
             cards_expanded: "first2".into(),
             start_compact: true,
             nav_width: 220,

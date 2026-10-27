@@ -6,7 +6,8 @@
 //!   或者候选词自己的词条提到本词 / 词干，才算——这样 rustic 这种拼写碰巧像的词就不会混进来；
 //! - 同根词：再去掉前缀得到词根（con|vuls），给词根换上常见前缀（re-、a-、e-…）去索引里找；
 //! - 易混词：常见易混词对照表，加上 COCA 词表里开头相同、只差一个字母的词（不要 rusty / dusty 这类押韵词）；
-//! - 近义词：COCA 的近义词组。
+//! - 派生词另外并入内置 WordNet 记录的派生关系（rust ↔ rusty ↔ rustily），这部分不需要本地词典；
+//! - 近义词：COCA 的近义词组（没有 COCA 时用 WordNet 的同义词集）。
 //!
 //! 全是启发式，不联网。
 
@@ -101,11 +102,11 @@ fn all_suffixes(rest: &str) -> bool {
         || rest.strip_prefix('i').is_some_and(|r| !r.is_empty() && all_suffixes(r))
 }
 
-/// 去掉前缀后的词根（至少 3 个字母）
+/// 去掉前缀后的词根（至少 4 个字母：cor|rod 这种三个字母的会把 rod、rodent 拉进来）
 pub fn root_of(stem: &str) -> Option<(&'static str, String)> {
     PREFIXES.iter().find_map(|p| {
         let r = stem.strip_prefix(p)?;
-        (r.chars().count() >= 3 && r.chars().any(|c| "aeiouy".contains(c))).then(|| (*p, r.to_string()))
+        (r.chars().count() >= 4 && r.chars().any(|c| "aeiouy".contains(c))).then(|| (*p, r.to_string()))
     })
 }
 
@@ -119,7 +120,8 @@ fn drop_inflections(list: &mut Vec<String>) {
 }
 
 /// 词条 HTML 里出现的英文词（小写）：去标签、去音节点和重音符（rusti·ness → rustiness）；
-/// 带连字符的照原样收（rust-proof），核对时再去掉连字符比较
+/// 带连字符的照原样收（rust-proof），核对时再去掉连字符比较。
+/// 标了音节点的词另收一份「·词」：词典把派生词附在词条末尾时都这样印（rusti·ly），词源里的拉丁词（corrodere）不会
 pub fn entry_words(html: &str) -> BTreeSet<String> {
     let mut text = String::with_capacity(html.len());
     let mut in_tag = false;
@@ -137,23 +139,28 @@ pub fn entry_words(html: &str) -> BTreeSet<String> {
     let text = crate::senses::decode_entities(&text);
     let mut out = BTreeSet::new();
     let mut cur = String::new();
-    let mut flush = |cur: &mut String| {
+    let mut dotted = false;
+    let mut flush = |cur: &mut String, dotted: &mut bool| {
         let w = cur.trim_matches('-').to_string();
         if w.len() >= 2 {
+            if *dotted {
+                out.insert(format!("·{w}"));
+            }
             out.insert(w);
         }
         cur.clear();
+        *dotted = false;
     };
     for c in text.chars() {
         match c {
             'a'..='z' | '-' => cur.push(c),
             'A'..='Z' => cur.push(c.to_ascii_lowercase()),
             // 音节点、重音符、软连字符：词还没完
-            '·' | '‧' | '•' | 'ˈ' | 'ˌ' | '\u{00AD}' | '\u{2027}' => {}
-            _ => flush(&mut cur),
+            '·' | '‧' | '•' | 'ˈ' | 'ˌ' | '\u{00AD}' => dotted = !cur.is_empty(),
+            _ => flush(&mut cur, &mut dotted),
         }
     }
-    flush(&mut cur);
+    flush(&mut cur, &mut dotted);
     out
 }
 
@@ -180,6 +187,8 @@ pub fn build(
     mentions: &dyn Fn(&str) -> BTreeSet<String>,
     lemmas: &[String],
     synonyms: &[String],
+    wn_derived: &[String],
+    is_lemma: &dyn Fn(&str) -> bool,
 ) -> WordFamily {
     let word = word.trim().to_lowercase();
     let clean = |w: &str| w.chars().all(|c| c.is_ascii_lowercase() || c == '-') && w.len() <= 20;
@@ -195,10 +204,14 @@ pub fn build(
             .into_iter()
             .filter(|c| c != &word && clean(c))
             .filter(|c| c.strip_prefix(stem).is_some_and(|rest| all_suffixes(rest) || is_word(rest)))
+            // 光秃秃的词干本身（corrod）只有是真词时才算（rust）
+            .filter(|c| c.as_str() != stem || is_lemma(c))
             .collect();
         // 词条里列出的派生词（rusty 词条末尾的 rustiness），词头索引里不一定有
+        // 只收真词：词典词头、WordNet 里的词，或词条里标了音节点的（rusti·ly）
         for w in ctx.iter().filter(|w| w.starts_with(stem) && *w != &word && !w.contains('-') && clean(w)) {
-            if !found.contains(w) && w.strip_prefix(stem).is_some_and(|rest| all_suffixes(rest) || is_word(rest)) {
+            let real = (is_word(w) || is_lemma(w) || ctx.contains(&format!("·{w}"))) && (w.as_str() != stem || is_lemma(w));
+            if real && !found.contains(w) && w.strip_prefix(stem).is_some_and(|rest| all_suffixes(rest) || is_word(rest)) {
                 found.push(w.clone());
             }
         }
@@ -222,6 +235,11 @@ pub fn build(
         if soft != stem {
             derived = derived_of(&soft);
             stem = soft;
+        }
+    }
+    for w in wn_derived {
+        if w != &word && !w.contains(' ') && clean(w) && !derived.contains(w) {
+            derived.push(w.clone());
         }
     }
     derived.sort_by_key(|w| (w.len(), w.clone()));
@@ -293,7 +311,8 @@ pub fn build(
     let mut syn: Vec<String> = Vec::new();
     for s in synonyms {
         let s = s.trim().to_lowercase();
-        if !s.is_empty() && s != word && !syn.contains(&s) {
+        // 已经在派生词里的（rust）不再算近义词
+        if !s.is_empty() && s != word && !syn.contains(&s) && !derived.contains(&s) {
             syn.push(s);
         }
     }
@@ -330,6 +349,27 @@ mod tests {
         BTreeSet::new()
     }
 
+    fn no_lemma(_: &str) -> bool {
+        false
+    }
+
+    #[test]
+    fn etymology_words_are_not_derived() {
+        let idx: Vec<String> = ["corrode", "corrosion", "corrosive"].iter().map(|s| s.to_string()).collect();
+        let search = |p: &str, limit: usize| idx.iter().filter(|w| w.starts_with(p)).take(limit).cloned().collect::<Vec<_>>();
+        let entries = |w: &str| -> BTreeSet<String> {
+            entry_words(match w {
+                "corrode" => "<b>cor·rode</b> [Latin <i>corrodere</i>] <b>cor·rod·i·ble</b> adj. see corrosion corrosive",
+                _ => "",
+            })
+        };
+        let f = build("corrode", &search, &entries, &[], &[], &[], &no_lemma);
+        let d = f.groups.iter().find(|g| g.kind == "derived").map(|g| g.words.clone()).unwrap_or_default();
+        assert!(d.contains(&"corrosion".to_string()) || d.contains(&"corrodible".to_string()), "{d:?}");
+        assert!(d.contains(&"corrodible".to_string()), "标了音节点的派生词要收：{d:?}");
+        assert!(!d.iter().any(|w| w == "corrodere" || w == "corrod"), "词源里的拉丁词不收：{d:?}");
+    }
+
     #[test]
     fn entry_text_checks_derived_words() {
         let idx: Vec<String> = ["rust", "rusted", "rustic", "rustical", "rustier", "rustiest", "rustily", "rustproof", "rusty", "proof"]
@@ -346,7 +386,9 @@ mod tests {
             };
             entry_words(html)
         };
-        let f = build("rusty", &search, &entries, &["dusty".into(), "musty".into(), "rustle".into()], &[]);
+        // rust 本身是词干，要 WordNet 认它是词才收
+        let is_lemma = |w: &str| w == "rust";
+        let f = build("rusty", &search, &entries, &["dusty".into(), "musty".into(), "rustle".into()], &[], &[], &is_lemma);
         let g = |k: &str| f.groups.iter().find(|g| g.kind == k).map(|g| g.words.clone()).unwrap_or_default();
         let d = g("derived");
         for w in ["rust", "rustily", "rustiness", "rustproof"] {
@@ -378,7 +420,7 @@ mod tests {
     #[test]
     fn convulse_family() {
         let lemmas: Vec<String> = ["effect", "affect", "affix", "defect", "convert"].iter().map(|s| s.to_string()).collect();
-        let f = build("convulse", &search, &no_entries, &lemmas, &["shake".into(), "agitate".into()]);
+        let f = build("convulse", &search, &no_entries, &lemmas, &["shake".into(), "agitate".into()], &[], &no_lemma);
         let g = |k: &str| f.groups.iter().find(|g| g.kind == k).map(|g| g.words.clone()).unwrap_or_default();
         let d = g("derived");
         assert!(d.contains(&"convulsion".to_string()) && d.contains(&"convulsive".to_string()) && d.contains(&"convulsively".to_string()), "{d:?}");
@@ -401,7 +443,7 @@ mod tests {
     #[test]
     fn confusables_from_table_and_spelling() {
         let lemmas: Vec<String> = ["effect", "affect", "affix", "defect"].iter().map(|s| s.to_string()).collect();
-        let f = build("affect", &search, &no_entries, &lemmas, &[]);
+        let f = build("affect", &search, &no_entries, &lemmas, &[], &[], &no_lemma);
         let c = f.groups.iter().find(|g| g.kind == "confusable").map(|g| g.words.clone()).unwrap_or_default();
         assert_eq!(c.first().map(String::as_str), Some("effect"));
     }

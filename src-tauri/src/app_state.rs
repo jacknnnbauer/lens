@@ -23,6 +23,9 @@ pub struct AppState {
     /// COCA 词频表（导入过才有）。启动时在后台读，读完前用 `coca()` 取会稍等
     pub coca: std::sync::RwLock<Option<Arc<crate::coca::Coca>>>,
     coca_pending: (Mutex<bool>, Condvar),
+    /// 内置 WordNet：启动时在后台解压，读完前用 `wordnet()` 取会稍等
+    wordnet: std::sync::RwLock<Option<Arc<crate::wordnet::WordNet>>>,
+    wordnet_pending: (Mutex<bool>, Condvar),
 }
 
 impl AppState {
@@ -61,6 +64,8 @@ impl AppState {
         Ok(Self {
             coca: std::sync::RwLock::new(None),
             coca_pending: (Mutex::new(root.join(crate::coca::FILE).exists()), Condvar::new()),
+            wordnet: std::sync::RwLock::new(None),
+            wordnet_pending: (Mutex::new(true), Condvar::new()),
             root: root.to_path_buf(),
             db,
             settings,
@@ -90,6 +95,33 @@ impl AppState {
             *p = false;
         }
         done.notify_all();
+    }
+
+    /// 内置 WordNet（约 2 MB 压缩数据）：启动后在后台解压；坏了只记日志
+    pub fn load_wordnet(&self) {
+        match crate::wordnet::WordNet::load() {
+            Ok(w) => {
+                tracing::info!(words = w.len(), "已加载 WordNet");
+                if let Ok(mut slot) = self.wordnet.write() {
+                    *slot = Some(Arc::new(w));
+                }
+            }
+            Err(e) => tracing::warn!(error = %e, "WordNet 读取失败"),
+        }
+        let (pending, done) = &self.wordnet_pending;
+        if let Ok(mut p) = pending.lock() {
+            *p = false;
+        }
+        done.notify_all();
+    }
+
+    /// 内置 WordNet；启动时还在解压就等它（最多几百毫秒）
+    pub fn wordnet(&self) -> Option<Arc<crate::wordnet::WordNet>> {
+        let (pending, done) = &self.wordnet_pending;
+        if let Ok(p) = pending.lock() {
+            let _ = done.wait_timeout_while(p, std::time::Duration::from_secs(5), |p| *p);
+        }
+        self.wordnet.read().ok().and_then(|w| w.clone())
     }
 
     /// 当前的 COCA 词频表；启动时还在读就等它读完（最多几百毫秒）

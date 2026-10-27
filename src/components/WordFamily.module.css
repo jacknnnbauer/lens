@@ -195,6 +195,118 @@
   background: var(--k-synonym);
 }
 
+/* ———— 表格视图 ———— */
+
+.tableView {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tableHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--sub);
+}
+
+.tableHead strong {
+  font-family: var(--font-gloss);
+  font-size: 20px;
+  color: var(--text);
+}
+
+.group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.group h3 i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.group h3 small {
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.group[data-kind="derived"] h3 i {
+  background: var(--k-derived);
+}
+.group[data-kind="root"] h3 i {
+  background: var(--k-root);
+}
+.group[data-kind="confusable"] h3 i {
+  background: var(--k-confusable);
+}
+.group[data-kind="synonym"] h3 i {
+  background: var(--k-synonym);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  color: var(--faint);
+}
+
+.table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  vertical-align: baseline;
+}
+
+.table td:first-child {
+  width: 28%;
+  font-family: var(--font-gloss);
+  font-size: 15px;
+}
+
+.table td a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.table td a:hover,
+.table td a:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.pos {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+.table td.pos {
+  width: 16%;
+}
+
+.none {
+  color: var(--faint);
+  font-size: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .node,
   .edge {

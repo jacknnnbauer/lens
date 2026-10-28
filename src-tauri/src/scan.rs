@@ -75,6 +75,9 @@ struct Raw<'t> {
     sentence_start: bool,
 }
 
+/// 连字符前的这些前缀不单独算词（non-essential、anti-inflation、re-elect）
+const HYPHEN_PREFIXES: &[&str] = &["non", "anti", "pre", "post", "re", "co", "multi", "semi", "sub", "inter", "self", "ex", "pro", "mid", "neo", "pseudo", "quasi", "ultra"];
+
 fn is_apostrophe(c: char) -> bool {
     matches!(c, '\'' | '’')
 }
@@ -167,6 +170,9 @@ pub fn scan(text: &str, level: u32, lx: &Lexicon, saved: &HashSet<String>, known
         }
         let lower = strip_contraction(&w.text.to_lowercase());
         if lower.len() < 2 && lower != "a" && lower != "i" {
+            continue;
+        }
+        if text[w.byte + w.text.len()..].starts_with('-') && HYPHEN_PREFIXES.contains(&lower.as_str()) {
             continue;
         }
         let lem = lemma_cache.entry(lower.clone()).or_insert_with(|| lemma(&lower, lx)).clone();
@@ -275,6 +281,12 @@ mod tests {
         let r = run("Wages fell while we kept waiting.", 100, &[], &[]);
         let lemmas: Vec<&str> = r.words.iter().map(|w| w.lemma.as_str()).collect();
         assert!(lemmas.contains(&"wage") && lemmas.contains(&"wait"), "{lemmas:?}");
+    }
+
+    #[test]
+    fn hyphen_prefixes_are_not_words() {
+        let r = run("Turn off non-essential alerts.", 100, &[], &[]);
+        assert!(r.words.iter().all(|w| w.lemma != "non"));
     }
 
     #[test]

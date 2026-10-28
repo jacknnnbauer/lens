@@ -67,6 +67,6 @@ pub async fn lookup_in_popup(
 
 /// 主窗口内划词：存语境句，返回 id，供随后的查询与收藏引用。
 #[tauri::command]
-pub async fn save_in_app_context(app: AppHandle, text: String, paragraph: String, sel16: (usize, usize)) -> Result<Option<i64>> {
-    Ok(crate::capture::save_in_app_context(&app, &text, &paragraph, sel16))
+pub async fn save_in_app_context(app: AppHandle, text: String, paragraph: String, sel16: (usize, usize), title: Option<String>) -> Result<Option<i64>> {
+    Ok(crate::capture::save_in_app_context(&app, &text, &paragraph, sel16, title.as_deref().filter(|t| !t.trim().is_empty())))
 }

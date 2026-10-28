@@ -18,6 +18,8 @@ const MAX_PHRASE = 60;
 function inScope(e: Event): boolean {
   for (const t of e.composedPath()) {
     if (!(t instanceof Element)) continue;
+    // 阅读视图自己处理点词（右侧栏查词、自动收藏）
+    if (t.matches("[data-reader]")) return false;
     if (t.matches(SCOPE)) return true;
     if (t.matches(SKIP)) return false;
   }
@@ -64,7 +66,7 @@ function wordRangeAt(root: Document | ShadowRoot, x: number, y: number): Range |
 }
 
 /** 词所在的块级段落文字，以及词在其中的 UTF-16 区间（给 Rust 取语境句） */
-function paragraphOf(range: Range): { paragraph: string; sel16: [number, number] } | null {
+export function paragraphOf(range: Range): { paragraph: string; sel16: [number, number] } | null {
   let el: Element | null = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
   while (el && el.parentElement && /^inline/.test(getComputedStyle(el).display)) el = el.parentElement;
   if (!el) return null;
@@ -78,7 +80,7 @@ function paragraphOf(range: Range): { paragraph: string; sel16: [number, number]
   return { paragraph, sel16: [start, end] };
 }
 
-function acceptable(text: string, phrase: boolean): boolean {
+export function acceptable(text: string, phrase: boolean): boolean {
   const t = text.trim();
   if (!t || !/[A-Za-z]/.test(t) || /\n/.test(t)) return false;
   if (phrase) return t.length <= MAX_PHRASE && t.split(/\s+/).length <= 5;

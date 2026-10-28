@@ -1,0 +1,639 @@
+/* ── 文章库 ── */
+
+.column,
+.wide {
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.column {
+  max-width: 860px;
+}
+
+.wide {
+  max-width: 1320px;
+  container-type: inline-size;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 52px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.barSpacer {
+  flex: 1 1 auto;
+}
+
+.sub {
+  margin: 0;
+  color: var(--sub);
+  line-height: 1.6;
+}
+
+.faint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.error {
+  margin: 0;
+  color: var(--warn);
+}
+
+.empty {
+  margin: 32px 0;
+  text-align: center;
+  color: var(--faint);
+}
+
+.pasteBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.field input,
+.paste,
+.titleInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.paste {
+  min-height: 280px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.library {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+}
+
+.item + .item {
+  border-top: 1px solid var(--line);
+}
+
+.itemMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.itemMain:hover {
+  background: var(--raised);
+}
+
+.itemTitle {
+  font-family: var(--font-gloss);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.itemExcerpt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.itemMeta {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.confirm {
+  display: flex;
+  gap: 6px;
+}
+
+.remove {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 18px;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.remove:hover {
+  background: var(--raised);
+  color: var(--warn);
+}
+
+/* ── 按钮 ── */
+
+.primary,
+.primarySmall {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.primarySmall {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.ghost,
+.danger {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--sub);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.danger {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.primary:disabled,
+.primarySmall:disabled,
+.ghost:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── 阅读视图 ── */
+
+.readerBar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 8px 0;
+  background: var(--bg);
+}
+
+.titleBtn {
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--font-gloss);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: text;
+}
+
+.titleBtn:hover {
+  background: var(--raised);
+}
+
+.titleInput {
+  max-width: 50%;
+  padding: 4px 8px;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+.inline select {
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 32%, 400px);
+  gap: 16px;
+  align-items: start;
+}
+
+.paper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(16px, 3cqi, 36px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.prose {
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  font-family: var(--font-gloss);
+  font-size: 17px;
+  line-height: 1.8;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.prose :global(h1),
+.prose :global(h2),
+.prose :global(h3),
+.prose :global(h4) {
+  margin: 1.4em 0 0.5em;
+  line-height: 1.3;
+}
+
+.prose :global(h1) {
+  margin-top: 0;
+  font-size: 1.7em;
+}
+
+.prose :global(h2) {
+  font-size: 1.4em;
+}
+
+.prose :global(h3) {
+  font-size: 1.18em;
+}
+
+.prose :global(p),
+.prose :global(ul),
+.prose :global(ol),
+.prose :global(blockquote),
+.prose :global(pre),
+.prose :global(table) {
+  margin: 0 0 1em;
+}
+
+.prose :global(blockquote) {
+  padding: 0 0 0 1em;
+  border-left: 3px solid var(--line);
+  color: var(--sub);
+}
+
+.prose :global(code) {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--raised);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.prose :global(pre) {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--raised);
+  overflow-x: auto;
+}
+
+.prose :global(pre code) {
+  padding: 0;
+  background: transparent;
+}
+
+.prose :global(table) {
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.prose :global(th),
+.prose :global(td) {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+}
+
+.prose :global(hr) {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.prose :global(a) {
+  color: var(--accent);
+}
+
+.prose :global(.lens-img) {
+  font-size: 0.85em;
+  color: var(--faint);
+}
+
+.prose :global(.lens-w) {
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.prose :global(.lens-w:hover) {
+  background: var(--hl);
+}
+
+.prose[data-marks] :global(.lens-w[data-status="new"]) {
+  text-decoration: underline 2px var(--accent);
+  text-underline-offset: 4px;
+}
+
+.prose[data-marks] :global(.lens-w[data-status="saved"]) {
+  text-decoration: underline 1px dotted var(--sub);
+  text-underline-offset: 4px;
+}
+
+.prose :global(.lens-w[data-flash]) {
+  background: var(--hl);
+  outline: 2px solid var(--accent);
+}
+
+/* ── 右侧栏 ── */
+
+.panel {
+  position: sticky;
+  top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 140px);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.segmented,
+.segmentedSmall {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.segmented button,
+.segmentedSmall button {
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--sub);
+  cursor: pointer;
+}
+
+.segmentedSmall button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.segmented button[aria-pressed="true"],
+.segmentedSmall button[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.dictPanel,
+.wordsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dictHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dictHead h2 {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: 22px;
+}
+
+.savedTag {
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.glossLine {
+  margin: 0;
+  color: var(--sub);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stats {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.panelHead,
+.bulk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bulk {
+  justify-content: flex-start;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 2px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.row input {
+  margin-top: 5px;
+}
+
+.rowMain {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rowLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.word {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-gloss);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.word:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.pos {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--faint);
+}
+
+.gloss {
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.rank {
+  padding-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* 放不下两栏时（开着左侧导航的窄窗口）：右侧栏变成贴在窗口底部的抽屉，点词后不用往下翻 */
+@container (max-width: 760px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel {
+    top: auto;
+    bottom: 0;
+    max-height: 42vh;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -6px 18px color-mix(in srgb, var(--text) 12%, transparent);
+  }
+}
+
+@media (max-width: 600px) {
+  .column,
+  .wide {
+    padding: 12px 16px 40px;
+  }
+}

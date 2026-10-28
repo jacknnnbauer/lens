@@ -376,9 +376,10 @@ pub fn place(anchor: Anchor, size: (f64, f64), work: (f64, f64, f64, f64)) -> (f
 }
 
 /// 主窗口内划词：只把所在句子存成语境句，返回 id（查词在主窗口里进行）。
-pub fn save_in_app_context(app: &AppHandle, text: &str, paragraph: &str, sel16: (usize, usize)) -> Option<i64> {
+/// `title`：语境的来源（阅读里是文章标题），默认「词镜 Lens」
+pub fn save_in_app_context(app: &AppHandle, text: &str, paragraph: &str, sel16: (usize, usize), title: Option<&str>) -> Option<i64> {
     let ctx = sentence::extract(paragraph, sel16)?;
-    store_context(app, &clip_query(text), &ctx, "lens", Some("Lens"), Some("词镜 Lens"))
+    store_context(app, &clip_query(text), &ctx, "lens", Some("Lens"), Some(title.unwrap_or("词镜 Lens")))
 }
 
 /// Lens 窗口内划词（设置 › 取词 › 窗口内查词）：前端已经知道词和所在段落，不走 UIA / 剪贴板，直接弹出查词小窗。

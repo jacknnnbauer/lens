@@ -39,13 +39,13 @@ const loadWordbook = () => import("../../routes/wordbook/WordbookPage");
 const loadSettingsPage = () => import("../../routes/settings/SettingsPage");
 const loadThemes = () => import("../../routes/themes/ThemeLibraryPage");
 const loadSearch = () => import("../../routes/search/SearchPage");
-const loadScan = () => import("../../routes/scan/ScanPage");
+const loadReader = () => import("../../routes/reader/ReaderPage");
 const HistoryPage = lazy(() => loadHistory().then((m) => ({ default: m.HistoryPage })));
 const WordbookPage = lazy(() => loadWordbook().then((m) => ({ default: m.WordbookPage })));
 const SettingsPage = lazy(() => loadSettingsPage().then((m) => ({ default: m.SettingsPage })));
 const ThemeLibraryPage = lazy(() => loadThemes().then((m) => ({ default: m.ThemeLibraryPage })));
 const SearchPage = lazy(() => loadSearch().then((m) => ({ default: m.SearchPage })));
-const ScanPage = lazy(() => loadScan().then((m) => ({ default: m.ScanPage })));
+const ReaderPage = lazy(() => loadReader().then((m) => ({ default: m.ReaderPage })));
 
 const NAV_DEFAULT = 220;
 const NAV_MIN = 160;
@@ -71,7 +71,7 @@ export function MainWindow() {
     performance.mark("lens-ready");
     void mainReady().then(() =>
       setTimeout(() => {
-        for (const load of [loadSettingsPage, loadWordbook, loadHistory, loadThemes, loadSearch, loadScan]) void load().catch(() => undefined);
+        for (const load of [loadSettingsPage, loadWordbook, loadHistory, loadThemes, loadSearch, loadReader]) void load().catch(() => undefined);
       }, 1500),
     );
   }, [layout, settingsError]);
@@ -236,7 +236,7 @@ export function MainWindow() {
   const inSettings = page === "settings" || page === "themes";
   const hideSides = inSettings || (immersive && (immersivePrefs?.hideSidebars ?? true));
   const showNav = (layout?.showNav ?? false) && !hideSides;
-  const showContext = (layout?.showContext ?? false) && !hideSides;
+  const showContext = (layout?.showContext ?? false) && !hideSides && page !== "reader";
   const showStatus = (layout?.showStatusBar ?? false) && !(immersive && (immersivePrefs?.hideStatusBar ?? true));
   const showTitleBar = !(immersive && (immersivePrefs?.hideTitleBar ?? true));
 
@@ -272,7 +272,7 @@ export function MainWindow() {
             onOpenHistory={() => go("history")}
             onOpenWordbook={() => go("wordbook")}
             onOpenSearch={() => go("search")}
-            onOpenScan={() => go("scan")}
+            onOpenReader={() => go("reader")}
             onOpenLibrary={() => setLibraryOpen(true)}
             onOpenSettings={() => go("settings")}
             onOpenBatch={() => useBatch.getState().openDialog()}
@@ -327,7 +327,7 @@ export function MainWindow() {
           {page === "history" && <HistoryPage active onLookup={lookupWord} />}
           {page === "wordbook" && <WordbookPage active onLookup={lookupWord} />}
           {page === "search" && <SearchPage active onLookup={lookupWord} />}
-          {page === "scan" && <ScanPage onLookup={lookupWord} />}
+          {page === "reader" && <ReaderPage />}
           {page === "settings" && <SettingsPage onBack={focusSearch} onOpenThemes={() => go("themes")} />}
           {page === "themes" && <ThemeLibraryPage onBack={() => go("settings")} />}
         </Suspense>

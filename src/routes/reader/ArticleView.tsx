@@ -1,23 +1,28 @@
-// 阅读视图：左边是排好版的文章，右边是「释义 / 生词」。
+// 阅读视图：中间是排好版的文章；「释义 / 生词」放在主窗口的右侧栏里（标题栏右上角开关）。
 // 点一个词（或拖选一个短语）就在右边查；所在句子存为语境句，查到后自动收进生词本（可关）。
 // 生词按词频标在正文上（可关），「生词」页列出全文的生词，可批量收藏、标记认识。
+// 「编辑」切到 Markdown 原文改正文（只改 Lens 里的这份），保存后重新排版、重新扫描。
+// 「导出」把标注过的原文和词汇表导出成 PDF / HTML（ArticleExportDialog）。
 
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DictCard } from "../../components/DictCard";
 import { acceptable, paragraphOf } from "../../components/inAppLookup";
-import { openArticle, renameArticle, saveReadingContext, setArticleProgress, type Article } from "../../ipc/articles";
+import { openArticle, renameArticle, saveReadingContext, setArticleProgress, updateArticleBody, type Article } from "../../ipc/articles";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
 import { saveScannedWords, scanText, setKnownWords, type ScanResult, type ScanStatus, type ScanWord } from "../../ipc/scan";
 import { saveWord, wordId } from "../../ipc/words";
 import { copyCard, DEFAULT_COPY, FORMAT_NAME } from "../../copy/copy";
 import type { CopyFormat } from "../../copy/convert";
 import { useLookup } from "../../stores/lookup";
+import { useReader } from "../../stores/reader";
 import { useRoute } from "../../stores/route";
-import { briefOf, isReferenceDict } from "../../stores/save";
+import { briefOf } from "../../stores/save";
 import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
 import { scrollRoot } from "../../windows/main/scroll";
+import { ArticleExportDialog } from "./ArticleExportDialog";
 import { renderMarkdown, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
 import { tr } from "../../i18n";
@@ -64,6 +69,11 @@ export function ArticleView({ id, onBack }: Props) {
   const [scan, setScan] = useState<ScanResult | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
+  // 正在编辑的原文；null 表示在阅读
+  const [draft, setDraft] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [savingBody, setSavingBody] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const index = useRef<WordIndex | null>(null);
 
@@ -161,6 +171,8 @@ export function ArticleView({ id, onBack }: Props) {
       const contextId = para ? await saveReadingContext(word, para.paragraph, para.sel16, article.title).catch(() => null) : null;
       setPicked({ word, contextId, at: now });
       setTab("dict");
+      // 右侧栏关着时点词，打开它显示释义
+      if (!useReader.getState().sideHost) useSettings.getState().updateLayout({ showContext: true });
       void useLookup.getState().search(word, { commit: true, contextId });
     },
     [article],
@@ -226,6 +238,7 @@ export function ArticleView({ id, onBack }: Props) {
     setPicked({ word: w, contextId: null, at: Date.now() });
     savedFor.current = null;
     setTab("dict");
+    if (!useReader.getState().sideHost) useSettings.getState().updateLayout({ showContext: true });
     void useLookup.getState().search(w, { commit: true });
   };
 
@@ -248,6 +261,54 @@ export function ArticleView({ id, onBack }: Props) {
     }
   };
 
+  // ── 编辑正文 ──
+  const editAt = useRef(0);
+  const startEdit = () => {
+    if (!article) return;
+    const root = scrollRoot();
+    const max = root.scrollHeight - root.clientHeight;
+    editAt.current = max > 0 ? root.scrollTop / max : 0;
+    setConfirmDiscard(false);
+    setDraft(article.body);
+    requestAnimationFrame(() => root.scrollTo({ top: 0 }));
+  };
+  const dirty = draft !== null && article !== null && draft !== article.body;
+  const cancelEdit = () => {
+    if (dirty && !confirmDiscard) {
+      setConfirmDiscard(true);
+      return;
+    }
+    setDraft(null);
+    setConfirmDiscard(false);
+    // 正文没变，回到进编辑前的位置
+    requestAnimationFrame(() => {
+      const root = scrollRoot();
+      root.scrollTo({ top: editAt.current * Math.max(0, root.scrollHeight - root.clientHeight) });
+    });
+  };
+  const saveBody = async () => {
+    if (!article || draft === null || savingBody) return;
+    if (!dirty) {
+      cancelEdit();
+      return;
+    }
+    setSavingBody(true);
+    try {
+      const words = await updateArticleBody(article.id, draft);
+      // 换了 article 对象就会重新排版、重新扫描，并滚回进编辑前的位置
+      setArticle({ ...article, body: draft, words, progress: editAt.current });
+      setDraft(null);
+      setConfirmDiscard(false);
+      toast(tr("已保存"));
+    } catch (e) {
+      toast(tr("保存失败：{error}", { error: String(e) }));
+    } finally {
+      setSavingBody(false);
+    }
+  };
+
+  const sideHost = useReader((s) => s.sideHost);
+
   const toggle = (key: string, v: boolean, set: (v: boolean) => void) => {
     set(v);
     writePref(key, v);
@@ -256,7 +317,7 @@ export function ArticleView({ id, onBack }: Props) {
   return (
     <div className={styles.wide}>
       <header className={styles.readerBar}>
-        <button type="button" className={styles.ghost} onClick={onBack}>
+        <button type="button" className={styles.ghost} onClick={onBack} disabled={draft !== null}>
           {tr("← 文章库")}
         </button>
         {editingTitle && article ? (
@@ -277,31 +338,51 @@ export function ArticleView({ id, onBack }: Props) {
           </button>
         )}
         <span className={styles.barSpacer} />
-        <label className={styles.inline}>
-          {tr("词汇量")}
-          <select
-            value={level}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setLevel(v);
-              writePref("lens.scan.level", v);
-            }}
-          >
-            {LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {tr("最常用的 {n} 词", { n: l })}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.inline}>
-          <input type="checkbox" checked={marks} onChange={(e) => toggle("lens.reader.marks", e.target.checked, setMarks)} />
-          {tr("标出生词")}
-        </label>
-        <label className={styles.inline} title={tr("点词查到后，连同所在句子收进生词本")}>
-          <input type="checkbox" checked={autoSave} onChange={(e) => toggle("lens.reader.autoSave", e.target.checked, setAutoSave)} />
-          {tr("查词自动收藏")}
-        </label>
+        {draft !== null ? (
+          <>
+            <span className={styles.faint}>{tr("Ctrl+S 保存")}</span>
+            <button type="button" className={confirmDiscard ? styles.danger : styles.ghost} onClick={cancelEdit}>
+              {confirmDiscard ? tr("放弃修改？") : tr("取消")}
+            </button>
+            <button type="button" className={styles.primarySmall} onClick={() => void saveBody()} disabled={savingBody || !draft.trim()}>
+              {tr("保存")}
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className={styles.ghost} onClick={startEdit} disabled={!article} title={tr("改 Markdown 原文")}>
+              {tr("编辑")}
+            </button>
+            <button type="button" className={styles.ghost} onClick={() => setExporting(true)} disabled={!article || !scan} title={tr("导出 PDF / HTML：标注过的原文 + 词汇表")}>
+              {tr("导出")}
+            </button>
+            <label className={styles.inline}>
+              {tr("词汇量")}
+              <select
+                value={level}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setLevel(v);
+                  writePref("lens.scan.level", v);
+                }}
+              >
+                {LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {tr("最常用的 {n} 词", { n: l })}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.inline}>
+              <input type="checkbox" checked={marks} onChange={(e) => toggle("lens.reader.marks", e.target.checked, setMarks)} />
+              {tr("标出生词")}
+            </label>
+            <label className={styles.inline} title={tr("点词查到后，连同所在句子收进生词本")}>
+              <input type="checkbox" checked={autoSave} onChange={(e) => toggle("lens.reader.autoSave", e.target.checked, setAutoSave)} />
+              {tr("查词自动收藏")}
+            </label>
+          </>
+        )}
       </header>
 
       {error && (
@@ -310,42 +391,81 @@ export function ArticleView({ id, onBack }: Props) {
         </p>
       )}
 
-      <div className={styles.split}>
-        <div className={styles.paper}>
-          <div
-            ref={bodyRef}
-            className={styles.prose}
-            data-reader=""
-            data-marks={marks || undefined}
-            onClick={onClick}
-            onMouseUp={onMouseUp}
-          />
-          {article && <p className={styles.faint}>{tr("点一个词查词，拖选可以查短语。")}</p>}
-        </div>
-
-        <aside className={styles.panel} aria-label={tr("释义与生词")}>
-          <div role="tablist" aria-label={tr("右侧栏")} className={styles.segmented}>
-            <button type="button" role="tab" aria-selected={tab === "dict"} aria-pressed={tab === "dict"} onClick={() => setTab("dict")}>
-              {tr("释义")}
-            </button>
-            <button type="button" role="tab" aria-selected={tab === "words"} aria-pressed={tab === "words"} onClick={() => setTab("words")}>
-              {tr("生词")} {scan ? scan.words.filter((w) => w.status === "new").length : ""}
-            </button>
-          </div>
-          {tab === "dict" ? (
-            <DictPanel picked={picked} autoSave={autoSave} savedWords={savedWords} onSave={(p) => void doSave(p, false)} onLookup={lookupInPanel} />
-          ) : (
-            <WordsPanel
-              scan={scan}
-              title={article?.title ?? ""}
-              onLocate={locate}
-              onLookup={lookupInPanel}
-              onChanged={() => void rescan()}
-              onError={setError}
+      <div className={styles.paper}>
+        {draft !== null && (
+          <>
+            {article?.sourcePath && <p className={styles.faint}>{tr("只改 Lens 里的这份，不会改动原文件。")}</p>}
+            <textarea
+              className={styles.editor}
+              value={draft}
+              autoFocus
+              spellCheck={false}
+              aria-label={tr("Markdown 原文")}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setConfirmDiscard(false);
+              }}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void saveBody();
+                }
+              }}
             />
-          )}
-        </aside>
+          </>
+        )}
+        <div
+          hidden={draft !== null}
+          ref={bodyRef}
+          className={styles.prose}
+          data-reader=""
+          data-marks={marks || undefined}
+          onClick={onClick}
+          onMouseUp={onMouseUp}
+        />
+        {article && draft === null && <p className={styles.faint}>{tr("点一个词查词，拖选可以查短语。")}</p>}
       </div>
+
+      <ArticleExportDialog
+        open={exporting}
+        onClose={() => setExporting(false)}
+        title={article?.title ?? ""}
+        scan={scan}
+        getHtml={() => bodyRef.current?.innerHTML ?? ""}
+      />
+
+      {sideHost &&
+        createPortal(
+          draft !== null ? (
+            // 编辑时生词表对不上正文，保存后重新统计
+            <p className={styles.sideEmpty}>{tr("正在编辑正文，保存后重新统计生词。")}</p>
+          ) : (
+            <section className={styles.panel} aria-label={tr("释义与生词")}>
+              <div role="tablist" aria-label={tr("右侧栏")} className={styles.segmented}>
+                <button type="button" role="tab" aria-selected={tab === "dict"} aria-pressed={tab === "dict"} onClick={() => setTab("dict")}>
+                  {tr("释义")}
+                </button>
+                <button type="button" role="tab" aria-selected={tab === "words"} aria-pressed={tab === "words"} onClick={() => setTab("words")}>
+                  {tr("生词")} {scan ? scan.words.filter((w) => w.status === "new").length : ""}
+                </button>
+              </div>
+              {tab === "dict" ? (
+                <DictPanel picked={picked} autoSave={autoSave} savedWords={savedWords} onSave={(p) => void doSave(p, false)} onLookup={lookupInPanel} />
+              ) : (
+                <WordsPanel
+                  scan={scan}
+                  title={article?.title ?? ""}
+                  onLocate={locate}
+                  onLookup={lookupInPanel}
+                  onChanged={() => void rescan()}
+                  onError={setError}
+                />
+              )}
+            </section>
+          ),
+          sideHost,
+        )}
     </div>
   );
 }
@@ -387,10 +507,8 @@ function DictPanel({
   if (!picked || !handle) {
     return <p className={styles.empty}>{tr("点文章里的词，释义显示在这里。")}</p>;
   }
-  // 词频、搭配类词典（COCA 之类）排到后面
-  const hits = cards
-    .filter((c) => c.status === "hit" || c.status === "pending")
-    .sort((a, b) => Number(isReferenceDict(a.name)) - Number(isReferenceDict(b.name)));
+  // 词典的内容和顺序跟查词页一样，按当前场景配置组（设置 › 词典里调）
+  const hits = cards.filter((c) => c.status === "hit" || c.status === "pending");
   const isPicked = picked.word === word;
 
   return (

@@ -79,6 +79,12 @@ pub async fn article_rename(state: State<'_, AppState>, id: i64, title: String) 
     state.db.with_conn(|c| articles::rename(c, id, &title))
 }
 
+/// 改正文，返回新的词数
+#[tauri::command]
+pub async fn article_update_body(state: State<'_, AppState>, id: i64, body: String) -> Result<i64> {
+    state.db.with_conn(|c| articles::update_body(c, id, &body))
+}
+
 #[tauri::command]
 pub async fn article_progress(state: State<'_, AppState>, id: i64, progress: f64) -> Result<()> {
     if !progress.is_finite() {

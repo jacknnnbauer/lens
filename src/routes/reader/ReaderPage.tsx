@@ -3,6 +3,7 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { createArticle, deleteArticle, importArticleFiles, listArticles, type ArticleMeta } from "../../ipc/articles";
 import { useReader } from "../../stores/reader";
 import { toast } from "../../stores/toast";
@@ -92,10 +93,13 @@ export function ReaderPage() {
     }
   };
 
+  const sideHost = useReader((s) => s.sideHost);
+
   if (openId !== null) return <ArticleView key={openId} id={openId} onBack={() => open(null)} />;
 
   return (
     <div className={styles.column}>
+      {sideHost && createPortal(<p className={styles.sideEmpty}>{tr("打开一篇文章，点词后释义显示在这里。")}</p>, sideHost)}
       <header className={styles.head}>
         <h1 className={styles.title}>{tr("阅读")}</h1>
         <span className={styles.barSpacer} />

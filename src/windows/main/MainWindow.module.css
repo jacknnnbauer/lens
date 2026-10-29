@@ -70,6 +70,10 @@
   border-left: 1px solid var(--line);
 }
 
+.readerSide {
+  min-height: 100%;
+}
+
 .main {
   min-width: 0;
 }

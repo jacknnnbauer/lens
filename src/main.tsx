@@ -19,9 +19,20 @@ if (import.meta.env.DEV) {
     import("./export/run"),
     import("./export-templates/template"),
     import("./export/resources"),
-  ]).then(([l, s, b, r, t, res]) => {
+    import("./export-templates/article"),
+    import("./dict-render/prepare"),
+  ]).then(([l, s, b, r, t, res, art, prep]) => {
     Object.assign(window, {
-      __lens: { useLookup: l.useLookup, useSettings: s.useSettings, useBatch: b.useBatch, runExport: r.runExport, buildExportBody: t.buildExportBody, inlineEntry: res.inlineEntry },
+      __lens: {
+        useLookup: l.useLookup,
+        useSettings: s.useSettings,
+        useBatch: b.useBatch,
+        runExport: r.runExport,
+        buildExportBody: t.buildExportBody,
+        inlineEntry: res.inlineEntry,
+        buildArticleBody: art.buildArticleBody,
+        prepareEntry: prep.prepareEntry,
+      },
     });
   });
 }

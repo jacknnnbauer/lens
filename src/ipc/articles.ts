@@ -42,6 +42,11 @@ export function renameArticle(id: number, title: string): Promise<void> {
   return invoke("article_rename", { id, title });
 }
 
+/** 改正文（不动导入时的原文件），返回新的词数 */
+export function updateArticleBody(id: number, body: string): Promise<number> {
+  return invoke<number>("article_update_body", { id, body });
+}
+
 export function setArticleProgress(id: number, progress: number): Promise<void> {
   return invoke("article_progress", { id, progress });
 }

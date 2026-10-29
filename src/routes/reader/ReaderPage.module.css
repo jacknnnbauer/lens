@@ -91,6 +91,29 @@
   font-size: 15px;
 }
 
+.editor {
+  display: block;
+  width: 100%;
+  min-height: 70vh;
+  field-sizing: content;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.editor:focus,
+.editor:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: none;
+}
+
 .paste {
   min-height: 280px;
   resize: vertical;
@@ -298,13 +321,6 @@
   color: var(--text);
 }
 
-.split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(280px, 32%, 400px);
-  gap: 16px;
-  align-items: start;
-}
-
 .paper {
   display: flex;
   flex-direction: column;
@@ -432,20 +448,20 @@
   outline: 2px solid var(--accent);
 }
 
-/* ── 右侧栏 ── */
+/* ── 右侧栏（渲染在主窗口的右侧栏里） ── */
 
 .panel {
-  position: sticky;
-  top: 56px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: calc(100vh - 140px);
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
-  overflow: hidden;
+  padding: 14px 14px 24px;
+}
+
+.sideEmpty {
+  margin: 0;
+  padding: 18px 16px;
+  font-size: 13px;
+  color: var(--sub);
 }
 
 .segmented,
@@ -487,8 +503,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 0;
-  overflow-y: auto;
+}
+
+/* 右侧栏自己滚动，标签条吸顶 */
+.panel > .segmented {
+  position: sticky;
+  top: 8px;
+  z-index: 1;
 }
 
 .dictHead {
@@ -617,20 +638,6 @@
 }
 
 /* 放不下两栏时（开着左侧导航的窄窗口）：右侧栏变成贴在窗口底部的抽屉，点词后不用往下翻 */
-@container (max-width: 760px) {
-  .split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .panel {
-    top: auto;
-    bottom: 0;
-    max-height: 42vh;
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 -6px 18px color-mix(in srgb, var(--text) 12%, transparent);
-  }
-}
-
 @media (max-width: 600px) {
   .column,
   .wide {

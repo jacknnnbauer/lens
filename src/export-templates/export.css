@@ -260,3 +260,317 @@ body {
 .lens-export[data-style="ink"] img {
   filter: grayscale(1);
 }
+
+/* ── 文章导出（阅读 › 导出）：卷首 + 标注过的正文 + 词汇表 ── */
+.lens-article {
+  max-width: 720px;
+}
+
+.lens-article[data-layout="margin"] {
+  max-width: 880px;
+}
+
+.ar-head {
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--text);
+}
+
+.ar-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ar-head h1 {
+  margin: 6px 0 0;
+  font-family: var(--font-gloss);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ar-meta {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.ar-body {
+  font-family: var(--font-gloss);
+  font-size: 15.5px;
+  line-height: 1.8;
+  hyphens: auto;
+}
+
+.lens-article[data-layout="book"] .ar-body {
+  text-align: justify;
+}
+
+.ar-body h1,
+.ar-body h2,
+.ar-body h3,
+.ar-body h4 {
+  margin: 1.4em 0 0.4em;
+  line-height: 1.3;
+  break-after: avoid;
+}
+
+.ar-body h2 {
+  font-size: 21px;
+}
+
+.ar-body h3 {
+  font-size: 18px;
+}
+
+.ar-body p,
+.ar-body ul,
+.ar-body ol,
+.ar-body blockquote,
+.ar-body pre,
+.ar-body table {
+  margin: 0 0 0.9em;
+}
+
+.ar-body blockquote {
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--line);
+  color: var(--sub);
+}
+
+.ar-body pre,
+.ar-body code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.ar-body pre {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--raised);
+  white-space: pre-wrap;
+}
+
+.ar-body table {
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ar-body th,
+.ar-body td {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+}
+
+.ar-body a {
+  color: inherit;
+}
+
+.ar-body .lens-img {
+  color: var(--faint);
+  font-size: 13px;
+}
+
+/* 标注：书页用下划线，旁注用点线，卡片用荧光笔 */
+.aw {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.lens-article[data-layout="margin"] .aw {
+  text-decoration-style: dotted;
+  text-decoration-thickness: 2px;
+}
+
+.lens-article[data-layout="cards"] .aw {
+  text-decoration: none;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--hl);
+}
+
+sup.an {
+  margin-left: 1px;
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* 旁注：正文一栏，右边注出本段第一次出现的词 */
+.mrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 28px;
+  break-inside: avoid;
+}
+
+.mnote {
+  padding-top: 4px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--sub);
+}
+
+.mn {
+  padding-left: 10px;
+  border-left: 2px solid var(--accent);
+}
+
+.mn + .mn {
+  margin-top: 8px;
+}
+
+.mn strong {
+  color: var(--text);
+  font-family: var(--font-gloss);
+  font-size: 13px;
+}
+
+.mn em,
+.gl-head em {
+  font-style: italic;
+  color: var(--faint);
+}
+
+.mn-no {
+  margin-right: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.mn-zh {
+  display: block;
+}
+
+/* 词汇表 */
+.glossary {
+  break-before: page;
+}
+
+.glossary > h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--text);
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.glossary > h2 small {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sub);
+}
+
+.gl-item {
+  padding: 12px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gl-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  break-after: avoid;
+}
+
+.gl-head strong {
+  font-family: var(--font-gloss);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.gl-no {
+  min-width: 22px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.gl-form {
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.gl-tag {
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--sub);
+}
+
+.gl-zh {
+  margin: 3px 0 0 30px;
+  font-size: 14px;
+}
+
+.gl-quote {
+  margin: 8px 0 0 30px;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--hl);
+  font-family: var(--font-gloss);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sub);
+  break-inside: avoid;
+}
+
+.gl-quote mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--hl);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.gl-def {
+  margin: 10px 0 0 30px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-decoration-break: clone;
+}
+
+.gl-dict {
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* 卡片版：词汇表两列卡片（带完整释义时一列，否则太挤） */
+.lens-article[data-layout="cards"] .gl-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lens-article[data-layout="cards"] .gl-list:has(.gl-def) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.lens-article[data-layout="cards"] .gl-item {
+  padding: 12px 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  break-inside: avoid;
+}
+
+.lens-article[data-layout="cards"] .gl-zh,
+.lens-article[data-layout="cards"] .gl-quote,
+.lens-article[data-layout="cards"] .gl-def {
+  margin-left: 0;
+}

@@ -1,0 +1,112 @@
+/* 文章导出对话框：版式选择卡（其余沿用 ExportDialog.module.css） */
+
+.layouts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.layout {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.layout[data-checked] {
+  border-color: var(--accent);
+  background: var(--hl);
+}
+
+.layout input {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  accent-color: var(--accent);
+}
+
+.layout small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--sub);
+}
+
+/* 缩略图：一页纸的线框 */
+.thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 64px;
+  aspect-ratio: 210 / 297;
+  margin-bottom: 6px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel);
+}
+
+.thumb > b {
+  height: 4px;
+  width: 70%;
+  border-radius: 1px;
+  background: var(--text);
+}
+
+.thumb i,
+.thumb em {
+  display: block;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line);
+}
+
+.thumb i[data-mark] {
+  background: linear-gradient(90deg, var(--line) 30%, var(--accent) 30% 55%, var(--line) 55%);
+}
+
+.thumb[data-layout="cards"] i[data-mark] {
+  height: 3px;
+  background: linear-gradient(90deg, var(--line) 30%, var(--hl) 30% 55%, var(--line) 55%);
+  outline: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.tText,
+.tNote,
+.tGloss {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tRow {
+  display: grid;
+  grid-template-columns: 1fr 14px;
+  gap: 4px;
+}
+
+.tNote i {
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+.tGloss {
+  margin-top: auto;
+  padding-top: 4px;
+  border-top: 1px solid var(--text);
+}
+
+.thumb[data-layout="cards"] .tGloss {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+
+.thumb em {
+  height: 9px;
+  border: 1px solid var(--line);
+  background: transparent;
+}

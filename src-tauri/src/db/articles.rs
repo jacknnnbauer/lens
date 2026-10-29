@@ -182,6 +182,19 @@ pub fn rename(conn: &Connection, id: i64, title: &str) -> Result<()> {
     Ok(())
 }
 
+/// 改正文（只改 Lens 里存的这份，不动导入时的原文件）；词数跟着重算，标题不变
+pub fn update_body(conn: &Connection, id: i64, body: &str) -> Result<i64> {
+    if body.trim().is_empty() {
+        return Err(Error::Other(crate::i18n::t("文章是空的", "The article is empty").into()));
+    }
+    let words = count_words(&plain(body));
+    let n = conn.execute("UPDATE article SET body = ?2, words = ?3, updated_at = ?4 WHERE id = ?1", params![id, body, words, now_ms()])?;
+    if n == 0 {
+        return Err(Error::Other(crate::i18n::t("这篇文章已被删除", "This article has been deleted").into()));
+    }
+    Ok(words)
+}
+
 pub fn set_progress(conn: &Connection, id: i64, progress: f64) -> Result<()> {
     conn.execute("UPDATE article SET progress = ?2 WHERE id = ?1", params![id, progress.clamp(0.0, 1.0)])?;
     Ok(())
@@ -248,6 +261,14 @@ Second line", None)?;
             assert!((art.meta.progress - 0.4).abs() < 1e-9);
             assert_eq!(list_ids(c)?, vec![a, b], "刚打开的排到最前");
             rename(c, a, " Bike ")?;
+            assert_eq!(update_body(c, a, "# Other
+
+Three new words.")?, 4);
+            let art = open(c, a)?.ok_or_else(|| Error::Other("missing".into()))?;
+            assert_eq!((art.meta.title.as_str(), art.meta.words), ("Bike", 4), "改正文不改标题");
+            assert!(update_body(c, a, " 
+").is_err());
+            assert!(update_body(c, 9999, "x").is_err());
             assert!(delete(c, b)?);
             assert_eq!(list(c)?.len(), 1);
             assert!(create(c, None, "  \n", None).is_err());

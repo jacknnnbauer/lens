@@ -310,6 +310,7 @@ pub fn run() {
             commands::articles::article_create,
             commands::articles::article_import_files,
             commands::articles::article_rename,
+            commands::articles::article_update_body,
             commands::articles::article_progress,
             commands::articles::article_delete,
             commands::scan::scan_text,

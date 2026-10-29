@@ -22,6 +22,7 @@ import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPag
 import { subscribeBatchEvents, useBatch } from "../../stores/batch";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
+import { useReader } from "../../stores/reader";
 import { useRoute } from "../../stores/route";
 import { useSettings } from "../../stores/settings";
 import { useApplyTheme } from "../../theme/useApplyTheme";
@@ -236,7 +237,9 @@ export function MainWindow() {
   const inSettings = page === "settings" || page === "themes";
   const hideSides = inSettings || (immersive && (immersivePrefs?.hideSidebars ?? true));
   const showNav = (layout?.showNav ?? false) && !hideSides;
-  const showContext = (layout?.showContext ?? false) && !hideSides && page !== "reader";
+  // 右侧栏：阅读页放释义 / 生词，其他页放「当前语境」，开关是同一个（标题栏右上角）
+  const showContext = (layout?.showContext ?? false) && !hideSides;
+  const setReaderSide = useReader((s) => s.setSideHost);
   const showStatus = (layout?.showStatusBar ?? false) && !(immersive && (immersivePrefs?.hideStatusBar ?? true));
   const showTitleBar = !(immersive && (immersivePrefs?.hideTitleBar ?? true));
 
@@ -348,7 +351,7 @@ export function MainWindow() {
               setCtxW(null);
             }}
           />
-          <ContextPanel onLookup={lookupWord} />
+          {page === "reader" ? <div ref={setReaderSide} className={styles.readerSide} /> : <ContextPanel onLookup={lookupWord} />}
         </div>
       )}
 

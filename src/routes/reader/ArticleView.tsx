@@ -139,6 +139,34 @@ export function ArticleView({ id, onBack }: Props) {
     }
   }, [scan]);
 
+  // 往下读时收起工具栏，让出版面；往上滑、回到顶部或鼠标移到最上面时再出来（编辑时一直显示）
+  const [barHidden, setBarHidden] = useState(false);
+  useEffect(() => {
+    if (!article || draft !== null) {
+      setBarHidden(false);
+      return;
+    }
+    const root = scrollRoot();
+    let last = root.scrollTop;
+    const onScroll = () => {
+      const top = root.scrollTop;
+      const d = top - last;
+      if (top < 60) setBarHidden(false);
+      else if (d > 6) setBarHidden(true);
+      else if (d < -6) setBarHidden(false);
+      if (Math.abs(d) > 6) last = top;
+    };
+    const onMove = (e: MouseEvent) => {
+      if (e.clientY - root.getBoundingClientRect().top < 48) setBarHidden(false);
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    root.addEventListener("mousemove", onMove, { passive: true });
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+      root.removeEventListener("mousemove", onMove);
+    };
+  }, [article, draft]);
+
   // 记下读到哪里
   useEffect(() => {
     if (!article) return;
@@ -316,7 +344,7 @@ export function ArticleView({ id, onBack }: Props) {
 
   return (
     <div className={styles.wide}>
-      <header className={styles.readerBar}>
+      <header className={styles.readerBar} data-hidden={barHidden || undefined} onFocus={() => setBarHidden(false)}>
         <button type="button" className={styles.ghost} onClick={onBack} disabled={draft !== null}>
           {tr("← 文章库")}
         </button>

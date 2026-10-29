@@ -22,6 +22,7 @@ function date(ms: number): string {
 export function ReaderPage() {
   const openId = useReader((s) => s.openId);
   const open = useReader((s) => s.open);
+  const rev = useReader((s) => s.rev);
   const [list, setList] = useState<ArticleMeta[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pasting, setPasting] = useState(false);
@@ -95,7 +96,7 @@ export function ReaderPage() {
 
   const sideHost = useReader((s) => s.sideHost);
 
-  if (openId !== null) return <ArticleView key={openId} id={openId} onBack={() => open(null)} />;
+  if (openId !== null) return <ArticleView key={`${openId}-${rev}`} id={openId} onBack={() => open(null)} />;
 
   return (
     <div className={styles.column}>

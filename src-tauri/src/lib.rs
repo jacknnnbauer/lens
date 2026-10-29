@@ -170,12 +170,14 @@ pub fn run() {
     // 只允许一个实例：再次打开时把已有的主窗口拿到前台（必须最先注册）。
     // 开发时用 LENS_DATA_DIR 隔开数据的实例不受限制，可与已安装的版本同时运行
     if std::env::var_os("LENS_DATA_DIR").is_none() {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
                 let _ = w.show();
                 let _ = w.set_focus();
             }
+            // 资源管理器右键「用 Lens 打开」：已经开着时文件路径从这里转过来
+            commands::articles::open_from_args(app, &args);
         }));
     }
     let result = builder
@@ -259,6 +261,10 @@ pub fn run() {
                 tracing::warn!(error = %e, "创建托盘图标失败");
             }
             app.manage(batch::BatchManager::default());
+            // 资源管理器右键「用 Lens 打开」启动的：导入文件，等界面画好后来取
+            app.manage(commands::articles::PendingOpen::default());
+            let args: Vec<String> = std::env::args().skip(1).collect();
+            commands::articles::open_from_args(app.handle(), &args);
             tracing::info!(ms = t_setup.elapsed().as_millis() as u64, "启动：后端就绪");
             // 主窗口配置为先隐藏：取消最大化、缩到屏幕以内并居中，等界面画好第一帧（main_ready）再显示，
             // 避免先闪一个空白窗口；界面迟迟不报到也在 3 秒后显示
@@ -311,6 +317,7 @@ pub fn run() {
             commands::articles::article_import_files,
             commands::articles::article_rename,
             commands::articles::article_update_body,
+            commands::articles::article_take_pending,
             commands::articles::article_progress,
             commands::articles::article_delete,
             commands::scan::scan_text,

@@ -1,9 +1,10 @@
 //! 阅读：文章库的命令。业务逻辑在 `crate::db::articles`。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app_state::AppState;
 use crate::db::articles::{self, Article, ArticleMeta};
@@ -36,42 +37,72 @@ pub struct ImportResult {
     pub failed: Vec<(String, String)>,
 }
 
+const EXTS: [&str; 3] = ["md", "markdown", "txt"];
+
+fn is_article_file(p: &Path) -> bool {
+    p.extension().is_some_and(|e| EXTS.contains(&e.to_string_lossy().to_lowercase().as_str()))
+}
+
+/// 读一个文件并导入（同一个文件导入过就沿用或更新那篇，见 `articles::import_file`）
+fn import_one(state: &AppState, p: &Path) -> std::result::Result<i64, String> {
+    if !is_article_file(p) {
+        return Err(crate::i18n::t("只支持 .md 和 .txt 文件", "Only .md and .txt files are supported").into());
+    }
+    match std::fs::metadata(p) {
+        Ok(m) if m.len() > MAX_FILE => return Err(crate::i18n::t("文件超过 5 MB", "The file is over 5 MB").into()),
+        Err(e) => return Err(e.to_string()),
+        Ok(_) => {}
+    }
+    let text = std::fs::read(p).map(|b| articles::decode_file(&b)).map_err(|e| e.to_string())?;
+    let name = p.display().to_string();
+    state.db.with_conn(|c| articles::import_file(c, &name, &text)).map_err(|e| e.to_string())
+}
+
 /// 导入 .md / .markdown / .txt 文件（可多个）
 #[tauri::command]
 pub async fn article_import_files(state: State<'_, AppState>, paths: Vec<PathBuf>) -> Result<ImportResult> {
     let mut ids = Vec::new();
     let mut failed = Vec::new();
     for p in paths {
-        let name = p.display().to_string();
-        let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-        if !["md", "markdown", "txt"].contains(&ext.as_str()) {
-            failed.push((name, crate::i18n::t("只支持 .md 和 .txt 文件", "Only .md and .txt files are supported").into()));
-            continue;
-        }
-        match std::fs::metadata(&p) {
-            Ok(m) if m.len() > MAX_FILE => {
-                failed.push((name, crate::i18n::t("文件超过 5 MB", "The file is over 5 MB").into()));
-                continue;
-            }
-            Err(e) => {
-                failed.push((name, e.to_string()));
-                continue;
-            }
-            Ok(_) => {}
-        }
-        let text = match std::fs::read(&p) {
-            Ok(b) => articles::decode_file(&b),
-            Err(e) => {
-                failed.push((name, e.to_string()));
-                continue;
-            }
-        };
-        match state.db.with_conn(|c| articles::create(c, None, &text, Some(&name))) {
+        match import_one(&state, &p) {
             Ok(id) => ids.push(id),
-            Err(e) => failed.push((name, e.to_string())),
+            Err(e) => failed.push((p.display().to_string(), e)),
         }
     }
     Ok(ImportResult { ids, failed })
+}
+
+/// 资源管理器右键「用 Lens 打开」传进来、等界面来取的文章
+#[derive(Default)]
+pub struct PendingOpen(Mutex<Option<i64>>);
+
+/// 启动参数或第二次启动转过来的参数里有 .md / .txt：导入、记下等界面来取，并通知主窗口切到阅读
+pub fn open_from_args(app: &AppHandle, args: &[String]) {
+    let Some(state) = app.try_state::<AppState>() else { return };
+    let mut last = None;
+    for a in args {
+        let p = Path::new(a);
+        if !is_article_file(p) || !p.is_file() {
+            continue;
+        }
+        match import_one(&state, p) {
+            Ok(id) => last = Some(id),
+            Err(e) => tracing::warn!(path = %p.display(), error = %e, "打开文章失败"),
+        }
+    }
+    let Some(id) = last else { return };
+    if let Some(pending) = app.try_state::<PendingOpen>() {
+        if let Ok(mut g) = pending.0.lock() {
+            *g = Some(id);
+        }
+    }
+    let _ = app.emit_to("main", "reader:open", id);
+}
+
+/// 界面取走等着打开的文章（启动时先取一次，之后收到 reader:open 再取）
+#[tauri::command]
+pub fn article_take_pending(pending: State<'_, PendingOpen>) -> Option<i64> {
+    pending.0.lock().ok().and_then(|mut g| g.take())
 }
 
 #[tauri::command]

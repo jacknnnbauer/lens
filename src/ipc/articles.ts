@@ -1,6 +1,8 @@
 // 阅读：文章库（Rust：commands/articles.rs、db/articles.rs）。
 
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 
 export interface ArticleMeta {
   id: number;
@@ -49,6 +51,16 @@ export function updateArticleBody(id: number, body: string): Promise<number> {
 
 export function setArticleProgress(id: number, progress: number): Promise<void> {
   return invoke("article_progress", { id, progress });
+}
+
+/** 资源管理器右键「用 Lens 打开」导入、等着打开的文章 id（取走后清空） */
+export function takePendingArticle(): Promise<number | null> {
+  return invoke<number | null>("article_take_pending");
+}
+
+/** Lens 开着时又从资源管理器打开了文章 */
+export function onOpenArticle(cb: () => void): Promise<UnlistenFn> {
+  return getCurrentWebviewWindow().listen("reader:open", () => cb());
 }
 
 export function deleteArticle(id: number): Promise<boolean> {

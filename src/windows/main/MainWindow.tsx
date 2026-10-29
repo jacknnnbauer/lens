@@ -18,6 +18,7 @@ import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
 import { Toast } from "../../components/Toast";
 import { onMainLookup } from "../../ipc/capture";
+import { onOpenArticle, takePendingArticle } from "../../ipc/articles";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
 import { subscribeBatchEvents, useBatch } from "../../stores/batch";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
@@ -104,7 +105,19 @@ export function MainWindow() {
     void loadSettings();
     void useBatch.getState().refreshUnfinished();
     void refreshDicts();
+    // 资源管理器右键「用 Lens 打开」：启动时取一次，开着时收到事件再取
+    const openPending = () =>
+      void takePendingArticle().then(
+        (id) => {
+          if (id === null) return;
+          useReader.getState().open(id);
+          useRoute.getState().go("reader");
+        },
+        () => undefined,
+      );
+    openPending();
     const subs = [
+      onOpenArticle(openPending),
       subscribeLookupEvents(),
       subscribeDictEvents(),
       subscribeBatchEvents(),

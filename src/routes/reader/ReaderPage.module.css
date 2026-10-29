@@ -276,6 +276,20 @@
   gap: 10px 14px;
   padding: 8px 0;
   background: var(--bg);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* 往下读时收起（不占位：sticky 元素本来就盖在正文上） */
+.readerBar[data-hidden] {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .readerBar {
+    transition: none;
+  }
 }
 
 .titleBtn {

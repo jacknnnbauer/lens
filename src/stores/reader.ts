@@ -4,6 +4,8 @@ import { create } from "zustand";
 
 interface ReaderState {
   openId: number | null;
+  /** 每次 open 加一：同一篇再打开一次（比如文件更新了）也重新读 */
+  rev: number;
   open: (id: number | null) => void;
   /** 右侧栏打开时由主窗口挂上，阅读页把释义 / 生词渲染进去；关着时为 null */
   sideHost: HTMLElement | null;
@@ -12,7 +14,8 @@ interface ReaderState {
 
 export const useReader = create<ReaderState>((set) => ({
   openId: null,
-  open: (openId) => set({ openId }),
+  rev: 0,
+  open: (openId) => set((s) => ({ openId, rev: s.rev + 1 })),
   sideHost: null,
   setSideHost: (sideHost) => set({ sideHost }),
 }));

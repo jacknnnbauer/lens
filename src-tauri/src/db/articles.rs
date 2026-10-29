@@ -188,11 +188,36 @@ pub fn update_body(conn: &Connection, id: i64, body: &str) -> Result<i64> {
         return Err(Error::Other(crate::i18n::t("文章是空的", "The article is empty").into()));
     }
     let words = count_words(&plain(body));
-    let n = conn.execute("UPDATE article SET body = ?2, words = ?3, updated_at = ?4 WHERE id = ?1", params![id, body, words, now_ms()])?;
+    let n = conn.execute("UPDATE article SET body = ?2, words = ?3, edited = 1, updated_at = ?4 WHERE id = ?1", params![id, body, words, now_ms()])?;
     if n == 0 {
         return Err(Error::Other(crate::i18n::t("这篇文章已被删除", "This article has been deleted").into()));
     }
     Ok(words)
+}
+
+/// 从文件导入（打开文件、拖入、资源管理器右键「用 Lens 打开」）：同一个文件导入过就不重复加。
+/// - 内容没变：直接用原来那篇；
+/// - 文件改过、Lens 里没改过正文：换成文件的新内容（标题、阅读位置不变）；
+/// - Lens 里也改过：另存一篇，不覆盖在 Lens 里改的内容。
+pub fn import_file(conn: &Connection, path: &str, text: &str) -> Result<i64> {
+    let found: Option<(i64, String, bool)> = conn
+        .query_row(
+            "SELECT id, body, edited FROM article WHERE source_path = ?1 ORDER BY id DESC LIMIT 1",
+            params![path],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0)),
+        )
+        .optional()?;
+    match found {
+        Some((id, body, _)) if body == text => Ok(id),
+        Some((id, _, false)) if !text.trim().is_empty() => {
+            conn.execute(
+                "UPDATE article SET body = ?2, words = ?3, updated_at = ?4 WHERE id = ?1",
+                params![id, text, count_words(&plain(text)), now_ms()],
+            )?;
+            Ok(id)
+        }
+        _ => create(conn, None, text, Some(path)),
+    }
 }
 
 pub fn set_progress(conn: &Connection, id: i64, progress: f64) -> Result<()> {
@@ -272,6 +297,27 @@ Three new words.")?, 4);
             assert!(delete(c, b)?);
             assert_eq!(list(c)?.len(), 1);
             assert!(create(c, None, "  \n", None).is_err());
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn importing_the_same_file_again() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        db.with_conn(|c| {
+            let p = "C:\\notes\\bike.md";
+            let a = import_file(c, p, MD)?;
+            assert_eq!(import_file(c, p, MD)?, a, "内容没变：用原来那篇");
+            set_progress(c, a, 0.3)?;
+            assert_eq!(import_file(c, p, "# The Rusty Bike\n\nNew text here.")?, a, "文件改过：原地更新");
+            let art = open(c, a)?.ok_or_else(|| Error::Other("missing".into()))?;
+            assert_eq!((art.body.as_str(), art.meta.words), ("# The Rusty Bike\n\nNew text here.", 6));
+            assert!((art.meta.progress - 0.3).abs() < 1e-9, "阅读位置不变");
+            update_body(c, a, "Edited in Lens.")?;
+            let b = import_file(c, p, "# The Rusty Bike\n\nNewer.")?;
+            assert_ne!(b, a, "Lens 里改过：另存一篇");
+            assert_eq!(open(c, a)?.map(|x| x.body), Some("Edited in Lens.".to_string()));
+            assert_eq!(import_file(c, p, "# The Rusty Bike\n\nNewest.")?, b, "新的那篇没改过，接着原地更新");
             Ok(())
         })
     }

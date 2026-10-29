@@ -11,6 +11,13 @@
   transition: transform 0.18s ease;
 }
 
+/* 每张卡都用 transform 定位，各自是一个层叠上下文：后面的卡片会盖住前面卡片弹出的菜单（复制格式等）。
+   菜单打开、或卡片里有焦点时把这张卡提到上面 */
+.item:has([aria-expanded="true"]),
+.item:focus-within {
+  z-index: 4;
+}
+
 /* 拖动中：跟着指针走、浮在最上面；不做位移动画 */
 .item[data-dragging] {
   z-index: 5;

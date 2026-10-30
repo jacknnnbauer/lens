@@ -199,6 +199,8 @@ export function MainWindow() {
         return;
       }
       if (!e.ctrlKey || e.altKey || e.shiftKey) return;
+      // 阅读里的所见即所得编辑器自己用 Ctrl+B（加粗）等：编辑区里不抢这些字母快捷键
+      if (/^[bhkl]$/i.test(e.key) && (e.target as HTMLElement | null)?.closest?.('[contenteditable="true"]')) return;
       if (e.key === ",") {
         e.preventDefault();
         go("settings");

@@ -114,6 +114,76 @@
   box-shadow: none;
 }
 
+/* 所见即所得编辑：格式按钮一行，下面是和阅读视图同样排版的可编辑正文 */
+.wysiwyg {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fmtBar {
+  position: sticky;
+  top: 52px;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.fmtBtn {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fmtBtn:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.wysiwygBody {
+  min-height: 60vh;
+}
+
+.wysiwygBody :global(.ProseMirror) {
+  min-height: 60vh;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  outline: none;
+  caret-color: var(--accent);
+}
+
+/* 外面的纸面卡片已经框出编辑区，不再画全局焦点环 */
+.wysiwygBody :global(.ProseMirror):focus,
+.wysiwygBody :global(.ProseMirror):focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* 列表项里的段落不加段距（编辑器把每个列表项包成 <p>） */
+.wysiwygBody :global(li > p) {
+  margin: 0;
+}
+
+.wysiwygBody :global(.ProseMirror-selectednode) {
+  outline: 2px solid var(--accent);
+}
+
+.wysiwygBody :global(.ProseMirror-hideselection *::selection) {
+  background: transparent;
+}
+
 .paste {
   min-height: 280px;
   resize: vertical;

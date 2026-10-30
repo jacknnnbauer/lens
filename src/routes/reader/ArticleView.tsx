@@ -23,6 +23,7 @@ import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
 import { scrollRoot } from "../../windows/main/scroll";
 import { ArticleExportDialog } from "./ArticleExportDialog";
+import { WysiwygEditor, type WysiwygApi } from "./WysiwygEditor";
 import { renderMarkdown, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
 import { tr } from "../../i18n";
@@ -73,6 +74,9 @@ export function ArticleView({ id, onBack }: Props) {
   const [draft, setDraft] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [savingBody, setSavingBody] = useState(false);
+  // 编辑方式：所见即所得 / Markdown 源码
+  const [editMode, setEditMode] = useState<"rich" | "source">(() => readPref("lens.reader.editMode", "rich", (v) => v === "rich" || v === "source"));
+  const richApi = useRef<WysiwygApi | null>(null);
   const [exporting, setExporting] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const index = useRef<WordIndex | null>(null);
@@ -300,9 +304,20 @@ export function ArticleView({ id, onBack }: Props) {
     setDraft(article.body);
     requestAnimationFrame(() => root.scrollTo({ top: 0 }));
   };
-  const dirty = draft !== null && article !== null && draft !== article.body;
+  // 当前编辑的内容：所见即所得模式下直接从编辑器取（它的回传有防抖）
+  const currentText = () => (draft === null ? null : editMode === "rich" ? (richApi.current?.markdown() ?? draft) : draft);
+  const isDirty = () => {
+    const t = currentText();
+    return t !== null && article !== null && t !== article.body;
+  };
+  const switchEditMode = (m: "rich" | "source") => {
+    if (m === editMode) return;
+    if (editMode === "rich") setDraft(currentText());
+    setEditMode(m);
+    writePref("lens.reader.editMode", m);
+  };
   const cancelEdit = () => {
-    if (dirty && !confirmDiscard) {
+    if (isDirty() && !confirmDiscard) {
       setConfirmDiscard(true);
       return;
     }
@@ -315,16 +330,21 @@ export function ArticleView({ id, onBack }: Props) {
     });
   };
   const saveBody = async () => {
-    if (!article || draft === null || savingBody) return;
-    if (!dirty) {
+    const text = currentText();
+    if (!article || text === null || savingBody) return;
+    if (text === article.body) {
       cancelEdit();
+      return;
+    }
+    if (!text.trim()) {
+      toast(tr("保存失败：{error}", { error: tr("文章是空的") }));
       return;
     }
     setSavingBody(true);
     try {
-      const words = await updateArticleBody(article.id, draft);
+      const words = await updateArticleBody(article.id, text);
       // 换了 article 对象就会重新排版、重新扫描，并滚回进编辑前的位置
-      setArticle({ ...article, body: draft, words, progress: editAt.current });
+      setArticle({ ...article, body: text, words, progress: editAt.current });
       setDraft(null);
       setConfirmDiscard(false);
       toast(tr("已保存"));
@@ -368,11 +388,19 @@ export function ArticleView({ id, onBack }: Props) {
         <span className={styles.barSpacer} />
         {draft !== null ? (
           <>
+            <div role="group" aria-label={tr("编辑方式")} className={styles.segmentedSmall}>
+              <button type="button" aria-pressed={editMode === "rich"} onClick={() => switchEditMode("rich")} title={tr("在排好版的正文上直接改")}>
+                {tr("所见即所得")}
+              </button>
+              <button type="button" aria-pressed={editMode === "source"} onClick={() => switchEditMode("source")} title={tr("改 Markdown 原文")}>
+                {tr("源码")}
+              </button>
+            </div>
             <span className={styles.faint}>{tr("Ctrl+S 保存")}</span>
             <button type="button" className={confirmDiscard ? styles.danger : styles.ghost} onClick={cancelEdit}>
               {confirmDiscard ? tr("放弃修改？") : tr("取消")}
             </button>
-            <button type="button" className={styles.primarySmall} onClick={() => void saveBody()} disabled={savingBody || !draft.trim()}>
+            <button type="button" className={styles.primarySmall} onClick={() => void saveBody()} disabled={savingBody}>
               {tr("保存")}
             </button>
           </>
@@ -423,24 +451,36 @@ export function ArticleView({ id, onBack }: Props) {
         {draft !== null && (
           <>
             {article?.sourcePath && <p className={styles.faint}>{tr("只改 Lens 里的这份，不会改动原文件。")}</p>}
-            <textarea
-              className={styles.editor}
-              value={draft}
-              autoFocus
-              spellCheck={false}
-              aria-label={tr("Markdown 原文")}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                setConfirmDiscard(false);
-              }}
-              onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  void saveBody();
-                }
-              }}
-            />
+            {editMode === "rich" ? (
+              <WysiwygEditor
+                initial={draft}
+                api={richApi}
+                onChange={(md) => {
+                  setDraft(md);
+                  setConfirmDiscard(false);
+                }}
+                onSave={() => void saveBody()}
+              />
+            ) : (
+              <textarea
+                className={styles.editor}
+                value={draft}
+                autoFocus
+                spellCheck={false}
+                aria-label={tr("Markdown 原文")}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  setConfirmDiscard(false);
+                }}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void saveBody();
+                  }
+                }}
+              />
+            )}
           </>
         )}
         <div

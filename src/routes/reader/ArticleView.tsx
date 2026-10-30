@@ -1,7 +1,7 @@
 // 阅读视图：中间是排好版的文章；「释义 / 生词」放在主窗口的右侧栏里（标题栏右上角开关）。
 // 点一个词（或拖选一个短语）就在右边查；所在句子存为语境句，查到后自动收进生词本（可关）。
 // 生词按词频标在正文上（可关），「生词」页列出全文的生词，可批量收藏、标记认识。
-// 「编辑」切到 Markdown 原文改正文（只改 Lens 里的这份），保存后重新排版、重新扫描。
+// 双击正文空白处进入编辑（所见即所得 / 源码，只改 Lens 里的这份），保存后重新排版、重新扫描。
 // 「导出」把标注过的原文和词汇表导出成 PDF / HTML（ArticleExportDialog）。
 
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -57,7 +57,27 @@ interface Props {
 interface Picked {
   word: string;
   contextId: number | null;
+  /** 点到的词在扫描里的原形（depleted → deplete）；拖选的短语、手动改过的词没有 */
+  lemma?: string | null;
   at: number;
+}
+
+/** 这个点是不是落在某个字上（双击空白处才进入编辑，双击文字不算） */
+function onText(x: number, y: number): boolean {
+  const r = document.caretRangeFromPoint?.(x, y);
+  const node = r?.startContainer;
+  if (!r || !node || node.nodeType !== Node.TEXT_NODE) return false;
+  const text = node.textContent ?? "";
+  for (const off of [r.startOffset - 1, r.startOffset]) {
+    if (off < 0 || off >= text.length || !text[off].trim()) continue;
+    const c = document.createRange();
+    c.setStart(node, off);
+    c.setEnd(node, off + 1);
+    for (const b of Array.from(c.getClientRects())) {
+      if (x >= b.left - 2 && x <= b.right + 2 && y >= b.top - 2 && y <= b.bottom + 2) return true;
+    }
+  }
+  return false;
 }
 
 export function ArticleView({ id, onBack }: Props) {
@@ -193,7 +213,7 @@ export function ArticleView({ id, onBack }: Props) {
   // ── 点词查词 ──
   const lastPick = useRef<{ word: string; at: number } | null>(null);
   const pick = useCallback(
-    async (word: string, range: Range) => {
+    async (word: string, range: Range, lemma: string | null = null) => {
       if (!article) return;
       const now = Date.now();
       // 双击时 click 和 mouseup 都会到，同一个词只查一次
@@ -201,7 +221,7 @@ export function ArticleView({ id, onBack }: Props) {
       lastPick.current = { word, at: now };
       const para = paragraphOf(range);
       const contextId = para ? await saveReadingContext(word, para.paragraph, para.sel16, article.title).catch(() => null) : null;
-      setPicked({ word, contextId, at: now });
+      setPicked({ word, contextId, lemma, at: now });
       setTab("dict");
       // 右侧栏关着时点词，打开它显示释义
       if (!useReader.getState().sideHost) useSettings.getState().updateLayout({ showContext: true });
@@ -225,7 +245,7 @@ export function ArticleView({ id, onBack }: Props) {
     if (!w?.textContent) return;
     const r = document.createRange();
     r.selectNodeContents(w);
-    void pick(w.textContent, r);
+    void pick(w.textContent, r, w.dataset.lemma ?? null);
   };
 
   // 拖选一个词或短语
@@ -265,6 +285,16 @@ export function ArticleView({ id, onBack }: Props) {
     savedFor.current = picked.at;
     void doSave(picked, true);
   }, [picked, autoSave, done, handle, cards, doSave]);
+
+  // 在右栏改查别的词（改输入框、点「查原形」）：仍算同一处，收藏时带着原句
+  const requery = (w: string) => {
+    const word = w.trim();
+    if (!word) return;
+    const contextId = picked?.contextId ?? null;
+    setPicked({ word, contextId, lemma: null, at: Date.now() });
+    savedFor.current = null;
+    void useLookup.getState().search(word, { commit: true, contextId });
+  };
 
   const lookupInPanel = (w: string) => {
     setPicked({ word: w, contextId: null, at: Date.now() });
@@ -315,6 +345,15 @@ export function ArticleView({ id, onBack }: Props) {
     if (editMode === "rich") setDraft(currentText());
     setEditMode(m);
     writePref("lens.reader.editMode", m);
+  };
+  // 双击正文的空白处进入编辑（不放「编辑」按钮）：双击在词、链接、控件上，或双击选中了文字时不算
+  const onBlankDoubleClick = (e: React.MouseEvent) => {
+    if (draft !== null || !article) return;
+    const t = e.target as HTMLElement;
+    if (t.closest(`header, button, input, select, textarea, a, label, .${WORD_CLASS}`)) return;
+    if (onText(e.clientX, e.clientY)) return;
+    window.getSelection()?.removeAllRanges();
+    startEdit();
   };
   const cancelEdit = () => {
     if (isDirty() && !confirmDiscard) {
@@ -406,9 +445,6 @@ export function ArticleView({ id, onBack }: Props) {
           </>
         ) : (
           <>
-            <button type="button" className={styles.ghost} onClick={startEdit} disabled={!article} title={tr("改 Markdown 原文")}>
-              {tr("编辑")}
-            </button>
             <button type="button" className={styles.ghost} onClick={() => setExporting(true)} disabled={!article || !scan} title={tr("导出 PDF / HTML：标注过的原文 + 词汇表")}>
               {tr("导出")}
             </button>
@@ -447,7 +483,7 @@ export function ArticleView({ id, onBack }: Props) {
         </p>
       )}
 
-      <div className={styles.paper}>
+      <div className={styles.paper} onDoubleClick={onBlankDoubleClick}>
         {draft !== null && (
           <>
             {article?.sourcePath && <p className={styles.faint}>{tr("只改 Lens 里的这份，不会改动原文件。")}</p>}
@@ -519,7 +555,14 @@ export function ArticleView({ id, onBack }: Props) {
                 </button>
               </div>
               {tab === "dict" ? (
-                <DictPanel picked={picked} autoSave={autoSave} savedWords={savedWords} onSave={(p) => void doSave(p, false)} onLookup={lookupInPanel} />
+                <DictPanel
+                  picked={picked}
+                  autoSave={autoSave}
+                  savedWords={savedWords}
+                  onSave={(p) => void doSave(p, false)}
+                  onLookup={lookupInPanel}
+                  onRequery={requery}
+                />
               ) : (
                 <WordsPanel
                   scan={scan}
@@ -546,12 +589,14 @@ function DictPanel({
   savedWords,
   onSave,
   onLookup,
+  onRequery,
 }: {
   picked: Picked | null;
   autoSave: boolean;
   savedWords: Set<string>;
   onSave: (p: Picked) => void;
   onLookup: (w: string) => void;
+  onRequery: (w: string) => void;
 }) {
   const { handle, cards, done } = useLookup();
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
@@ -559,6 +604,13 @@ function DictPanel({
   const [gloss, setGloss] = useState<WordGloss | null>(null);
   const [inBook, setInBook] = useState(false);
   const word = handle?.query.trim() ?? "";
+  // 词头可以直接改：改完回车重新查
+  const [q, setQ] = useState(word);
+  useEffect(() => setQ(word), [word]);
+  const submitQuery = () => {
+    const t = q.trim();
+    if (t && t !== word) onRequery(t);
+  };
 
   useEffect(() => {
     setGloss(null);
@@ -582,8 +634,36 @@ function DictPanel({
   return (
     <div className={styles.dictPanel}>
       <div className={styles.dictHead}>
-        <h2>{word}</h2>
+        <form
+          className={styles.queryForm}
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitQuery();
+          }}
+        >
+          <input
+            className={styles.queryInput}
+            value={q}
+            size={Math.max(4, q.length + 1)}
+            spellCheck={false}
+            aria-label={tr("查的词（可以改，回车重新查）")}
+            title={tr("可以改，回车重新查")}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              // 回车直接在这里处理：不依赖表单的隐式提交（别处的全局按键处理可能先拦下）
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submitQuery();
+              } else if (e.key === "Escape") setQ(word);
+            }}
+          />
+        </form>
         {gloss?.pos && <span className={styles.pos}>{gloss.pos}</span>}
+        {picked.lemma && isPicked && picked.lemma !== word.toLowerCase() && (
+          <button type="button" className={styles.lemmaBtn} onClick={() => onRequery(picked.lemma ?? word)} title={tr("查这个词的原形")}>
+            {tr("查原形 {w}", { w: picked.lemma })}
+          </button>
+        )}
         <span className={styles.barSpacer} />
         {inBook ? (
           <span className={styles.savedTag}>{tr("已在生词本")}</span>

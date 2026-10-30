@@ -1106,4 +1106,8 @@ export const en: Record<string, string> = {
   "所见即所得": "WYSIWYG",
   "源码": "Source",
   "文章是空的": "The article is empty",
+  "查的词（可以改，回车重新查）": "Word to look up (edit it and press Enter)",
+  "可以改，回车重新查": "Edit and press Enter to look up again",
+  "查这个词的原形": "Look up the base form",
+  "查原形 {w}": "Base form: {w}",
 };

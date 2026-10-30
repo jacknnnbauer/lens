@@ -413,6 +413,8 @@
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
+  /* 短文章也铺满一屏：下面的空白处双击就能进入编辑 */
+  min-height: calc(100vh - 160px);
 }
 
 .prose {
@@ -603,10 +605,50 @@
   gap: 8px;
 }
 
-.dictHead h2 {
-  margin: 0;
+.queryForm {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 看起来是词头，悬停 / 聚焦时才显出是输入框 */
+.queryInput {
+  max-width: 100%;
+  padding: 0 4px;
+  margin-left: -5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
   font-family: var(--font-gloss);
   font-size: 22px;
+  font-weight: 700;
+}
+
+.queryInput:hover {
+  border-color: var(--line);
+}
+
+.queryInput:focus,
+.queryInput:focus-visible {
+  border-color: var(--accent);
+  background: var(--panel);
+  outline: none;
+  box-shadow: none;
+}
+
+.lemmaBtn {
+  padding: 2px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lemmaBtn:hover {
+  background: var(--hl);
 }
 
 .savedTag {

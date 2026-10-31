@@ -59,6 +59,8 @@ export interface DictInfo {
   keyKind: KeyKind | null;
   hasKey: boolean;
   options: OnlineOptions | null;
+  /** 启用这部词典的场景配置组 id */
+  profiles: string[];
 }
 
 export type OnlineMode = "api" | "web";

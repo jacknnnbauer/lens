@@ -27,6 +27,8 @@ pub struct DictInfo {
     pub key_kind: Option<KeyKind>,
     pub has_key: bool,
     pub options: Option<OnlineOptions>,
+    /// 启用这部词典的场景配置组 id
+    pub profiles: Vec<String>,
 }
 
 /// 词典列表，按当前场景配置组里的顺序。
@@ -36,8 +38,10 @@ pub async fn list_dicts(state: State<'_, AppState>) -> Result<Vec<DictInfo>> {
     let profile = state.settings.get()?.active_profile;
     let order = state.db.with_conn(|c| dicts::profile_order(c, &profile))?;
     rows.sort_by_key(|r| order.iter().position(|id| id == &r.id).unwrap_or(usize::MAX));
+    let pairs = state.db.with_conn(dicts::enabled_pairs)?;
     rows.into_iter()
         .map(|r| {
+            let profiles = pairs.iter().filter(|(d, _)| d == &r.id).map(|(_, p)| p.clone()).collect();
             let online = if r.kind == "online" { state.online.get(&r.id)? } else { None };
             let info = r.provider.as_deref().and_then(online::catalog_entry);
             Ok(DictInfo {
@@ -54,6 +58,7 @@ pub async fn list_dicts(state: State<'_, AppState>) -> Result<Vec<DictInfo>> {
                 category: r.category,
                 entry_count: r.entry_count,
                 path: r.path,
+                profiles,
             })
         })
         .collect()
@@ -131,6 +136,12 @@ pub async fn remove_dict(state: State<'_, AppState>, id: String) -> Result<bool>
 #[tauri::command]
 pub async fn reorder_dicts(state: State<'_, AppState>, ids: Vec<String>) -> Result<()> {
     state.db.with_conn(|c| dicts::reorder(c, &ids))
+}
+
+/// 在某个场景配置组里启用 / 停用一部词典（设置 › 场景配置组）。
+#[tauri::command]
+pub async fn set_profile_dict(state: State<'_, AppState>, profile: String, dict: String, enabled: bool) -> Result<bool> {
+    state.db.with_conn(|c| dicts::set_profile_enabled(c, &profile, &dict, enabled))
 }
 
 #[derive(Debug, Clone, Serialize)]

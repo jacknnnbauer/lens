@@ -3,6 +3,7 @@
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { PanelSettings } from "./PanelSettings";
+import { ProfileSettings } from "./ProfileSettings";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCaptureStatus } from "../../components/HotkeyNotice";
@@ -25,6 +26,7 @@ const SECTIONS = [
   { id: "look", name: "外观" },
   { id: "layout", name: "布局" },
   { id: "immersive", name: "沉浸模式" },
+  { id: "profiles", name: "场景配置组" },
   { id: "online", name: "在线词典" },
   { id: "ai", name: "AI 例句" },
   { id: "copy", name: "复制" },
@@ -776,6 +778,8 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
           </div>
           <p className={styles.hint}>{tr("只想去掉状态栏，不需要完整的沉浸模式？用上面「布局」里的「显示状态栏」开关即可。")}</p>
         </section>
+
+        <ProfileSettings />
 
         <section id="set-online" className={styles.section} aria-labelledby="h-online">
           <h2 id="h-online">{tr("在线词典")}</h2>

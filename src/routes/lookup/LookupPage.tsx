@@ -10,6 +10,7 @@ import { DictCard } from "../../components/DictCard";
 import { ExportDialog } from "../../components/ExportDialog";
 import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
+import { isSentence } from "../../components/sentence";
 import { SenseAtlas } from "../../components/SenseAtlas";
 import { useDicts } from "../../stores/dicts";
 import { useImmersive } from "../../stores/immersive";
@@ -140,6 +141,17 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   }, [contextId]);
   const sentenceCtx = pasted && handle && pasted.query === handle.query ? pasted : captured;
 
+  // 搜索框里粘贴了一整句：不查整句，等在句中点词（SearchBox 选中那个词），查它并用这句话判断词义
+  const onSearchBox = (q: string, commit: boolean) => {
+    void search(isSentence(q) ? "" : q, { commit });
+  };
+  const pickInSentence = (sentence: string, hlStart: number, hlEnd: number) => {
+    const q = sentence.slice(hlStart, hlEnd);
+    setPasted({ sentence, hlStart, hlEnd, query: q });
+    void search(q, { commit: true });
+    scrollRoot().scrollTo({ top: 0 });
+  };
+
   // 在查词页上不必先按 Ctrl+K：焦点不在输入框时，直接打字会落进搜索框（替换掉上一个词），Enter 回到搜索框并全选
   useEffect(() => {
     const onType = (e: KeyboardEvent) => {
@@ -244,7 +256,7 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
       style={wall && wallMaxHeight > 0 ? ({ "--card-max-h": `${wallMaxHeight}px`, "--card-overflow": "auto" } as React.CSSProperties) : undefined}
     >
       <div className={styles.searchRow}>
-        <SearchBox ref={searchBox} onSearch={(q, c) => void search(q, { commit: c })} onTabOut={() => cardToggles()[0]?.focus()} />
+        <SearchBox ref={searchBox} onSearch={onSearchBox} onPickInSentence={pickInSentence} onTabOut={() => cardToggles()[0]?.focus()} />
         <button
           type="button"
           className={styles.star}
@@ -317,6 +329,15 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
             setPasted({ ...c, query: w });
             lookupWord(w);
           }}
+          allowPaste={false}
+          onPickSpan={
+            pasted && sentenceCtx === pasted
+              ? (s, e) => {
+                  searchBox.current?.selectInSentence(s, e);
+                  pickInSentence(pasted.sentence, s, e);
+                }
+              : undefined
+          }
         />
       )}
 

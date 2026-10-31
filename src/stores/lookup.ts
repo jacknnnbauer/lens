@@ -29,6 +29,10 @@ function flushCommit(state: { handle: LookupHandle | null; cards: Card[] }) {
   pendingCommit = null;
   committed.add(h.requestId);
   recordHistory(h.query, currentContextId).catch((e) => console.warn("记录历史失败", e));
+  // 侧栏「最近」只放确定查过、有结果的词，不放输入过程中防抖查的半截词
+  const word = h.normalized || h.query.trim();
+  const recent = useLookup.getState().recent;
+  if (word) useLookup.setState({ recent: [word, ...recent.filter((w) => w !== word)].slice(0, RECENT_MAX) });
 }
 const RECENT_MAX = 12;
 
@@ -61,7 +65,7 @@ interface LookupState {
   /** 用户手动展开/折叠过的卡片 */
   expanded: Record<string, boolean>;
   error: string | null;
-  /** 本次会话查过的词（历史记录页在 M4） */
+  /** 本次会话确定查过（记入历史）的词，侧栏「最近」用 */
   recent: string[];
   /** 最近一次「确定的」查询（Enter、点链接、划词…）；主窗口的后退 / 前进按它记步 */
   committed: { query: string; seq: number } | null;
@@ -173,10 +177,7 @@ export const useLookup = create<LookupState>((set, get) => ({
       const early = buffer.get(handle.requestId);
       buffer.delete(handle.requestId);
       for (const r of early?.results ?? []) cards = applyResult(cards, r);
-      const word = handle.normalized || query.trim();
-      const recent = word ? [word, ...get().recent.filter((w) => w !== word)].slice(0, RECENT_MAX) : get().recent;
       set({
-        recent,
         handle,
         cards,
         done: early?.done != null || handle.dicts.length === 0,

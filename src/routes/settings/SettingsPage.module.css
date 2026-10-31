@@ -618,3 +618,53 @@ kbd {
   margin-left: 6px;
   color: var(--faint);
 }
+
+/* 场景配置组：词典 × 场景的勾选表 */
+.matrixWrap {
+  overflow-x: auto;
+}
+
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.matrix th,
+.matrix td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+
+.matrix th:first-child {
+  text-align: left;
+  font-weight: 400;
+}
+
+.matrix thead th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.matrix thead th:first-child {
+  font-weight: 600;
+}
+
+.matrix thead small {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.matrix [data-active] {
+  background: var(--hl);
+}
+
+.matrix input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}

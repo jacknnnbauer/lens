@@ -1,9 +1,11 @@
 // 搜索框（SPEC 9.4）：100ms 防抖查词 + 前缀候选下拉。
 // ↑↓ 选候选、Enter 立即查并全选（接着输入即替换）、Esc 先关下拉再清空；Tab 交给页面跳到第一张卡片。
+// 粘贴的是一整句时：句子留在框里，点句中的词就选中并查它，Shift+点 / 拖选查一段；光标移到词上按 Enter 也行。
 
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { suggest } from "../ipc/lookup";
 import { SearchIcon } from "./icons";
+import { isSentence, wordSpan } from "./sentence";
 import styles from "./SearchBox.module.css";
 import { tr } from "../i18n";
 
@@ -14,6 +16,8 @@ export interface SearchBoxHandle {
   setValue: (v: string) => void;
   /** 从页面别处开始打字：用这个字符替换原来的词，光标放在末尾，照常联想与查询 */
   startTyping: (ch: string) => void;
+  /** 框里是一整句时选中其中一段（区间相对去掉首尾空白后的句子） */
+  selectInSentence: (start: number, end: number) => void;
 }
 
 interface Props {
@@ -21,9 +25,11 @@ interface Props {
   onSearch: (q: string, commit: boolean) => void;
   /** Tab（下拉未打开时）：跳到结果区 */
   onTabOut: () => void;
+  /** 框里是一整句时选中了其中的词（区间相对去掉首尾空白后的句子） */
+  onPickInSentence?: (sentence: string, start: number, end: number) => void;
 }
 
-export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({ onSearch, onTabOut }, ref) {
+export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({ onSearch, onTabOut, onPickInSentence }, ref) {
   const [value, setValue] = useState("");
   const [items, setItems] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
@@ -48,6 +54,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
       onChange(ch);
       requestAnimationFrame(() => input.current?.setSelectionRange(ch.length, ch.length));
     },
+    selectInSentence: (start, end) => {
+      const el = input.current;
+      if (!el) return;
+      const lead = el.value.length - el.value.trimStart().length;
+      el.focus();
+      el.setSelectionRange(start + lead, end + lead);
+    },
   }));
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -68,6 +81,10 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     timer.current = setTimeout(() => {
       onSearch(q, false);
       const seq = ++suggestSeq.current;
+      if (onPickInSentence && isSentence(q)) {
+        setOpen(false);
+        return;
+      }
       suggest(q, 8)
         .then((list) => {
           if (seq !== suggestSeq.current) return;
@@ -76,6 +93,18 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
         })
         .catch(() => setItems([]));
     }, DEBOUNCE_MS);
+  };
+
+  // 框里是一整句：把选区 / 光标扩到整词，选中它并交给页面去查。不是句子时返回 false
+  const pickInSentence = () => {
+    const el = input.current;
+    if (!el || !onPickInSentence || !isSentence(value)) return false;
+    const span = wordSpan(value, el.selectionStart ?? 0, el.selectionEnd ?? 0);
+    if (!span) return true;
+    el.setSelectionRange(span.start, span.end);
+    const lead = value.length - value.trimStart().length;
+    onPickInSentence(value.trim(), span.start - lead, span.end - lead);
+    return true;
   };
 
   const pick = (s: string) => {
@@ -95,6 +124,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (open && active >= 0) pick(items[active]);
+      else if (pickInSentence()) return;
       else runNow(value);
       // 查完全选，直接输入下一个词就会替换掉
       requestAnimationFrame(() => input.current?.select());
@@ -133,10 +163,11 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
           autoComplete="off"
           spellCheck={false}
           autoFocus
-          placeholder={tr("输入单词或短语")}
+          placeholder={tr("输入单词、短语，或粘贴一句话")}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
+          onMouseUp={() => void pickInSentence()}
           onBlur={() => setOpen(false)}
         />
         <span className={styles.hint} aria-hidden="true">

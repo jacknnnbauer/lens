@@ -1,11 +1,12 @@
 // 「当前语境」：这句话里，这个词是词典里的哪个意思、为什么（本地判断：词性 + 搭配，见 Rust context_sense）。
-// 句子来自划词 / 窗口内查词捕获的语境句；也可以自己粘贴一句话，再点其中的词。
+// 句子来自划词 / 窗口内查词捕获的语境句；也可以自己粘贴一句话，再点其中的词（主窗口直接粘进搜索框，见 SentencePicker）。
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { tr } from "../i18n";
 import { contextSense, type ContextSenseResult } from "../ipc/lookup";
 import type { Card } from "../stores/lookup";
 import styles from "./ContextSenseCard.module.css";
+import { splitWords } from "./sentence";
 
 export interface SentenceCtx {
   sentence: string;
@@ -23,19 +24,15 @@ interface Props {
   onPick: (word: string, ctx: SentenceCtx) => void;
   /** 句子已经在别处显示（查词小窗底部的语境栏）时不再重复 */
   hideSentence?: boolean;
+  /** 卡片里自带「粘贴一句话」输入框（查词小窗）；主窗口在搜索框里粘贴，不再给 */
+  allowPaste?: boolean;
+  /** 给了就能在句子里点词换查：点一个词查它，Shift+点从当前词扩到这里（区间是 UTF-16） */
+  onPickSpan?: (start: number, end: number) => void;
 }
 
 const POS_NAME: Record<string, string> = { "n.": "名词", "v.": "动词", "adj.": "形容词", "adv.": "副词" };
 
-/** 句子按词切开，带 UTF-16 区间 */
-function splitWords(s: string): Array<{ text: string; start: number; end: number }> {
-  const out: Array<{ text: string; start: number; end: number }> = [];
-  const re = /[A-Za-z][A-Za-z'’-]*/g;
-  for (let m = re.exec(s); m; m = re.exec(s)) out.push({ text: m[0], start: m.index, end: m.index + m[0].length });
-  return out;
-}
-
-export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence }: Props) {
+export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence, allowPaste = true, onPickSpan }: Props) {
   const [result, setResult] = useState<ContextSenseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pasting, setPasting] = useState(false);
@@ -67,9 +64,11 @@ export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence }: Pro
   }, [word, ctx?.sentence, ctx?.hlStart, ctx?.hlEnd, hitKey]);
 
   const draftWords = splitWords(draft.trim());
+  const ctxWords = ctx ? splitWords(ctx.sentence) : [];
 
   // 没有语境句：只给一个入口，粘贴整句
   if (!ctx && !pasting) {
+    if (!allowPaste) return null;
     return (
       <div className={styles.entry}>
         <button type="button" className={styles.link} onClick={() => setPasting(true)}>
@@ -84,9 +83,11 @@ export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence }: Pro
       <header className={styles.head}>
         <span className={styles.title}>{tr("当前语境")}</span>
         {result?.best && <span className={styles.badge} data-sure={result.confident || undefined}>{tr(result.confident ? "有把握" : "初步判断")}</span>}
-        <button type="button" className={styles.link} onClick={() => setPasting((p) => !p)}>
-          {tr(pasting ? "收起" : "换一句")}
-        </button>
+        {allowPaste && (
+          <button type="button" className={styles.link} onClick={() => setPasting((p) => !p)}>
+            {tr(pasting ? "收起" : "换一句")}
+          </button>
+        )}
       </header>
 
       {pasting && (
@@ -118,7 +119,28 @@ export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence }: Pro
         </div>
       )}
 
-      {ctx && !hideSentence && (
+      {ctx && !hideSentence && onPickSpan && (
+        <p className={styles.sentence}>
+          {ctxWords.map((w, i, all) => (
+            <Fragment key={w.start}>
+              {ctx.sentence.slice(i === 0 ? 0 : all[i - 1].end, w.start)}
+              <button
+                type="button"
+                className={styles.word}
+                data-on={(w.start >= ctx.hlStart && w.end <= ctx.hlEnd) || undefined}
+                onClick={(e) =>
+                  e.shiftKey ? onPickSpan(Math.min(w.start, ctx.hlStart), Math.max(w.end, ctx.hlEnd)) : onPickSpan(w.start, w.end)
+                }
+              >
+                {w.text}
+              </button>
+            </Fragment>
+          ))}
+          {ctx.sentence.slice(ctxWords.length ? ctxWords[ctxWords.length - 1].end : 0)}
+        </p>
+      )}
+
+      {ctx && !hideSentence && !onPickSpan && (
         <p className={styles.sentence}>
           {ctx.sentence.slice(0, ctx.hlStart)}
           <mark>{ctx.sentence.slice(ctx.hlStart, ctx.hlEnd)}</mark>

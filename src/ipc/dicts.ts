@@ -22,6 +22,11 @@ export function reorderDicts(ids: string[]): Promise<void> {
   return invoke("reorder_dicts", { ids });
 }
 
+/** 在某个场景配置组里启用 / 停用一部词典 */
+export function setProfileDict(profile: string, dict: string, enabled: boolean): Promise<boolean> {
+  return invoke<boolean>("set_profile_dict", { profile, dict, enabled });
+}
+
 export function listProfiles(): Promise<ProfileInfo[]> {
   return invoke<ProfileInfo[]>("list_profiles");
 }

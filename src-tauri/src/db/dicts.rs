@@ -195,6 +195,21 @@ pub fn reorder(conn: &Connection, ids: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// 某部词典在某个场景配置组里启用 / 停用。返回是否真的改到了一行。
+pub fn set_profile_enabled(conn: &Connection, profile_id: &str, dict_id: &str, enabled: bool) -> Result<bool> {
+    Ok(conn.execute(
+        "UPDATE profile_dict SET enabled = ?3 WHERE profile_id = ?1 AND dict_id = ?2",
+        params![profile_id, dict_id, enabled as i64],
+    )? > 0)
+}
+
+/// 每部词典启用它的场景配置组：(dict_id, profile_id)。
+pub fn enabled_pairs(conn: &Connection) -> Result<Vec<(String, String)>> {
+    let mut stmt = conn.prepare("SELECT dict_id, profile_id FROM profile_dict WHERE enabled = 1")?;
+    let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 /// 删除词典（profile_dict 级联删除）。返回是否真的删掉了一行。
 pub fn delete(conn: &Connection, id: &str) -> Result<bool> {
     Ok(conn.execute("DELETE FROM dict WHERE id = ?1", params![id])? > 0)
@@ -244,6 +259,27 @@ mod tests {
         assert_eq!(profile_order(&conn, "reading")?, ["c", "a", "b"]);
         assert_eq!(profile_order(&conn, "coding")?, ["c", "a", "b"]);
         assert_eq!(enabled_for_profile(&conn, "translate")?, ["c", "a", "b"]);
+        Ok(())
+    }
+
+    #[test]
+    fn each_profile_picks_its_own_dicts() -> Result<()> {
+        let mut conn = Connection::open_in_memory()?;
+        migrations::apply(&mut conn)?;
+        for (i, id) in ["a", "b", "c"].iter().enumerate() {
+            insert(&conn, &row(id, i as i64))?;
+        }
+        assert!(set_profile_enabled(&conn, "coding", "a", false)?);
+        assert!(set_profile_enabled(&conn, "translate", "c", false)?);
+        assert!(!set_profile_enabled(&conn, "coding", "nope", false)?);
+        assert_eq!(enabled_for_profile(&conn, "reading")?, ["a", "b", "c"]);
+        assert_eq!(enabled_for_profile(&conn, "coding")?, ["b", "c"]);
+        assert_eq!(enabled_for_profile(&conn, "translate")?, ["a", "b"]);
+        assert_eq!(enabled_pairs(&conn)?.len(), 7);
+        reorder(&conn, &["c".to_string(), "b".to_string(), "a".to_string()])?;
+        assert_eq!(enabled_for_profile(&conn, "coding")?, ["c", "b"], "调整顺序不改启用");
+        set_profile_enabled(&conn, "coding", "a", true)?;
+        assert_eq!(enabled_for_profile(&conn, "coding")?, ["c", "b", "a"]);
         Ok(())
     }
 }

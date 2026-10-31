@@ -1,7 +1,7 @@
 // 词典库：列表、导入进度、删除。
 
 import { create } from "zustand";
-import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict, reorderDicts } from "../ipc/dicts";
+import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict, reorderDicts, setProfileDict } from "../ipc/dicts";
 import { useLookup } from "./lookup";
 import type { DictInfo, IndexProgress, ProfileInfo } from "../ipc/types";
 
@@ -21,6 +21,8 @@ interface DictsState {
   setOrder: (ids: string[]) => Promise<void>;
   /** 只写回顺序，不重新查词（卡片墙拖动换位：结果已经在界面上换好了） */
   setOrderQuiet: (ids: string[]) => Promise<void>;
+  /** 在场景配置组里启用 / 停用词典；改的是当前配置组时，当前查询随即重查 */
+  setInProfile: (profile: string, dict: string, enabled: boolean, active: boolean) => Promise<void>;
 }
 
 export const useDicts = create<DictsState>((set, get) => ({
@@ -76,6 +78,23 @@ export const useDicts = create<DictsState>((set, get) => ({
     set({ dicts: ids.flatMap((x) => byId.get(x) ?? []) });
     try {
       await reorderDicts(ids);
+    } catch (e) {
+      set({ error: String(e) });
+      await get().refresh();
+    }
+  },
+
+  setInProfile: async (profile, dict, enabled, active) => {
+    // 先在界面上勾好，再写库
+    set((s) => ({
+      dicts: s.dicts.map((d) =>
+        d.id === dict ? { ...d, profiles: enabled ? [...d.profiles.filter((p) => p !== profile), profile] : d.profiles.filter((p) => p !== profile) } : d,
+      ),
+    }));
+    try {
+      await setProfileDict(profile, dict, enabled);
+      await get().refresh();
+      if (active) await useLookup.getState().rerun();
     } catch (e) {
       set({ error: String(e) });
       await get().refresh();

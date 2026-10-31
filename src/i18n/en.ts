@@ -1110,4 +1110,9 @@ export const en: Record<string, string> = {
   "可以改，回车重新查": "Edit and press Enter to look up again",
   "查这个词的原形": "Look up the base form",
   "查原形 {w}": "Base form: {w}",
+  "{profile}用 {dict}": "Use {dict} in {profile}",
+  "{n} 典": "{n} dicts",
+  "还没有导入词典。": "No dictionaries imported yet.",
+  "勾选每个场景查词时用哪些词典，同一部词典可以用在多个场景。左侧栏或 Ctrl+1 / 2 / 3 切换场景；词典的先后顺序在词典库（Ctrl+L）里拖动调整。": "Tick the dictionaries each profile looks words up in; one dictionary can be in several profiles. Switch profiles in the sidebar or with Ctrl+1 / 2 / 3. Drag dictionaries in the Library (Ctrl+L) to change their order.",
+  "输入单词、短语，或粘贴一句话": "Type a word or phrase, or paste a sentence",
 };

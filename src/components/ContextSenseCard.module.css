@@ -156,3 +156,24 @@
 .words button:hover {
   border-color: var(--accent);
 }
+
+/* 句中可点的词（搜索框里粘贴的整句）：看着是正文，悬停才显出可点 */
+.word {
+  padding: 0 1px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.word:hover {
+  background: color-mix(in srgb, var(--hl) 60%, transparent);
+}
+
+.word[data-on] {
+  background: var(--hl);
+  color: var(--text);
+  font-weight: 600;
+}

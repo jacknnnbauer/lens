@@ -299,6 +299,7 @@ pub fn run() {
             commands::dicts::remove_dict,
             commands::dicts::reorder_dicts,
             commands::dicts::list_profiles,
+            commands::dicts::set_profile_dict,
             commands::lookup::lookup,
             commands::lookup::sense_atlas,
             commands::lookup::first_entry,

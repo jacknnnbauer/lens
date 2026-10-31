@@ -26,7 +26,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  align-items: center;
+  /* 搜索框粘了长句子会长高，按钮留在第一行 */
+  align-items: flex-start;
+}
+
+/* 按钮对齐搜索框第一行（框高 52px、按钮 44px） */
+.searchRow > :not(:first-child) {
+  margin-top: 4px;
 }
 
 /* 窄时（三栏 + 小窗口）搜索框至少留 260px，按钮换到下一行，不再把输入框挤没 */

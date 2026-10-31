@@ -6,9 +6,10 @@
 
 .box {
   display: flex;
-  align-items: center;
+  /* 长句子折行时，图标和提示留在第一行 */
+  align-items: flex-start;
   gap: 10px;
-  height: 52px;
+  min-height: 52px;
   padding: 0 16px;
   border: 1px solid var(--accent);
   border-radius: 12px;
@@ -21,11 +22,15 @@
 
 .icon {
   display: flex;
+  align-items: center;
+  height: 52px;
   color: var(--sub);
 }
 
 .input {
+  /* 宽度跟框走（width: 0 再撑满），高度才按内容 */
   flex: 1 1 auto;
+  width: 0;
   min-width: 0;
   border: 0;
   outline: 0;
@@ -33,6 +38,17 @@
   color: var(--text);
   font-family: var(--font-gloss);
   font-size: 20px;
+  /* 单行起步，长句子折行长高，最多约 6 行，再长就在框里滚动；用 margin 留白，滚动时文字不贴着边框截断 */
+  field-sizing: content;
+  min-height: 1lh;
+  max-height: 6lh;
+  margin: 12px 0;
+  padding: 0;
+  box-sizing: content-box;
+  scrollbar-width: thin;
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
 }
 
 .input:focus-visible {
@@ -44,6 +60,7 @@
 }
 
 .hint {
+  line-height: 52px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--faint);

@@ -9,7 +9,7 @@ import { BatchChip, BatchDialog, BatchResumeNotice } from "../../components/batc
 import { HotkeyNotice, useCaptureStatus } from "../../components/HotkeyNotice";
 import { ImmersiveBar, useImmersiveMode } from "../../components/ImmersiveBar";
 import { ContextPanel } from "../../components/ContextPanel";
-import { ClockIcon, ImmersiveIcon, LibraryIcon, WallIcon } from "../../components/icons";
+import { ImmersiveIcon, LibraryIcon, WallIcon } from "../../components/icons";
 import { TitleBar } from "../../components/TitleBar";
 import { useImmersive } from "../../stores/immersive";
 import { SCROLL_ID, scrollRoot } from "./scroll";
@@ -315,12 +315,9 @@ export function MainWindow() {
             onOpenSearch={() => go("search")}
             showJumpBar={layout?.showJumpBar ?? true}
             showHeadword={showNav && !immersive}
-            // 只留查词相关的按钮，生词本、设置从左侧导航或 Ctrl+B / Ctrl+, 进入
+            // 只留查词相关的按钮，历史、生词本、设置从左侧导航或 Ctrl+H / Ctrl+B / Ctrl+, 进入
             actions={
               <>
-                <button type="button" className={styles.iconBtn} data-ui="tool" aria-label={tr("历史")} title={tr("历史（Ctrl+H）")} onClick={() => go("history")}>
-                  <ClockIcon />
-                </button>
                 <button type="button" className={styles.iconBtn} data-ui="tool" aria-label={tr("词典库")} title={tr("词典库（Ctrl+L）")} onClick={() => setLibraryOpen(true)}>
                   <LibraryIcon />
                 </button>

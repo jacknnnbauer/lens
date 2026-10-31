@@ -1,5 +1,6 @@
 // 搜索框（SPEC 9.4）：100ms 防抖查词 + 前缀候选下拉。
 // ↑↓ 选候选、Enter 立即查并全选（接着输入即替换）、Esc 先关下拉再清空；Tab 交给页面跳到第一张卡片。
+// 输入框是单行起步、随内容长高的 textarea：长句子折行显示全，不会被挤出框外。
 // 粘贴的是一整句时：句子留在框里，点句中的词就选中并查它，Shift+点 / 拖选查一段；光标移到词上按 Enter 也行。
 
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
@@ -34,7 +35,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
   const [items, setItems] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const suggestSeq = useRef(0);
   const listId = useId();
@@ -82,6 +83,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
       onSearch(q, false);
       const seq = ++suggestSeq.current;
       if (onPickInSentence && isSentence(q)) {
+        setItems([]);
         setOpen(false);
         return;
       }
@@ -112,7 +114,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     runNow(s);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (e.key === "ArrowDown" && items.length > 0) {
       e.preventDefault();
@@ -151,10 +153,10 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
           <SearchIcon />
         </span>
         <span className="sr-only">{tr("查词")}</span>
-        <input
+        <textarea
           ref={input}
           className={styles.input}
-          type="text"
+          rows={1}
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
@@ -165,7 +167,8 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
           autoFocus
           placeholder={tr("输入单词、短语，或粘贴一句话")}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          // 粘贴来的换行当空格：查的是一句话 / 一个词，不是多行文本
+          onChange={(e) => onChange(e.target.value.replace(/\r?\n/g, " "))}
           onKeyDown={onKeyDown}
           onMouseUp={() => void pickInSentence()}
           onBlur={() => setOpen(false)}

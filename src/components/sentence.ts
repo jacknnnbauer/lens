@@ -67,3 +67,8 @@ export function wordSpan(s: string, start: number, end: number): { start: number
   if (hit.length === 0) return null;
   return { start: hit[0].start, end: hit[hit.length - 1].end };
 }
+
+/** 纯汉字的词或短语（铬钼钢）：在框里点哪个字查哪个字，拖选查几个字 */
+export function isHanPhrase(q: string): boolean {
+  return /^\p{Script=Han}{2,}$/u.test(q.trim());
+}

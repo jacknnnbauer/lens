@@ -1,12 +1,13 @@
 // 搜索框（SPEC 9.4）：100ms 防抖查词 + 前缀候选下拉。
 // ↑↓ 选候选、Enter 立即查并全选（接着输入即替换）、Esc 先关下拉再清空；Tab 交给页面跳到第一张卡片。
 // 输入框是单行起步、随内容长高的 textarea：长句子折行显示全，不会被挤出框外。
+// 框里是纯汉字的词（铬钼钢）时：点哪个字查哪个字（钼），拖选查几个字；Enter 仍查整个词。
 // 粘贴的是一整句时：句子留在框里，点句中的词就选中并查它，Shift+点 / 拖选查一段；光标移到词上按 Enter 也行。
 
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { suggest } from "../ipc/lookup";
 import { SearchIcon } from "./icons";
-import { isSentence, wordSpan } from "./sentence";
+import { isHanPhrase, isSentence, wordSpan } from "./sentence";
 import styles from "./SearchBox.module.css";
 import { tr } from "../i18n";
 
@@ -112,6 +113,23 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     return true;
   };
 
+  // 框里是纯汉字的词：点到的字（或拖选的几个字）单独查，框里的词不动
+  const pickHanChar = (point: { x: number; y: number }) => {
+    const el = input.current;
+    if (!el || !isHanPhrase(value)) return;
+    let [from, to] = [el.selectionStart ?? 0, el.selectionEnd ?? 0];
+    if (from > to) [from, to] = [to, from];
+    if (from === to) {
+      // 光标在两个字之间：看鼠标点在前一个字还是后一个字上
+      const i = from > 0 && (from >= value.length || charHit(el, from - 1, point)) ? from - 1 : from;
+      [from, to] = [i, i + 1];
+    }
+    const part = value.slice(from, to).trim();
+    if (!/^\p{Script=Han}+$/u.test(part)) return;
+    el.setSelectionRange(from, to);
+    runNow(part);
+  };
+
   const pick = (s: string) => {
     setValue(s);
     runNow(s);
@@ -173,7 +191,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
           // 粘贴来的换行当空格：查的是一句话 / 一个词，不是多行文本
           onChange={(e) => onChange(e.target.value.replace(/\r?\n/g, " "))}
           onKeyDown={onKeyDown}
-          onMouseUp={(e) => void pickInSentence({ x: e.clientX, y: e.clientY })}
+          onMouseUp={(e) => {
+            const point = { x: e.clientX, y: e.clientY };
+            // 点在已选中的文字上时，浏览器在 mouseup 之后才把选区收成光标：等它收完再读
+            setTimeout(() => {
+              if (!pickInSentence(point)) pickHanChar(point);
+            });
+          }}
           onBlur={() => setOpen(false)}
         />
         <span className={styles.hint} aria-hidden="true">

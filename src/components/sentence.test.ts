@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSentence, splitWords, wordSpan } from "./sentence";
+import { isHanPhrase, isSentence, splitWords, wordSpan } from "./sentence";
 
 describe("isSentence", () => {
   it("把词和词组当词条", () => {
@@ -69,5 +69,12 @@ describe("wordSpan", () => {
     expect(sala).toBeTruthy();
     expect(z.slice(...Object.values(wordSpan(z, sala!.start, sala!.start)!))).toBe("沙拉");
     expect(z.slice(...Object.values(wordSpan(z, z.length, z.length)!))).toBe("沙拉");
+  });
+});
+
+describe("isHanPhrase", () => {
+  it("两个字以上的纯汉字才算", () => {
+    for (const q of ["铬钼钢", " 精品店 ", "画蛇添足"]) expect(isHanPhrase(q)).toBe(true);
+    for (const q of ["钼", "boutique", "铬钼钢 steel", "咖啡、沙拉"]) expect(isHanPhrase(q)).toBe(false);
   });
 });

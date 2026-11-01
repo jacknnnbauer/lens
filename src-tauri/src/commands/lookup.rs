@@ -41,8 +41,13 @@ pub(crate) fn locals(sources: Vec<Source>) -> Vec<LoadedDict> {
 /// 新查询会取消同一窗口之前未完成的查询；事件只推送给发起的窗口。
 #[tauri::command]
 pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, query: String) -> Result<LookupHandle> {
-    let keys = query::candidates(&query);
+    let mut keys = query::candidates(&query);
     let normalized = keys.last().cloned().unwrap_or_default();
+    // 不收屈折形式的词典（牛津高阶没有 boutiques）查不到原词时再查原形；收了的照常命中原词
+    let base = crate::lemma::base_form(&state, &normalized);
+    if !base.is_empty() && !keys.iter().any(|k| crate::dict::index::normalize_key(k) == base) {
+        keys.push(base);
+    }
     let request_id = uuid::Uuid::new_v4().to_string();
     let sources = if keys.is_empty() { Vec::new() } else { profile_sources(&state)? };
 

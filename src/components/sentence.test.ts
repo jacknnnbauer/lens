@@ -10,6 +10,11 @@ describe("isSentence", () => {
     for (const q of ["The company addressed the issue.", "Why did it fail?", "Resources were depleted over the winter months", "He said “no.”"])
       expect(isSentence(q)).toBe(true);
   });
+
+  it("中文：词和成语按词查，整句当句子", () => {
+    for (const q of ["精品店", "画蛇添足", "自由主义"]) expect(isSentence(q)).toBe(false);
+    for (const q of ["这里洋溢着自由的气息。", "旁边有上好的咖啡和时装精品店", "他说：不行"]) expect(isSentence(q)).toBe(true);
+  });
 });
 
 describe("splitWords", () => {
@@ -21,6 +26,20 @@ describe("splitWords", () => {
       ["well-known", "well-known"],
       ["fact", "fact"],
     ]);
+  });
+});
+
+describe("splitWords 中文", () => {
+  it("连续汉字分成词，跳过标点，区间对得上", () => {
+    const s = "上好的咖啡、时装精品店。";
+    const ws = splitWords(s);
+    for (const w of ws) expect(s.slice(w.start, w.end)).toBe(w.text);
+    expect(ws.map((w) => w.text)).toContain("咖啡");
+    expect(ws.some((w) => /[、。]/.test(w.text))).toBe(false);
+  });
+
+  it("中英混排各切各的", () => {
+    expect(splitWords("这家boutique很贵").map((w) => w.text)).toContain("boutique");
   });
 });
 
@@ -41,5 +60,14 @@ describe("wordSpan", () => {
 
   it("只选到标点时没有词", () => {
     expect(wordSpan(s, 31, 32)).toBeNull();
+  });
+
+  it("中文：光标在两个词之间取后一个，句末取前一个", () => {
+    const z = "美味的沙拉";
+    const ws = splitWords(z);
+    const sala = ws.find((w) => w.text === "沙拉");
+    expect(sala).toBeTruthy();
+    expect(z.slice(...Object.values(wordSpan(z, sala!.start, sala!.start)!))).toBe("沙拉");
+    expect(z.slice(...Object.values(wordSpan(z, z.length, z.length)!))).toBe("沙拉");
   });
 });

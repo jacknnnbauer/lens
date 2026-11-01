@@ -320,7 +320,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
 
       {handle && <ReverseStrip query={handle.query} onLookup={lookupWord} onOpenSearch={onOpenSearch} />}
 
-      {showContextSense && handle && hitCount > 0 && (
+      {/* 在粘贴的句子里点词时，没查到也留着句子，好换别的词（中文词多半只有反查） */}
+      {showContextSense && handle && (hitCount > 0 || (pasted && sentenceCtx === pasted)) && (
         <ContextSenseCard
           word={headword || handle.normalized || handle.query}
           cards={cards}

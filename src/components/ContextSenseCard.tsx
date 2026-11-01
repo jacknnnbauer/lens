@@ -40,11 +40,13 @@ export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence, allow
   const [showWhy, setShowWhy] = useState(false);
   const hits = cards.filter((c) => c.status === "hit");
   const hitKey = hits.map((c) => c.id).join(",");
+  // 词义判断靠英文义项、COCA 搭配和词性规则：点的是中文词就只显示句子，供换词
+  const english = /[A-Za-z]/.test(word);
 
   useEffect(() => {
     setResult(null);
     setError(null);
-    if (!ctx || !word || hits.length === 0) return;
+    if (!ctx || !word || !english || hits.length === 0) return;
     let alive = true;
     contextSense({
       word,
@@ -61,7 +63,7 @@ export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence, allow
     };
     // hits 由 hitKey 代表：卡片内容变了（查询完成）才重算
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word, ctx?.sentence, ctx?.hlStart, ctx?.hlEnd, hitKey]);
+  }, [word, english, ctx?.sentence, ctx?.hlStart, ctx?.hlEnd, hitKey]);
 
   const draftWords = splitWords(draft.trim());
   const ctxWords = ctx ? splitWords(ctx.sentence) : [];
@@ -149,7 +151,7 @@ export function ContextSenseCard({ word, cards, ctx, onPick, hideSentence, allow
       )}
 
       {ctx && error && <p className={styles.note}>{error}</p>}
-      {ctx && !result && !error && hits.length > 0 && <p className={styles.note}>{tr("判断中…")}</p>}
+      {ctx && english && !result && !error && hits.length > 0 && <p className={styles.note}>{tr("判断中…")}</p>}
       {ctx && result && !result.best && <p className={styles.note}>{tr("词典里没有抽出可比较的义项")}</p>}
 
       {ctx && result?.best && (

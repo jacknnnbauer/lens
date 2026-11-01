@@ -98,10 +98,13 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
   };
 
   // 框里是一整句：把选区 / 光标扩到整词，选中它并交给页面去查。不是句子时返回 false
-  const pickInSentence = () => {
+  // 点击时传入鼠标位置：中文词挨着没有空格，光标落在两个词之间时要看点的是哪个字
+  const pickInSentence = (point?: { x: number; y: number }) => {
     const el = input.current;
     if (!el || !onPickInSentence || !isSentence(value)) return false;
-    const span = wordSpan(value, el.selectionStart ?? 0, el.selectionEnd ?? 0);
+    let [from, to] = [el.selectionStart ?? 0, el.selectionEnd ?? 0];
+    if (point && from === to && from > 0 && charHit(el, from - 1, point)) from = to = from - 1;
+    const span = wordSpan(value, from, to);
     if (!span) return true;
     el.setSelectionRange(span.start, span.end);
     const lead = value.length - value.trimStart().length;
@@ -170,7 +173,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
           // 粘贴来的换行当空格：查的是一句话 / 一个词，不是多行文本
           onChange={(e) => onChange(e.target.value.replace(/\r?\n/g, " "))}
           onKeyDown={onKeyDown}
-          onMouseUp={() => void pickInSentence()}
+          onMouseUp={(e) => void pickInSentence({ x: e.clientX, y: e.clientY })}
           onBlur={() => setOpen(false)}
         />
         <span className={styles.hint} aria-hidden="true">
@@ -203,3 +206,35 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     </div>
   );
 });
+
+/** 点的位置是不是落在第 i 个字上：用一个和输入框排版相同的隐形副本量出这个字的位置 */
+function charHit(el: HTMLTextAreaElement, i: number, p: { x: number; y: number }): boolean {
+  const cs = getComputedStyle(el);
+  const rect = el.getBoundingClientRect();
+  const mirror = document.createElement("div");
+  for (const k of ["fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "lineHeight", "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "borderLeftWidth", "borderRightWidth", "borderTopWidth", "borderBottomWidth", "borderStyle", "textIndent", "wordSpacing"] as const)
+    mirror.style[k] = cs[k];
+  Object.assign(mirror.style, {
+    position: "fixed",
+    left: `${rect.left}px`,
+    top: `${rect.top - el.scrollTop}px`,
+    boxSizing: "border-box",
+    width: `${el.clientWidth + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)}px`,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "break-word",
+    visibility: "hidden",
+    pointerEvents: "none",
+  });
+  const text = document.createTextNode(el.value);
+  mirror.appendChild(text);
+  document.body.appendChild(mirror);
+  try {
+    const range = document.createRange();
+    range.setStart(text, i);
+    range.setEnd(text, i + 1);
+    const r = range.getBoundingClientRect();
+    return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+  } finally {
+    mirror.remove();
+  }
+}

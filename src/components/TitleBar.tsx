@@ -33,7 +33,15 @@ export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext 
 
   const w = getCurrentWindow();
   return (
-    <header className={styles.bar} data-tauri-drag-region data-ui="titlebar">
+    <header
+      className={styles.bar}
+      data-tauri-drag-region
+      data-ui="titlebar"
+      // 鼠标点标题栏按钮不抢焦点：点了最小化再 Win+数字 唤回时，焦点还在搜索框，Enter 不会又按一次最小化
+      onMouseDown={(e) => {
+        if ((e.target as HTMLElement).closest("button")) e.preventDefault();
+      }}
+    >
       <button
         type="button"
         className={styles.navBtn}

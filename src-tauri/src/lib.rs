@@ -11,6 +11,7 @@ mod commands;
 mod context_sense;
 mod db;
 mod dict;
+mod epub;
 mod error;
 mod export;
 mod freq;
@@ -321,6 +322,9 @@ pub fn run() {
             commands::articles::article_take_pending,
             commands::articles::article_progress,
             commands::articles::article_delete,
+            commands::articles::book_open,
+            commands::articles::book_chapter,
+            commands::articles::book_progress,
             commands::scan::scan_text,
             commands::scan::set_known_words,
             commands::scan::save_scanned_words,

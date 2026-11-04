@@ -379,6 +379,87 @@
   cursor: text;
 }
 
+/* 电子书：书名和章节名分一行的宽度 */
+.titleBtn[data-book] {
+  max-width: 30%;
+}
+
+.tocWrap {
+  position: relative;
+  min-width: 0;
+  max-width: 30%;
+}
+
+.chapterBtn {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--sub);
+  cursor: pointer;
+}
+
+.chapterBtn:hover,
+.chapterBtn[aria-expanded="true"] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.toc {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 70vw);
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 16%, transparent);
+}
+
+.tocItem {
+  flex: none;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tocItem:hover {
+  background: var(--raised);
+}
+
+.tocItem[aria-current] {
+  background: var(--hl);
+  font-weight: 600;
+}
+
+.chapterNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 720px;
+  width: 100%;
+  margin: 32px auto 8px;
+}
+
 .titleBtn:hover {
   background: var(--raised);
 }
@@ -503,6 +584,13 @@
 
 .prose :global(a) {
   color: var(--accent);
+}
+
+.prose :global(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1em auto;
 }
 
 .prose :global(.lens-img) {

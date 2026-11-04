@@ -220,7 +220,8 @@ fn sentence_of(text: &str, w: &Raw) -> (Option<String>, usize, usize) {
     let para_start = text[..w.byte].rfind('\n').map_or(0, |p| p + 1);
     let para_end = text[w.byte..].find('\n').map_or(text.len(), |p| w.byte + p);
     let para = &text[para_start..para_end];
-    let before16: usize = text[..para_start].encode_utf16().count();
+    // 只数段落这一小段：每个生词都要算一次，从头数的话长文本会很慢
+    let before16 = w.start16 - text[para_start..w.byte].encode_utf16().count();
     match sentence::extract(para, (w.start16 - before16, w.end16 - before16)) {
         Some(s) => (Some(s.sentence), s.hl_start, s.hl_end),
         None => (None, 0, 0),

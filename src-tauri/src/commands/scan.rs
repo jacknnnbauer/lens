@@ -10,8 +10,8 @@ use crate::db::history::{insert_context, NewContext};
 use crate::db::words;
 use crate::error::{Error, Result};
 
-/// 一次最多扫这么多字符（约 4 万词）
-const MAX_CHARS: usize = 300_000;
+/// 一次最多扫这么多字符（约 25 万词，电子书最长的一章也够）
+const MAX_CHARS: usize = 1_500_000;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

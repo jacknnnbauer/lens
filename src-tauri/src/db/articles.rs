@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 
 use super::now_ms;
+use crate::epub::{Book, TocItem};
 use crate::error::{Error, Result};
 
 /// 标题最长这么多字
@@ -23,6 +24,10 @@ pub struct ArticleMeta {
     pub opened_at: Option<i64>,
     /// 开头一段纯文字，列表里预览用
     pub excerpt: String,
+    /// 电子书的作者
+    pub author: Option<String>,
+    /// 电子书的章节数；普通文章是 0
+    pub chapters: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -126,12 +131,14 @@ fn meta_of(r: &rusqlite::Row) -> rusqlite::Result<(ArticleMeta, String)> {
             updated_at: r.get(6)?,
             opened_at: r.get(7)?,
             excerpt: String::new(),
+            author: r.get(10)?,
+            chapters: r.get(11)?,
         },
         body,
     ))
 }
 
-const COLS: &str = "id, title, source_path, words, progress, created_at, updated_at, opened_at, 0, body";
+const COLS: &str = "id, title, source_path, words, progress, created_at, updated_at, opened_at, 0, body, author, (SELECT COUNT(*) FROM article_chapter WHERE article_id = article.id)";
 
 /// 最近打开（或新建）的在前
 pub fn list(conn: &Connection) -> Result<Vec<ArticleMeta>> {
@@ -229,6 +236,111 @@ pub fn delete(conn: &Connection, id: i64) -> Result<bool> {
     Ok(conn.execute("DELETE FROM article WHERE id = ?1", params![id])? > 0)
 }
 
+// ── 电子书 ──
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChapterInfo {
+    pub idx: i64,
+    pub title: String,
+    pub href: String,
+    pub words: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BookInfo {
+    pub chapters: Vec<ChapterInfo>,
+    pub toc: Vec<TocItem>,
+    /// 读到第几章、这一章读到的位置（0–1）
+    pub chapter: i64,
+    pub chapter_pos: f64,
+}
+
+fn insert_chapters(conn: &Connection, id: i64, book: &Book) -> Result<()> {
+    let mut st = conn.prepare("INSERT INTO article_chapter (article_id, idx, href, title, words) VALUES (?1, ?2, ?3, ?4, ?5)")?;
+    for (i, c) in book.chapters.iter().enumerate() {
+        st.execute(params![id, i as i64, c.href, c.title, c.words])?;
+    }
+    Ok(())
+}
+
+fn toc_json(book: &Book) -> Result<String> {
+    serde_json::to_string(&book.toc).map_err(|e| Error::Other(e.to_string()))
+}
+
+/// 这本书导入后的文章 id，以及不再用的旧文件（文件换了内容时）
+pub struct ImportedBook {
+    pub id: i64,
+    pub stale_hash: Option<String>,
+}
+
+/// 导入电子书：同样内容的书不重复加（文件挪了位置也认得，阅读位置不变）；
+/// 同一个路径的文件换了内容：原地换成新内容，标题和读到第几章不变。
+pub fn import_book(conn: &Connection, path: &str, hash: &str, fallback_title: &str, book: &Book) -> Result<ImportedBook> {
+    let same: Option<i64> = conn.query_row("SELECT id FROM article WHERE book_hash = ?1", params![hash], |r| r.get(0)).optional()?;
+    if let Some(id) = same {
+        conn.execute("UPDATE article SET source_path = ?2 WHERE id = ?1", params![id, path])?;
+        return Ok(ImportedBook { id, stale_hash: None });
+    }
+    let total: i64 = book.chapters.iter().map(|c| c.words).sum();
+    let now = now_ms();
+    let replaced: Option<(i64, String)> = conn
+        .query_row("SELECT id, book_hash FROM article WHERE source_path = ?1 AND book_hash IS NOT NULL ORDER BY id DESC LIMIT 1", params![path], |r| Ok((r.get(0)?, r.get(1)?)))
+        .optional()?;
+    if let Some((id, old)) = replaced {
+        conn.execute("DELETE FROM article_chapter WHERE article_id = ?1", params![id])?;
+        insert_chapters(conn, id, book)?;
+        let last = book.chapters.len() as i64 - 1;
+        conn.execute(
+            "UPDATE article SET book_hash = ?2, body = ?3, words = ?4, toc = ?5, author = ?6, chapter = MIN(chapter, ?7), updated_at = ?8 WHERE id = ?1",
+            params![id, hash, book.preview, total, toc_json(book)?, book.author, last, now],
+        )?;
+        return Ok(ImportedBook { id, stale_hash: Some(old) });
+    }
+    let title = book.title.as_deref().unwrap_or(fallback_title);
+    let title = if title.chars().count() > MAX_TITLE { format!("{}…", title.chars().take(MAX_TITLE).collect::<String>()) } else { title.to_string() };
+    conn.execute(
+        "INSERT INTO article (title, body, source_path, words, created_at, updated_at, book_hash, author, toc) VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6, ?7, ?8)",
+        params![title, book.preview, path, total, now, hash, book.author, toc_json(book)?],
+    )?;
+    let id = conn.last_insert_rowid();
+    insert_chapters(conn, id, book)?;
+    Ok(ImportedBook { id, stale_hash: None })
+}
+
+pub fn book_hash(conn: &Connection, id: i64) -> Result<Option<String>> {
+    Ok(conn.query_row("SELECT book_hash FROM article WHERE id = ?1", params![id], |r| r.get(0)).optional()?.flatten())
+}
+
+pub fn book_info(conn: &Connection, id: i64) -> Result<Option<BookInfo>> {
+    let row: Option<(Option<String>, i64, f64)> = conn.query_row("SELECT toc, chapter, chapter_pos FROM article WHERE id = ?1", params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional()?;
+    let Some((toc, chapter, chapter_pos)) = row else { return Ok(None) };
+    let mut st = conn.prepare("SELECT idx, title, href, words FROM article_chapter WHERE article_id = ?1 ORDER BY idx")?;
+    let chapters = st
+        .query_map(params![id], |r| Ok(ChapterInfo { idx: r.get(0)?, title: r.get(1)?, href: r.get(2)?, words: r.get(3)? }))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let toc = toc.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+    Ok(Some(BookInfo { chapters, toc, chapter, chapter_pos }))
+}
+
+pub fn chapter_href(conn: &Connection, id: i64, idx: i64) -> Result<Option<String>> {
+    Ok(conn.query_row("SELECT href FROM article_chapter WHERE article_id = ?1 AND idx = ?2", params![id, idx], |r| r.get(0)).optional()?)
+}
+
+/// 记下读到哪一章的哪里；全书进度按词数折算（列表里显示）
+pub fn set_book_progress(conn: &Connection, id: i64, chapter: i64, pos: f64) -> Result<()> {
+    let pos = pos.clamp(0.0, 1.0);
+    let (before, here, total): (i64, i64, i64) = conn.query_row(
+        "SELECT COALESCE(SUM(CASE WHEN idx < ?2 THEN words END), 0), COALESCE(SUM(CASE WHEN idx = ?2 THEN words END), 0), COALESCE(SUM(words), 0) FROM article_chapter WHERE article_id = ?1",
+        params![id, chapter],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+    )?;
+    let overall = if total > 0 { (before as f64 + here as f64 * pos) / total as f64 } else { 0.0 };
+    conn.execute("UPDATE article SET chapter = ?2, chapter_pos = ?3, progress = ?4 WHERE id = ?1", params![id, chapter, pos, overall.clamp(0.0, 1.0)])?;
+    Ok(())
+}
+
 /// 读 .md / .txt：UTF-8（去 BOM）、UTF-16（有 BOM），否则按 GBK 解
 pub fn decode_file(bytes: &[u8]) -> String {
     if let Some(rest) = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]) {
@@ -318,6 +430,51 @@ Three new words.")?, 4);
             assert_ne!(b, a, "Lens 里改过：另存一篇");
             assert_eq!(open(c, a)?.map(|x| x.body), Some("Edited in Lens.".to_string()));
             assert_eq!(import_file(c, p, "# The Rusty Bike\n\nNewest.")?, b, "新的那篇没改过，接着原地更新");
+            Ok(())
+        })
+    }
+
+    fn sample_book(words: &[i64]) -> Book {
+        Book {
+            title: Some("A Book".into()),
+            author: Some("Writer".into()),
+            chapters: words.iter().enumerate().map(|(i, &w)| crate::epub::Chapter { href: format!("c{i}.xhtml"), title: format!("Ch {i}"), words: w }).collect(),
+            toc: vec![TocItem { title: "Ch 0".into(), level: 0, chapter: 0, anchor: None }],
+            preview: "Once upon a time".into(),
+        }
+    }
+
+    #[test]
+    fn books_keep_chapters_and_progress() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        db.with_conn(|c| {
+            let id = import_book(c, "C:\\b.epub", "h1", "b", &sample_book(&[100, 300]))?.id;
+            let meta = list(c)?.remove(0);
+            assert_eq!((meta.title.as_str(), meta.words, meta.chapters, meta.author.as_deref()), ("A Book", 400, 2, Some("Writer")));
+            assert_eq!(meta.excerpt, "Once upon a time");
+            set_book_progress(c, id, 1, 0.5)?;
+            let info = book_info(c, id)?.ok_or_else(|| Error::Other("missing".into()))?;
+            assert_eq!((info.chapter, info.chapters.len(), info.toc.len()), (1, 2, 1));
+            assert!((info.chapter_pos - 0.5).abs() < 1e-9);
+            assert!((list(c)?[0].progress - 0.625).abs() < 1e-9, "全书进度按词数折算");
+            assert_eq!(chapter_href(c, id, 1)?.as_deref(), Some("c1.xhtml"));
+            assert_eq!(chapter_href(c, id, 9)?, None);
+
+            // 同样内容换了路径：还是这本，进度不变
+            let again = import_book(c, "D:\\moved.epub", "h1", "b", &sample_book(&[100, 300]))?;
+            assert_eq!((again.id, again.stale_hash), (id, None));
+            // 同一路径换了内容：原地更新，章节少了就退到最后一章，旧文件待删
+            rename(c, id, "My Name")?;
+            let changed = import_book(c, "D:\\moved.epub", "h2", "b", &sample_book(&[50]))?;
+            assert_eq!((changed.id, changed.stale_hash.as_deref()), (id, Some("h1")));
+            let info = book_info(c, id)?.ok_or_else(|| Error::Other("missing".into()))?;
+            assert_eq!((info.chapter, info.chapters.len()), (0, 1));
+            assert_eq!(list(c)?[0].title, "My Name");
+            // 删掉文章，章节跟着删
+            assert_eq!(book_hash(c, id)?.as_deref(), Some("h2"));
+            assert!(delete(c, id)?);
+            let n: i64 = c.query_row("SELECT COUNT(*) FROM article_chapter", [], |r| r.get(0))?;
+            assert_eq!(n, 0);
             Ok(())
         })
     }

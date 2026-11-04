@@ -1,5 +1,6 @@
 //! `lens://` 自定义协议（SPEC 9.3）：`lens://res/<dictId>/<词典内路径>` → 词典资源。
 //! Windows 上 WebView2 实际访问的是 `http://lens.localhost/res/<dictId>/<路径>`。
+//! `lens://book/<文章 id>/<书内路径>` → 电子书里的图片。
 //! 带 LRU 缓存，总量上限 64MB。
 
 use std::collections::HashMap;
@@ -178,7 +179,34 @@ fn response(status: StatusCode, mime: &str, body: Vec<u8>) -> Response<Vec<u8>> 
 }
 
 /// 同步处理（调用方放在阻塞线程里）。
+/// `/book/<文章 id>/<书内路径>`
+fn parse_book_path(uri_path: &str) -> Option<(i64, String)> {
+    let mut parts = uri_path.trim_start_matches('/').splitn(3, '/');
+    if parts.next()? != "book" {
+        return None;
+    }
+    let id = parts.next()?.parse().ok()?;
+    let path = percent_decode_str(parts.next()?).decode_utf8_lossy().into_owned();
+    (!path.is_empty()).then_some((id, path))
+}
+
+fn load_book_file(app: &AppHandle, id: i64, inner: &str) -> Result<Option<Vec<u8>>> {
+    let state = app.state::<AppState>();
+    let Some(hash) = state.db.with_conn(|c| crate::db::articles::book_hash(c, id))? else { return Ok(None) };
+    crate::epub::read_file(&crate::commands::articles::book_file(&state.root, &hash), inner)
+}
+
 pub fn handle(app: &AppHandle, uri_path: &str) -> Response<Vec<u8>> {
+    if let Some((id, inner)) = parse_book_path(uri_path) {
+        return match load_book_file(app, id, &inner) {
+            Ok(Some(bytes)) => response(StatusCode::OK, mime_for(&inner), bytes),
+            Ok(None) => response(StatusCode::NOT_FOUND, "text/plain", Vec::new()),
+            Err(e) => {
+                tracing::warn!(article = id, path = %inner, error = %e, "读取电子书图片失败");
+                response(StatusCode::UNPROCESSABLE_ENTITY, "text/plain", Vec::new())
+            }
+        };
+    }
     let Some((dict_id, path)) = parse_path(uri_path) else {
         return response(StatusCode::BAD_REQUEST, "text/plain", b"bad path".to_vec());
     };
@@ -199,6 +227,13 @@ pub fn handle(app: &AppHandle, uri_path: &str) -> Response<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_book_paths() {
+        assert_eq!(parse_book_path("/book/12/OEBPS/img/a%20b.png"), Some((12, "OEBPS/img/a b.png".into())));
+        assert_eq!(parse_book_path("/book/x/a.png"), None);
+        assert_eq!(parse_book_path("/res/12/a.png"), None);
+    }
 
     #[test]
     fn parses_encoded_paths() {

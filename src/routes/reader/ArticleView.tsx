@@ -3,13 +3,14 @@
 // 生词按词频标在正文上（可关），「生词」页列出全文的生词，可批量收藏、标记认识。
 // 双击正文空白处进入编辑（所见即所得 / 源码，只改 Lens 里的这份），保存后重新排版、重新扫描。
 // 「导出」把标注过的原文和词汇表导出成 PDF / HTML（ArticleExportDialog）。
+// 电子书一次显示一章：生词、导出都按当前这一章；点工具栏上的章节名打开目录，正文下面翻上一章 / 下一章。书不能编辑。
 
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DictCard } from "../../components/DictCard";
 import { acceptable, paragraphOf } from "../../components/inAppLookup";
-import { openArticle, renameArticle, saveReadingContext, setArticleProgress, updateArticleBody, type Article } from "../../ipc/articles";
+import { bookChapter, openArticle, openBook, renameArticle, saveReadingContext, setArticleProgress, setBookProgress, updateArticleBody, type Article, type BookInfo, type TocItem } from "../../ipc/articles";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
 import { saveScannedWords, scanText, setKnownWords, type ScanResult, type ScanStatus, type ScanWord } from "../../ipc/scan";
 import { saveWord, wordId } from "../../ipc/words";
@@ -24,12 +25,40 @@ import { toast } from "../../stores/toast";
 import { scrollRoot } from "../../windows/main/scroll";
 import { ArticleExportDialog } from "./ArticleExportDialog";
 import { WysiwygEditor, type WysiwygApi } from "./WysiwygEditor";
-import { renderMarkdown, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
+import { renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
 import { tr } from "../../i18n";
 
 const LEVELS = [2000, 3000, 5000, 8000, 12000, 20000];
 const GLOSS_BATCH = 80;
+
+const imageLabel = (alt: string) => (alt ? tr("［图片：{alt}］", { alt }) : tr("［图片］"));
+
+function anchorTarget(el: HTMLElement, anchor: string): Element | null {
+  const quoted = CSS.escape(anchor);
+  return el.querySelector(`[id="${quoted}"], [name="${quoted}"]`);
+}
+
+/** 滚到正文里的锚点；没有这个锚点时返回 false */
+function scrollToAnchor(el: HTMLElement | null, anchor: string | null | undefined): boolean {
+  const target = el && anchor ? anchorTarget(el, anchor) : null;
+  target?.scrollIntoView({ block: "start" });
+  return !!target;
+}
+
+/** 目录里正在读的那一项：这一章之前的最后一项，或这一章里已经滚过的最后一个锚点 */
+function tocIndexAt(toc: TocItem[], chapter: number, el: HTMLElement, viewTop: number): number {
+  let found = -1;
+  toc.forEach((t, i) => {
+    if (t.chapter > chapter) return;
+    if (t.chapter === chapter && t.anchor) {
+      const target = anchorTarget(el, t.anchor);
+      if (target && target.getBoundingClientRect().top > viewTop + 80) return;
+    }
+    found = i;
+  });
+  return found;
+}
 
 function readPref<T>(key: string, fallback: T, valid: (v: unknown) => boolean): T {
   try {
@@ -100,17 +129,38 @@ export function ArticleView({ id, onBack }: Props) {
   const [exporting, setExporting] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const index = useRef<WordIndex | null>(null);
+  // 电子书：章节和目录，以及正在读的章节（anchor 是从目录或脚注跳过来要到的位置，否则回到 pos）
+  const [book, setBook] = useState<BookInfo | null>(null);
+  const [at, setAt] = useState<{ idx: number; pos: number; anchor?: string | null } | null>(null);
+  const [tocOpen, setTocOpen] = useState(false);
+  const [tocAt, setTocAt] = useState(-1);
+  const tocRef = useRef<HTMLElement>(null);
+  // 每排好一次版加一：接着扫描生词
+  const [rendered, setRendered] = useState(0);
+  const articleId = article?.id;
 
   // 读文章、排版、包词，然后恢复上次读到的位置
   useEffect(() => {
     let alive = true;
     setArticle(null);
     setScan(null);
+    setBook(null);
+    setAt(null);
     openArticle(id).then(
       (a) => {
         if (!alive) return;
         if (!a) setError(tr("这篇文章已被删除"));
         setArticle(a);
+        if (a && a.chapters > 0) {
+          openBook(id).then(
+            (b) => {
+              if (!alive || !b) return;
+              setBook(b);
+              setAt({ idx: Math.min(b.chapter, b.chapters.length - 1), pos: b.chapterPos });
+            },
+            (e) => alive && setError(String(e)),
+          );
+        }
       },
       (e) => alive && setError(String(e)),
     );
@@ -121,28 +171,85 @@ export function ArticleView({ id, onBack }: Props) {
 
   useEffect(() => {
     const el = bodyRef.current;
-    if (!article || !el) return;
-    el.innerHTML = renderMarkdown(article.body, (alt) => (alt ? tr("［图片：{alt}］", { alt }) : tr("［图片］")));
+    if (!article || !el || article.chapters > 0) return;
+    el.innerHTML = renderMarkdown(article.body, imageLabel);
     index.current = wrapWords(el);
+    setRendered((n) => n + 1);
     requestAnimationFrame(() => {
       const root = scrollRoot();
       root.scrollTo({ top: article.progress * Math.max(0, root.scrollHeight - root.clientHeight) });
     });
   }, [article]);
 
+  // 电子书：换章时读这一章、排版，到目录指的位置或上次读到的位置
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (articleId === undefined || !el || !book || !at) return;
+    let alive = true;
+    setScan(null);
+    const href = book.chapters[at.idx].href;
+    bookChapter(articleId, at.idx).then(
+      (raw) => {
+        if (!alive) return;
+        el.innerHTML = renderBookChapter(raw, href, articleId, imageLabel);
+        index.current = wrapWords(el);
+        setRendered((n) => n + 1);
+        requestAnimationFrame(() => {
+          const root = scrollRoot();
+          if (!scrollToAnchor(el, at.anchor)) root.scrollTo({ top: at.pos * Math.max(0, root.scrollHeight - root.clientHeight) });
+          setTocAt(tocIndexAt(book.toc, at.idx, el, root.getBoundingClientRect().top));
+        });
+      },
+      (e) => alive && setError(String(e)),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [articleId, book, at]);
+
+  const goChapter = (idx: number, anchor?: string | null) => {
+    setTocOpen(false);
+    if (!book || articleId === undefined || idx < 0 || idx >= book.chapters.length) return;
+    if (idx === at?.idx) {
+      if (!scrollToAnchor(bodyRef.current, anchor)) scrollRoot().scrollTo({ top: 0 });
+      return;
+    }
+    void setBookProgress(articleId, idx, 0).catch(() => undefined);
+    setAt({ idx, pos: 0, anchor });
+  };
+
+  useEffect(() => {
+    if (!tocOpen) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !(e.target as HTMLElement).closest?.("[data-toc]")) setTocOpen(false);
+    };
+    // 打开时把当前项滚到中间（只滚目录自己，不动正文）
+    const nav = tocRef.current;
+    const current = nav?.querySelector<HTMLElement>("[aria-current]");
+    if (nav && current) nav.scrollTop = current.offsetTop - nav.clientHeight / 2;
+    window.addEventListener("keydown", close);
+    window.addEventListener("mousedown", close);
+    return () => {
+      window.removeEventListener("keydown", close);
+      window.removeEventListener("mousedown", close);
+    };
+  }, [tocOpen]);
+
   const rescan = useCallback(async () => {
     const ix = index.current;
     if (!ix) return;
     try {
-      setScan(await scanText(ix.plain, level));
+      const r = await scanText(ix.plain, level);
+      // 扫描期间换了章：这份结果对不上现在的正文
+      if (index.current === ix) setScan(r);
     } catch (e) {
       setError(String(e));
     }
   }, [level]);
 
   useEffect(() => {
-    if (article) void rescan();
-  }, [article, rescan]);
+    if (rendered > 0) void rescan();
+  }, [rendered, rescan]);
 
   // 扫描结果标到正文的词上
   useEffect(() => {
@@ -192,6 +299,7 @@ export function ArticleView({ id, onBack }: Props) {
   }, [article, draft]);
 
   // 记下读到哪里
+  const chapterIdx = at?.idx;
   useEffect(() => {
     if (!article) return;
     const root = scrollRoot();
@@ -200,7 +308,11 @@ export function ArticleView({ id, onBack }: Props) {
       clearTimeout(t);
       t = setTimeout(() => {
         const max = root.scrollHeight - root.clientHeight;
-        if (max > 0) void setArticleProgress(article.id, root.scrollTop / max).catch(() => undefined);
+        if (max <= 0) return;
+        const pos = root.scrollTop / max;
+        const el = bodyRef.current;
+        if (book && chapterIdx !== undefined && el) setTocAt(tocIndexAt(book.toc, chapterIdx, el, root.getBoundingClientRect().top));
+        void (chapterIdx === undefined ? setArticleProgress(article.id, pos) : setBookProgress(article.id, chapterIdx, pos)).catch(() => undefined);
       }, 600);
     };
     root.addEventListener("scroll", onScroll, { passive: true });
@@ -208,7 +320,7 @@ export function ArticleView({ id, onBack }: Props) {
       clearTimeout(t);
       root.removeEventListener("scroll", onScroll);
     };
-  }, [article]);
+  }, [article, book, chapterIdx]);
 
   // ── 点词查词 ──
   const lastPick = useRef<{ word: string; at: number } | null>(null);
@@ -237,6 +349,12 @@ export function ArticleView({ id, onBack }: Props) {
       e.preventDefault();
       const href = a.getAttribute("href") ?? "";
       if (/^https?:\/\//i.test(href)) void openUrl(href);
+      else if (book && at && !/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+        // 书里的链接（脚注、目录页）：跳到那一章的那个位置
+        const [path, anchor] = resolveBookPath(book.chapters[at.idx].href, href);
+        const idx = book.chapters.findIndex((c) => c.href === path);
+        if (idx >= 0) goChapter(idx, anchor);
+      }
       return;
     }
     const sel = window.getSelection();
@@ -348,7 +466,7 @@ export function ArticleView({ id, onBack }: Props) {
   };
   // 双击正文的空白处进入编辑（不放「编辑」按钮）：双击在词、链接、控件上，或双击选中了文字时不算
   const onBlankDoubleClick = (e: React.MouseEvent) => {
-    if (draft !== null || !article) return;
+    if (draft !== null || !article || article.chapters > 0) return;
     const t = e.target as HTMLElement;
     if (t.closest(`header, button, input, select, textarea, a, label, .${WORD_CLASS}`)) return;
     if (onText(e.clientX, e.clientY)) return;
@@ -395,6 +513,23 @@ export function ArticleView({ id, onBack }: Props) {
   };
 
   const sideHost = useReader((s) => s.sideHost);
+  const chapterInfo = book && at ? book.chapters[at.idx] : null;
+  // 工具栏显示正在读的那一节（一个文件可能分成好几节，切到别的章时 tocAt 还没更新就先用章节名）
+  const tocItem = book && at && book.toc[tocAt]?.chapter === at.idx ? book.toc[tocAt] : null;
+  // 导出的正文：图片换成说明，离开 Lens 就打不开
+  const exportHtml = () => {
+    const el = bodyRef.current;
+    if (!el) return "";
+    if (!book) return el.innerHTML;
+    const copy = el.cloneNode(true) as HTMLElement;
+    for (const img of Array.from(copy.querySelectorAll("img"))) {
+      const span = document.createElement("span");
+      span.className = "lens-img";
+      span.textContent = imageLabel(img.getAttribute("alt") ?? "");
+      img.replaceWith(span);
+    }
+    return copy.innerHTML;
+  };
 
   const toggle = (key: string, v: boolean, set: (v: boolean) => void) => {
     set(v);
@@ -403,7 +538,7 @@ export function ArticleView({ id, onBack }: Props) {
 
   return (
     <div className={styles.wide}>
-      <header className={styles.readerBar} data-hidden={barHidden || undefined} onFocus={() => setBarHidden(false)}>
+      <header className={styles.readerBar} data-hidden={(barHidden && !tocOpen) || undefined} onFocus={() => setBarHidden(false)}>
         <button type="button" className={styles.ghost} onClick={onBack} disabled={draft !== null}>
           {tr("← 文章库")}
         </button>
@@ -420,9 +555,32 @@ export function ArticleView({ id, onBack }: Props) {
             }}
           />
         ) : (
-          <button type="button" className={styles.titleBtn} title={tr("改标题")} onClick={() => setEditingTitle(true)} disabled={!article}>
+          <button type="button" className={styles.titleBtn} data-book={book ? "" : undefined} title={tr("改标题")} onClick={() => setEditingTitle(true)} disabled={!article}>
             {article?.title ?? "…"}
           </button>
+        )}
+        {chapterInfo && book && at && (
+          <span className={styles.tocWrap} data-toc="">
+            <button type="button" className={styles.chapterBtn} aria-expanded={tocOpen} title={tr("目录")} onClick={() => setTocOpen((o) => !o)}>
+              {tocItem?.title ?? chapterInfo.title}
+            </button>
+            {tocOpen && (
+              <nav ref={tocRef} className={styles.toc} aria-label={tr("目录")}>
+                {book.toc.map((t, i) => (
+                  <button
+                    key={`${i}-${t.chapter}`}
+                    type="button"
+                    className={styles.tocItem}
+                    style={{ paddingLeft: 10 + t.level * 16 }}
+                    aria-current={i === tocAt || undefined}
+                    onClick={() => goChapter(t.chapter, t.anchor)}
+                  >
+                    {t.title}
+                  </button>
+                ))}
+              </nav>
+            )}
+          </span>
         )}
         <span className={styles.barSpacer} />
         {draft !== null ? (
@@ -528,15 +686,26 @@ export function ArticleView({ id, onBack }: Props) {
           onClick={onClick}
           onMouseUp={onMouseUp}
         />
+        {book && at && draft === null && (
+          <nav className={styles.chapterNav} aria-label={tr("翻章")}>
+            <button type="button" className={styles.ghost} disabled={at.idx === 0} onClick={() => goChapter(at.idx - 1)}>
+              {tr("← 上一章")}
+            </button>
+            <span className={styles.faint}>{`${at.idx + 1} / ${book.chapters.length}`}</span>
+            <button type="button" className={styles.ghost} disabled={at.idx >= book.chapters.length - 1} onClick={() => goChapter(at.idx + 1)}>
+              {tr("下一章 →")}
+            </button>
+          </nav>
+        )}
         {article && draft === null && <p className={styles.faint}>{tr("点一个词查词，拖选可以查短语。")}</p>}
       </div>
 
       <ArticleExportDialog
         open={exporting}
         onClose={() => setExporting(false)}
-        title={article?.title ?? ""}
+        title={chapterInfo ? `${article?.title ?? ""} · ${chapterInfo.title}` : (article?.title ?? "")}
         scan={scan}
-        getHtml={() => bodyRef.current?.innerHTML ?? ""}
+        getHtml={exportHtml}
       />
 
       {sideHost &&

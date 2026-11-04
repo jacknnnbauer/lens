@@ -1,6 +1,6 @@
 [package]
 name = "lens"
-version = "0.27.1"
+version = "0.28.0"
 description = "词镜 Lens：本地优先、键盘优先的桌面查词工具"
 edition = "2021"
 license = "MIT"
@@ -46,6 +46,8 @@ url = "2.5.8"
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "native-tls", "gzip"] }
 base64 = "0.23.1"
 tauri-plugin-single-instance = "2.5.2"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+roxmltree = "0.21"
 
 [dev-dependencies]
 tempfile = "3"

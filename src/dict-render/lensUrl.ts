@@ -30,6 +30,11 @@ export function lensUrl(dictId: string, path: string): string {
   return `${lensBase()}res/${encodeURIComponent(dictId)}/${segments.map(encodeURIComponent).join("/")}`;
 }
 
+/** 电子书里的图片地址；`path` 是压缩包里的路径 */
+export function bookUrl(articleId: number, path: string): string {
+  return `${lensBase()}book/${articleId}/${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
 export function isLensUrl(url: string): boolean {
   return url.startsWith(lensBase());
 }

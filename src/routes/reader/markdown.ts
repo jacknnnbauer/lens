@@ -4,6 +4,7 @@
 
 import DOMPurify from "dompurify";
 import { marked } from "marked";
+import { bookUrl } from "../../dict-render/lensUrl";
 
 /** 包词的 span 的 class；样式在 ReaderPage.module.css 里按 :global 写 */
 export const WORD_CLASS = "lens-w";
@@ -23,6 +24,71 @@ export function renderMarkdown(md: string, imageLabel: (alt: string) => string):
     span.className = "lens-img";
     span.textContent = imageLabel(img.getAttribute("alt") ?? "");
     img.replaceWith(span);
+  }
+  return tpl.innerHTML;
+}
+
+/** 书里的相对路径解析成压缩包里的路径和锚点；`base` 是当前章节的路径，和 Rust 的 epub::resolve 同一规则 */
+export function resolveBookPath(base: string, href: string): [string, string | null] {
+  const hash = href.indexOf("#");
+  const decode = (s: string) => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  };
+  const path = decode(hash < 0 ? href : href.slice(0, hash));
+  const anchor = hash < 0 ? null : decode(href.slice(hash + 1)) || null;
+  if (!path) return [base, anchor];
+  const parts = path.startsWith("/") ? [] : base.split("/").slice(0, -1);
+  for (const seg of path.split("/")) {
+    if (seg === "..") parts.pop();
+    else if (seg && seg !== ".") parts.push(seg);
+  }
+  return [parts.join("/"), anchor];
+}
+
+/** 章节的 body，放进 HTML 文档：先按 XHTML 解析（`<a id="x"/>` 才是空的），写得不规范再按 HTML */
+function chapterBody(raw: string): HTMLElement {
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(raw, "application/xhtml+xml");
+  const body = xml.querySelector("parsererror") ? null : xml.querySelector("body");
+  const source = body ?? parser.parseFromString(raw, "text/html").body;
+  return document.implementation.createHTMLDocument("").importNode(source, true) as HTMLElement;
+}
+
+/** 一章的 XHTML → 清洗过的 HTML。样式用阅读页自己的，图片从书里取 */
+export function renderBookChapter(raw: string, base: string, articleId: number, imageLabel: (alt: string) => string): string {
+  const body = chapterBody(raw);
+  // 封面常写成 <svg><image xlink:href="…">：换成普通图片
+  for (const svg of Array.from(body.querySelectorAll("svg"))) {
+    const image = svg.querySelector("image");
+    const href = image?.getAttribute("href") ?? image?.getAttribute("xlink:href");
+    if (!href) continue;
+    const img = body.ownerDocument.createElement("img");
+    img.setAttribute("src", href);
+    svg.replaceWith(img);
+  }
+  const clean = DOMPurify.sanitize(body.innerHTML, {
+    FORBID_TAGS: ["style", "link", "form", "input", "button", "iframe", "object", "embed", "svg", "math", "audio", "video"],
+    FORBID_ATTR: ["style", "class", "width", "height", "align", "bgcolor", "border"],
+  });
+  const tpl = document.createElement("template");
+  tpl.innerHTML = clean;
+  for (const img of Array.from(tpl.content.querySelectorAll("img"))) {
+    const src = img.getAttribute("src") ?? "";
+    if (/^data:/i.test(src)) continue;
+    // 书里的图片才加载；网络图片会联网，换成占位
+    if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src)) {
+      const span = document.createElement("span");
+      span.className = "lens-img";
+      span.textContent = imageLabel(img.getAttribute("alt") ?? "");
+      img.replaceWith(span);
+      continue;
+    }
+    img.setAttribute("src", bookUrl(articleId, resolveBookPath(base, src)[0]));
+    img.setAttribute("loading", "lazy");
   }
   return tpl.innerHTML;
 }

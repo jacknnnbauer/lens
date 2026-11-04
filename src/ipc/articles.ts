@@ -17,6 +17,34 @@ export interface ArticleMeta {
   openedAt: number | null;
   /** 开头一段纯文字 */
   excerpt: string;
+  /** 电子书的作者 */
+  author: string | null;
+  /** 电子书的章节数；普通文章是 0 */
+  chapters: number;
+}
+
+export interface ChapterInfo {
+  idx: number;
+  title: string;
+  /** 压缩包里的路径 */
+  href: string;
+  words: number;
+}
+
+export interface TocItem {
+  title: string;
+  /** 层级，从 0 开始 */
+  level: number;
+  chapter: number;
+  anchor: string | null;
+}
+
+export interface BookInfo {
+  chapters: ChapterInfo[];
+  toc: TocItem[];
+  /** 读到第几章、这一章读到的位置（0–1） */
+  chapter: number;
+  chapterPos: number;
 }
 
 export interface Article extends ArticleMeta {
@@ -51,6 +79,19 @@ export function updateArticleBody(id: number, body: string): Promise<number> {
 
 export function setArticleProgress(id: number, progress: number): Promise<void> {
   return invoke("article_progress", { id, progress });
+}
+
+export function openBook(id: number): Promise<BookInfo | null> {
+  return invoke<BookInfo | null>("book_open", { id });
+}
+
+/** 一章的原文（XHTML） */
+export function bookChapter(id: number, idx: number): Promise<string> {
+  return invoke<string>("book_chapter", { id, idx });
+}
+
+export function setBookProgress(id: number, chapter: number, pos: number): Promise<void> {
+  return invoke("book_progress", { id, chapter, pos });
 }
 
 /** 资源管理器右键「用 Lens 打开」导入、等着打开的文章 id（取走后清空） */

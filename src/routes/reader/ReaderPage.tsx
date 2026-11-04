@@ -1,4 +1,4 @@
-// 阅读：文章库（粘贴 Markdown、打开或拖入 .md / .txt 文件）→ 阅读视图（ArticleView）。
+// 阅读：文章库（粘贴 Markdown、打开或拖入 .md / .txt / .epub 文件）→ 阅读视图（ArticleView）。
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -11,7 +11,7 @@ import { ArticleView } from "./ArticleView";
 import styles from "./ReaderPage.module.css";
 import { getLang, tr } from "../../i18n";
 
-const EXTENSIONS = ["md", "markdown", "txt"];
+const EXTENSIONS = ["md", "markdown", "txt", "epub"];
 
 function date(ms: number): string {
   const d = new Date(ms);
@@ -41,7 +41,7 @@ export function ReaderPage() {
     async (paths: string[]) => {
       const files = paths.filter((p) => EXTENSIONS.includes(p.split(".").pop()?.toLowerCase() ?? ""));
       if (files.length === 0) {
-        toast(tr("只支持 .md 和 .txt 文件"));
+        toast(tr("只支持 .md、.txt 和 .epub 文件"));
         return;
       }
       try {
@@ -68,7 +68,7 @@ export function ReaderPage() {
   }, [importPaths]);
 
   const pickFiles = async () => {
-    const picked = await openDialog({ multiple: true, title: tr("打开文章"), filters: [{ name: tr("Markdown / 文本"), extensions: EXTENSIONS }] });
+    const picked = await openDialog({ multiple: true, title: tr("打开文章"), filters: [{ name: tr("Markdown / 文本 / EPUB"), extensions: EXTENSIONS }] });
     if (!picked) return;
     await importPaths(Array.isArray(picked) ? picked : [picked]);
   };
@@ -111,7 +111,7 @@ export function ReaderPage() {
           {tr("粘贴新文章")}
         </button>
       </header>
-      <p className={styles.sub}>{tr("把英文文章存进 Lens 来读：点词就在右边查词，查过的词连同所在句子自动收进生词本；生词按词频标在正文上。支持 Markdown，也可以把 .md / .txt 文件拖进窗口。")}</p>
+      <p className={styles.sub}>{tr("把英文文章和电子书存进 Lens 来读：点词就在右边查词，查过的词连同所在句子自动收进生词本；生词按词频标在正文上。支持 Markdown，也可以把 .md / .txt / .epub 文件拖进窗口。")}</p>
 
       {error && (
         <p role="alert" className={styles.error}>
@@ -140,7 +140,7 @@ export function ReaderPage() {
         </section>
       )}
 
-      {list && list.length === 0 && !pasting && <p className={styles.empty}>{tr("还没有文章。粘贴一篇，或打开 .md / .txt 文件。")}</p>}
+      {list && list.length === 0 && !pasting && <p className={styles.empty}>{tr("还没有文章。粘贴一篇，或打开 .md / .txt / .epub 文件。")}</p>}
 
       {list && list.length > 0 && (
         <ul className={styles.library}>
@@ -150,10 +150,12 @@ export function ReaderPage() {
                 <span className={styles.itemTitle}>{a.title}</span>
                 {a.excerpt && <span className={styles.itemExcerpt}>{a.excerpt}</span>}
                 <span className={styles.itemMeta}>
+                  {a.author && `${a.author} · `}
+                  {a.chapters > 0 && `${tr("{n} 章", { n: a.chapters })} · `}
                   {tr("{n} 词", { n: a.words })}
                   {a.progress > 0.02 && ` · ${tr("读到 {p}%", { p: Math.round(a.progress * 100) })}`}
                   {` · ${date(a.openedAt ?? a.createdAt)}`}
-                  {a.sourcePath && ` · ${a.sourcePath.split(/[\\/]/).pop()}`}
+                  {a.sourcePath && a.chapters === 0 && ` · ${a.sourcePath.split(/[\\/]/).pop()}`}
                 </span>
               </button>
               {confirmDelete === a.id ? (

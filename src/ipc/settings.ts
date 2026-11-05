@@ -202,6 +202,7 @@ export interface AppPaths {
   settings: string;
   logs: string;
   version: string;
+  portable: boolean;
 }
 
 export function appPaths(): Promise<AppPaths> {

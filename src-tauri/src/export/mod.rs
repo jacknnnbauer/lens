@@ -50,7 +50,7 @@ pub fn ensure_window_labeled(app: &AppHandle, label: &str) -> Result<bool> {
     if app.get_webview_window(label).is_some() {
         return Ok(false);
     }
-    WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+    crate::portable::window(WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into())))
         .title("词镜 Lens · 导出")
         .inner_size(900.0, 1200.0)
         .visible(false)

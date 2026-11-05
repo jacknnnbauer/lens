@@ -131,6 +131,12 @@ pub fn find_id_by_path(conn: &Connection, path: &str) -> Result<Option<String>> 
         .optional()?)
 }
 
+/// 便携文件夹换了位置后，改到新路径
+pub fn set_paths(conn: &Connection, id: &str, path: Option<&str>, index_path: Option<&str>) -> Result<()> {
+    conn.execute("UPDATE dict SET path = ?2, index_path = ?3 WHERE id = ?1", params![id, path, index_path])?;
+    Ok(())
+}
+
 pub fn set_index_state(
     conn: &Connection,
     id: &str,

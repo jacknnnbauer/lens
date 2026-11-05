@@ -1024,7 +1024,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
         <section id="set-about" className={styles.section} aria-labelledby="h-about">
           <h2 id="h-about">{tr("关于")}</h2>
           <p className={styles.about}>
-            词镜 Lens {paths ? `v${paths.version}` : ""}
+            词镜 Lens {paths ? `v${paths.version}` : ""}{paths?.portable ? ` · ${tr("便携版")}` : ""}
             <br />
             {tr("离线多词典查词、划词取句、复制与导出。软件不附带任何词典；释义内容版权归各词典所有，仅供个人学习使用。")}
           </p>

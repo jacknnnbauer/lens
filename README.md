@@ -54,7 +54,9 @@
 
 在 [Releases](https://github.com/jacknnnbauer/lens/releases) 下载 `Lens_x.y.z_x64-setup.exe` 安装。需要 Windows 10 1809 以上或 Windows 11（系统自带 WebView2）。安装包未做代码签名，第一次运行时 SmartScreen 会提示，选「仍要运行」。
 
-数据全部保存在本机 `%APPDATA%\Lens`。会联网的只有在线词典、vocabulary.com 例句、AI 例句和检查更新，都可以在设置里关掉。
+**便携版**：下载 `Lens_x.y.z_x64-portable.zip`，解压后运行 `Lens.exe`，不用安装。数据都在旁边的 `data` 文件夹里，可以放 U 盘带走；词典文件放进这个文件夹再导入，换盘符也能用。
+
+安装版的数据全部保存在本机 `%APPDATA%\Lens`。会联网的只有在线词典、vocabulary.com 例句、AI 例句和检查更新，都可以在设置里关掉。
 
 ## 从源码构建
 
@@ -66,6 +68,7 @@ pnpm tauri dev          # 开发运行
 cargo test --manifest-path src-tauri/Cargo.toml
 pnpm test               # 前端单元测试
 pnpm tauri build        # 打包（NSIS 安装包）
+pnpm portable           # 用上一步的 exe 打便携版 zip
 ```
 
 - 架构与规格：[SPEC.md](SPEC.md)；开发约定：[CLAUDE.md](CLAUDE.md)。

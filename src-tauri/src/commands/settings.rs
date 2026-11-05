@@ -59,6 +59,7 @@ pub struct AppPaths {
     pub settings: PathBuf,
     pub logs: PathBuf,
     pub version: &'static str,
+    pub portable: bool,
 }
 
 /// 设置页「数据」一节：数据目录、设置文件与日志的位置。
@@ -70,6 +71,7 @@ pub async fn app_paths(state: State<'_, AppState>) -> Result<AppPaths> {
         logs: data.join("logs"),
         data,
         version: env!("CARGO_PKG_VERSION"),
+        portable: crate::portable::base().is_some(),
     })
 }
 

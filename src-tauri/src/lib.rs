@@ -21,6 +21,7 @@ mod i18n;
 mod lemma;
 mod logging;
 mod online;
+mod portable;
 mod protocol;
 mod query;
 mod review;
@@ -145,7 +146,7 @@ pub(crate) fn ensure_popup(app: &tauri::AppHandle) {
         if app.get_webview_window(capture::POPUP).is_some() {
             return;
         }
-        let built = WebviewWindowBuilder::new(app, capture::POPUP, WebviewUrl::App("index.html".into()))
+        let built = portable::window(WebviewWindowBuilder::new(app, capture::POPUP, WebviewUrl::App("index.html".into())))
             .title("词镜 Lens · 查词")
             .inner_size(capture::POPUP_W, capture::POPUP_H)
             .decorations(false)
@@ -167,6 +168,26 @@ pub(crate) fn ensure_popup(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 便携版：数据放 exe 旁边。放不了（比如只读位置）就说明原因后退出，不退回系统目录
+    let portable = portable::base();
+    if let Some(base) = portable {
+        if let Err(e) = portable::prepare(base) {
+            portable::show_error(&crate::tf!(
+                "便携版无法在这里保存数据：{}\n请把 Lens 文件夹放到可写的位置。",
+                "Portable Lens cannot save data here: {}\nPlease move the Lens folder to a writable location.",
+                e
+            ));
+            std::process::exit(1);
+        }
+    }
+    let mut context = tauri::generate_context!();
+    if let Some(base) = portable {
+        context.config_mut().identifier = portable::identifier(base);
+        // 主窗口改到 setup 里创建，才能指定数据目录
+        for window in &mut context.config_mut().app.windows {
+            window.create = false;
+        }
+    }
     let mut builder = tauri::Builder::default();
     // 只允许一个实例：再次打开时把已有的主窗口拿到前台（必须最先注册）。
     // 开发时用 LENS_DATA_DIR 隔开数据的实例不受限制，可与已安装的版本同时运行
@@ -219,16 +240,30 @@ pub fn run() {
             let path = request.uri().path().to_string();
             tauri::async_runtime::spawn_blocking(move || responder.respond(protocol::handle(&app, &path)));
         })
-        .setup(|app| {
+        .setup(move |app| {
+            if portable.is_some() {
+                let windows = app.config().app.windows.clone();
+                for config in &windows {
+                    portable::window(WebviewWindowBuilder::from_config(app.handle(), config)?).build()?;
+                }
+            }
             // LENS_DATA_DIR：开发时与已安装的版本隔开数据（配合 WEBVIEW2_USER_DATA_FOLDER）
-            let root = match std::env::var_os("LENS_DATA_DIR") {
-                Some(dir) => std::path::PathBuf::from(dir),
-                None => app.path().data_dir()?.join("Lens"),
+            let root = match (std::env::var_os("LENS_DATA_DIR"), portable) {
+                (Some(dir), _) => std::path::PathBuf::from(dir),
+                (None, Some(base)) => portable::data_dir(base),
+                (None, None) => app.path().data_dir()?.join("Lens"),
             };
             std::fs::create_dir_all(&root)?;
             let guard = logging::init(&root.join("logs"))?;
             logging::install_panic_hook();
             app.manage(LogGuard(guard));
+            if let Some(base) = portable {
+                match portable::relocate(&root, base) {
+                    Ok(0) => {}
+                    Ok(n) => tracing::info!(n, "便携文件夹换了位置，已更新词典路径"),
+                    Err(e) => tracing::warn!(error = %e, "更新便携版词典路径失败"),
+                }
+            }
 
             let t_setup = std::time::Instant::now();
             let state = AppState::init(&root)?;
@@ -390,7 +425,7 @@ pub fn run() {
             commands::popup::lookup_in_popup,
             commands::popup::save_in_app_context,
         ])
-        .run(tauri::generate_context!());
+        .run(context);
 
     if let Err(e) = result {
         tracing::error!(error = %e, "Tauri 运行失败");

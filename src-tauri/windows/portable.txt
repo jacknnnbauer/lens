@@ -1,0 +1,12 @@
+词镜 Lens 便携版 / Lens portable
+
+这个文件让 Lens 以便携版运行，请不要删除。内容可以随便改，Lens 只看它在不在。
+Keep this file next to Lens.exe: its presence is what makes Lens portable.
+
+- 双击 Lens.exe 就能用。所有数据都在旁边的 data 文件夹里，整个文件夹可以复制、备份，或放进 U 盘带走。
+- 词典文件请放在这个文件夹里（比如新建一个 dicts 文件夹）再导入。这样挪动文件夹或 U 盘换盘符后，词典照常能用。
+  放在外面的词典换一台电脑就找不到了。
+- 升级：退出 Lens，用新版的 Lens.exe 覆盖旧的，data 文件夹不用动。
+- 拔 U 盘前先退出 Lens（包括托盘里的）。不要放在 OneDrive 等同步盘里运行，数据库可能被同步弄坏。
+- 需要系统里有 Microsoft Edge WebView2 运行时。Windows 11 自带，Windows 10 一般也有。
+- 便携版没有资源管理器右键菜单「用 Lens 打开」，也不会被系统卸载列表收录。不用了删掉整个文件夹即可。

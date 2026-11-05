@@ -555,6 +555,7 @@ export const en: Record<string, string> = {
   "取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。":
     "If the context sentence isn't available within this time, the popup opens with the clipboard text.",
   "数据文件夹": "Data folder",
+  "便携版": "Portable",
   "在资源管理器中显示": "Show in Explorer",
   "日志": "Logs",
   "查词历史、生词本、词典索引都保存在本机，不会上传。清空历史在「历史」页。":

@@ -1,13 +1,14 @@
 {
   "name": "lens",
   "private": true,
-  "version": "0.28.0",
+  "version": "0.29.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "portable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package_portable.ps1",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

@@ -10,7 +10,9 @@ import { DictCard } from "../../components/DictCard";
 import { ExportDialog } from "../../components/ExportDialog";
 import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
-import { isSentence } from "../../components/sentence";
+import { isHanPhrase, isSentence } from "../../components/sentence";
+import { Hint } from "../../components/Hint";
+import { normalizeHeadword } from "./alsoForm";
 import { SenseAtlas } from "../../components/SenseAtlas";
 import { useDicts } from "../../stores/dicts";
 import { useImmersive } from "../../stores/immersive";
@@ -215,6 +217,11 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const allMissed = done && handle && visible.length === 0;
   const hitCount = cards.filter((c) => c.status === "hit").length;
   const headword = cards.find((c) => c.status === "hit")?.entries[0]?.headword ?? "";
+  // 查 left 时词典给的是 left：提示它也可能是 leave 的变形（结果里已经有 leave 的就不提示）
+  const base = handle?.base ?? null;
+  const otherForm =
+    base && done && hitCount > 0 && !cards.some((c) => c.entries.some((e) => normalizeHeadword(e.headword) === base)) ? base : null;
+  const missingDicts = useDicts((s) => s.dicts.filter((d) => d.missing).length);
   canExportRef.current = anyHit;
 
   // Tab / Shift+Tab 在卡片之间跳转（SPEC 9.4），不进入词条内部的链接
@@ -291,6 +298,36 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           </span>
         </header>
       )}
+
+      {otherForm && handle && (
+        <p className={styles.otherForm}>
+          {tr("{w} 也可能是 {base} 的变形", { w: handle.normalized || handle.query.trim() })
+            .split("{base}")
+            .flatMap((part, i) =>
+              i === 0
+                ? [part]
+                : [
+                    <button key="b" type="button" className={styles.otherFormLink} onClick={() => lookupWord(otherForm)}>
+                      {otherForm}
+                    </button>,
+                    part,
+                  ],
+            )}
+        </p>
+      )}
+
+      {missingDicts > 0 && (
+        <p className={styles.missingNote}>
+          {tr("有 {n} 部词典找不到文件，查词时不出现。", { n: missingDicts })}
+          <button type="button" className={styles.otherFormLink} onClick={onOpenLibrary}>
+            {tr("去词典库重新指定")}
+          </button>
+        </p>
+      )}
+
+      <Hint id="han-char" anchor="search" show={!!handle && done && hitCount > 0 && isHanPhrase(handle.query) && [...handle.query.trim()].length >= 2}>
+        {tr("点框里的某一个字，可以只查这个字。")}
+      </Hint>
 
       {showJumpBar && visible.length > 0 && (
         <nav aria-label={tr("跳转到词典")} className={styles.jump}>

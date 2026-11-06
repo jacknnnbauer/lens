@@ -82,6 +82,8 @@ pub struct LookupHandle {
     pub request_id: String,
     pub query: String,
     pub normalized: String,
+    /// 查询词的原形和它不同时（left → leave）：词典收了 left 就不会再查 leave，界面据此提示「也可能是 leave 的变形」
+    pub base: Option<String>,
     /// 本次参与查询的词典（按配置组顺序），前端据此先画骨架
     pub dicts: Vec<DictBrief>,
 }

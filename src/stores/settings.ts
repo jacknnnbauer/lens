@@ -32,6 +32,8 @@ function merge<T extends object>(base: T, patch: DeepPartial<T>): T {
 
 let pending: DeepPartial<Settings> = {};
 let timer: ReturnType<typeof setTimeout> | undefined;
+/** 界面上改设置的次数：load() 据此判断读到的是不是改之前的旧值 */
+let writes = 0;
 
 export const useSettings = create<SettingsState>((set, get) => {
   const flush = async () => {
@@ -52,6 +54,7 @@ export const useSettings = create<SettingsState>((set, get) => {
     if (!current) return false;
     set({ settings: merge(current, patch) });
     pending = merge(pending as Settings, patch);
+    writes += 1;
     return true;
   };
 
@@ -61,7 +64,17 @@ export const useSettings = create<SettingsState>((set, get) => {
 
     load: async () => {
       try {
-        set({ settings: await getSettings(), error: null });
+        // 读的过程中界面上又改了设置：读到的是旧值，先把改动写回去再读，免得覆盖掉刚做的改动
+        for (let i = 0; i < 3; i++) {
+          const seq = writes;
+          const loaded = await getSettings();
+          if (seq === writes) {
+            set({ settings: merge(loaded, pending), error: null });
+            return;
+          }
+          await flush();
+        }
+        set({ settings: merge(await getSettings(), pending), error: null });
       } catch (e) {
         set({ error: String(e) });
       }

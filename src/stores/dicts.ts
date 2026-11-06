@@ -1,7 +1,7 @@
 // 词典库：列表、导入进度、删除。
 
 import { create } from "zustand";
-import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict, reorderDicts, setProfileDict } from "../ipc/dicts";
+import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict, reorderDicts, setProfileDict, relinkDict } from "../ipc/dicts";
 import { useLookup } from "./lookup";
 import type { DictInfo, IndexProgress, ProfileInfo } from "../ipc/types";
 
@@ -15,6 +15,8 @@ interface DictsState {
   refresh: () => Promise<void>;
   importPaths: (paths: string[]) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** 词典文件挪了位置：重新指定文件 */
+  relink: (id: string, path: string) => Promise<void>;
   /** 上移（-1）/ 下移（+1） */
   move: (id: string, dir: -1 | 1) => Promise<void>;
   /** 按新顺序排列（拖动把手）；当前查询随即按新顺序重查 */
@@ -105,6 +107,17 @@ export const useDicts = create<DictsState>((set, get) => ({
     try {
       await removeDict(id);
       await get().refresh();
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
+
+  relink: async (id, path) => {
+    try {
+      set({ error: null });
+      await relinkDict(id, path);
+      await get().refresh();
+      await useLookup.getState().rerun();
     } catch (e) {
       set({ error: String(e) });
     }

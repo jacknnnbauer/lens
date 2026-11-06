@@ -14,6 +14,7 @@ mod dict;
 mod epub;
 mod error;
 mod export;
+mod fatal;
 mod freq;
 mod fulltext;
 mod gloss;
@@ -126,6 +127,7 @@ static POPUP_CREATED: std::sync::Once = std::sync::Once::new();
 /// 启动时第一次显示主窗口；之后再调不做事
 pub(crate) fn first_show_main(app: &tauri::AppHandle) {
     MAIN_SHOWN.call_once(|| {
+        fatal::mark_started();
         if let Some(main) = app.get_webview_window("main") {
             let _ = main.show();
             let _ = main.set_focus();
@@ -172,7 +174,7 @@ pub fn run() {
     let portable = portable::base();
     if let Some(base) = portable {
         if let Err(e) = portable::prepare(base) {
-            portable::show_error(&crate::tf!(
+            fatal::show_error(&crate::tf!(
                 "便携版无法在这里保存数据：{}\n请把 Lens 文件夹放到可写的位置。",
                 "Portable Lens cannot save data here: {}\nPlease move the Lens folder to a writable location.",
                 e
@@ -202,6 +204,7 @@ pub fn run() {
             commands::articles::open_from_args(app, &args);
         }));
     }
+    fatal::install_panic_dialog();
     let result = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -256,6 +259,7 @@ pub fn run() {
             std::fs::create_dir_all(&root)?;
             let guard = logging::init(&root.join("logs"))?;
             logging::install_panic_hook();
+            fatal::set_log_dir(root.join("logs"));
             app.manage(LogGuard(guard));
             if let Some(base) = portable {
                 match portable::relocate(&root, base) {
@@ -333,6 +337,7 @@ pub fn run() {
             commands::dicts::list_dicts,
             commands::dicts::import_dicts,
             commands::dicts::remove_dict,
+            commands::dicts::relink_dict,
             commands::dicts::reorder_dicts,
             commands::dicts::list_profiles,
             commands::dicts::set_profile_dict,
@@ -429,7 +434,7 @@ pub fn run() {
 
     if let Err(e) = result {
         tracing::error!(error = %e, "Tauri 运行失败");
-        eprintln!("Lens 启动失败：{e}");
+        fatal::startup_failed(&e.to_string());
         std::process::exit(1);
     }
 }

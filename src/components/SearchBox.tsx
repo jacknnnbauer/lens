@@ -8,6 +8,7 @@ import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } f
 import { suggest } from "../ipc/lookup";
 import { SearchIcon } from "./icons";
 import { isHanPhrase, isSentence, wordSpan } from "./sentence";
+import { markHint } from "./Hint";
 import styles from "./SearchBox.module.css";
 import { tr } from "../i18n";
 
@@ -127,6 +128,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
     const part = value.slice(from, to).trim();
     if (!/^\p{Script=Han}+$/u.test(part)) return;
     el.setSelectionRange(from, to);
+    markHint("han-char");
     runNow(part);
   };
 
@@ -176,6 +178,7 @@ export const SearchBox = forwardRef<SearchBoxHandle, Props>(function SearchBox({
         <span className="sr-only">{tr("查词")}</span>
         <textarea
           ref={input}
+          data-hint="search"
           className={styles.input}
           rows={1}
           role="combobox"

@@ -18,6 +18,8 @@ export interface LookupHandle {
   requestId: string;
   query: string;
   normalized: string;
+  /** 原形和查询词不同时（left → leave）；词典收了 left 时不会再查 leave，界面据此提示 */
+  base: string | null;
   dicts: DictBrief[];
 }
 
@@ -53,6 +55,8 @@ export interface DictInfo {
   path: string | null;
   indexState: "pending" | "building" | "ready" | "error";
   loaded: boolean;
+  /** 本地词典的文件不在记录的位置 */
+  missing: boolean;
   /** 在线词典 */
   provider: string | null;
   mode: OnlineMode | null;

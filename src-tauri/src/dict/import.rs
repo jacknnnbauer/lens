@@ -119,6 +119,45 @@ pub fn import_dict(db: &Db, registry: &DictRegistry, path: &Path) -> Result<Dict
     }
 }
 
+/// 词典文件挪了位置：指向新文件，沿用已建好的索引。
+/// 用格式和词条数确认是同一部词典；不一样就拒绝，免得索引对不上正文。
+pub fn relink_dict(db: &Db, registry: &DictRegistry, id: &str, path: &Path) -> Result<DictMeta> {
+    let mut row = db
+        .with_conn(dicts::list)?
+        .into_iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| Error::Other(crate::i18n::t("找不到这部词典", "Dictionary not found").into()))?;
+    let kind = detect_kind(path)?;
+    if kind.as_str() != row.kind {
+        return Err(Error::InvalidDict(crate::tf!("格式不同（原来是 {}）", "a different format (was {})", row.kind)));
+    }
+    let abs = std::path::absolute(path)?;
+    let path_str = abs.to_string_lossy().into_owned();
+    if let Some(other) = db.with_conn(|c| dicts::find_id_by_path(c, &path_str))? {
+        if other != id {
+            return Err(Error::AlreadyImported(path_str));
+        }
+    }
+    let prepared = Prepared::load(kind, &abs)?;
+    let count = prepared.entry_count() as i64;
+    if row.entry_count.is_some_and(|n| n != count) {
+        return Err(Error::InvalidDict(crate::tf!(
+            "不是同一部词典：原来 {} 条，这个文件 {} 条",
+            "not the same dictionary: it had {} entries, this file has {}",
+            row.entry_count.unwrap_or(0),
+            count
+        )));
+    }
+    drop(prepared);
+    row.path = Some(path_str);
+    let loaded = open_dict(&row, registry.index_dir())?;
+    db.with_conn(|c| dicts::set_paths(c, id, row.path.as_deref(), row.index_path.as_deref()))?;
+    let meta = loaded.source.meta().clone();
+    registry.insert(loaded)?;
+    tracing::info!(dict = %meta.name, "词典已重新指定位置");
+    Ok(meta)
+}
+
 /// 删除词典：数据库记录、注册表、索引目录下的 `<id>.*` 文件。
 /// 文件删除失败（例如仍被映射）只记日志，下次启动时由 `sweep_orphans` 清理。
 pub fn remove_dict(db: &Db, registry: &DictRegistry, id: &str) -> Result<bool> {
@@ -266,6 +305,39 @@ mod tests {
         std::fs::write(&bad, r#"{"name":"x","version":1,"entries":[{"headword":"","html":""}]}"#)?;
         assert!(matches!(import_dict(&db, &registry, &bad), Err(Error::InvalidDict(_))));
         assert!(db.with_conn(dicts::list)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn moved_dict_can_be_relinked_without_reindexing() -> Result<()> {
+        let (dir, db, registry) = setup()?;
+        let path = dir.path().join("small.json");
+        let body = r#"{"name":"s","version":1,"entries":[{"headword":"a","html":"A"},{"headword":"b","html":"B"}]}"#;
+        std::fs::write(&path, body)?;
+        let meta = import_dict(&db, &registry, &path)?;
+        // 挪走：重启后加载不了
+        let moved = dir.path().join("moved");
+        std::fs::create_dir_all(&moved)?;
+        let new_path = moved.join("small.json");
+        std::fs::rename(&path, &new_path)?;
+        let fresh = DictRegistry::new(registry.index_dir().to_path_buf());
+        assert_eq!(fresh.load_all(&db)?, 0);
+        // 词条数不同的文件不认
+        let other = dir.path().join("other.json");
+        std::fs::write(&other, r#"{"name":"s","version":1,"entries":[{"headword":"a","html":"A"}]}"#)?;
+        assert!(matches!(relink_dict(&db, &fresh, &meta.id, &other), Err(Error::InvalidDict(_))));
+        // 格式不同也不认
+        let txt = dir.path().join("x.mdx");
+        std::fs::write(&txt, b"nope")?;
+        assert!(relink_dict(&db, &fresh, &meta.id, &txt).is_err());
+        // 指到新位置：能查，路径写回库里
+        relink_dict(&db, &fresh, &meta.id, &new_path)?;
+        assert_eq!(lookup_all(&fresh, &meta.id, "b")?.len(), 1);
+        let row = db.with_conn(dicts::list)?.into_iter().find(|r| r.id == meta.id).ok_or_else(|| Error::Other("没有".into()))?;
+        assert_eq!(row.path.as_deref(), Some(std::path::absolute(&new_path)?.to_string_lossy().as_ref()));
+        // 再重启照常加载
+        let again = DictRegistry::new(registry.index_dir().to_path_buf());
+        assert_eq!(again.load_all(&db)?, 1);
         Ok(())
     }
 

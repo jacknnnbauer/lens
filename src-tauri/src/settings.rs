@@ -134,11 +134,21 @@ pub struct General {
     pub close_to_tray: bool,
     /// 第一次隐藏到托盘时已经提示过（之后直接隐藏）
     pub tray_hint_shown: bool,
+    /// 第一次启动已经过了：全新安装第一次启动时展开左侧导航，不按「启动回到简洁单栏」收起。
+    /// 旧版本的设置文件里没有这一项，算已经过了
+    #[serde(default = "yes")]
+    pub intro_done: bool,
+    /// 看过（点了「知道了」或用过一次）的一次性提示：nav | han-char | toc
+    pub hints_seen: Vec<String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Default for General {
     fn default() -> Self {
-        Self { check_updates: true, last_update_check: 0, close_to_tray: false, tray_hint_shown: false }
+        Self { check_updates: true, last_update_check: 0, close_to_tray: false, tray_hint_shown: false, intro_done: false, hints_seen: Vec::new() }
     }
 }
 
@@ -478,6 +488,19 @@ mod tests {
         assert!(l.show_jump_bar && !l.show_nav, "未写的字段取默认值");
         let l = store.patch(json!({ "layout": { "showNav": true } }))?.layout;
         assert_eq!((l.preset.as_str(), l.show_nav), ("three-column", true));
+        Ok(())
+    }
+
+    #[test]
+    fn only_a_fresh_install_counts_as_first_run() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        // 没有设置文件：全新安装
+        let fresh = SettingsStore::load(dir.path().join("none.json"))?.get()?.general;
+        assert!(!fresh.intro_done && fresh.hints_seen.is_empty());
+        // 旧版本写的设置文件没有这一项：不算第一次
+        let path = dir.path().join("settings.json");
+        fs::write(&path, r#"{"general":{"checkUpdates":true}}"#)?;
+        assert!(SettingsStore::load(path)?.get()?.general.intro_done);
         Ok(())
     }
 

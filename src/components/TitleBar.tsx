@@ -45,6 +45,7 @@ export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext 
       <button
         type="button"
         className={styles.navBtn}
+        data-hint="nav"
         aria-label={tr(navShown ? "隐藏左侧导航" : "显示左侧导航")}
         aria-pressed={navShown}
         title={`${tr(navShown ? "隐藏左侧导航" : "显示左侧导航")}（Ctrl+\\）`}

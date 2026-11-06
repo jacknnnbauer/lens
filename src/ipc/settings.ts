@@ -101,6 +101,10 @@ export interface General {
   closeToTray: boolean;
   /** 第一次隐藏到托盘时已提示过 */
   trayHintShown: boolean;
+  /** 全新安装的第一次启动已经过了 */
+  introDone: boolean;
+  /** 看过的一次性提示 */
+  hintsSeen: string[];
 }
 
 export interface Online {

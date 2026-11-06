@@ -21,6 +21,8 @@ pub struct DictInfo {
     pub index_state: &'static str,
     /// 是否已成功加载、可以查词
     pub loaded: bool,
+    /// 本地词典的文件不在记录的位置（挪走、删掉、换了盘符）
+    pub missing: bool,
     /// 在线词典：provider id、模式、需要的凭据、是否已填 Key、选项
     pub provider: Option<String>,
     pub mode: Option<OnlineMode>,
@@ -46,6 +48,7 @@ pub async fn list_dicts(state: State<'_, AppState>) -> Result<Vec<DictInfo>> {
             let info = r.provider.as_deref().and_then(online::catalog_entry);
             Ok(DictInfo {
                 loaded: state.dicts.get(&r.id)?.is_some() || online.is_some(),
+                missing: r.kind != "online" && r.path.as_deref().is_some_and(|p| !std::path::Path::new(p).exists()),
                 mode: info.map(|i| i.mode),
                 key_kind: info.map(|i| i.key_kind),
                 has_key: info.is_some_and(|i| i.key_kind != KeyKind::None) && super::online::has_key(&r.id),
@@ -116,6 +119,18 @@ pub async fn import_dicts(app: AppHandle, paths: Vec<String>) -> Result<()> {
         }
     });
     Ok(())
+}
+
+/// 词典文件挪了位置：重新指定文件，不用重建索引
+#[tauri::command]
+pub async fn relink_dict(app: AppHandle, id: String, path: String) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        state.res_cache.evict_dict(&id);
+        import::relink_dict(&state.db, &state.dicts, &id, std::path::Path::new(&path)).map(|_| ())
+    })
+    .await
+    .map_err(|e| crate::error::Error::Other(e.to_string()))?
 }
 
 #[tauri::command]

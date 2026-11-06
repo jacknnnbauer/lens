@@ -93,22 +93,6 @@ fn rebase(path: &str, old: &Path, new: &Path) -> Option<String> {
     Some(new.join(rest).to_string_lossy().into_owned())
 }
 
-/// 启动前的错误：这时还没有窗口和日志，弹系统对话框说明
-#[cfg(windows)]
-pub fn show_error(message: &str) {
-    use windows::core::HSTRING;
-    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
-    // SAFETY：两个字符串在调用期间都有效，没有父窗口
-    unsafe {
-        MessageBoxW(None, &HSTRING::from(message), &HSTRING::from("Lens"), MB_OK | MB_ICONERROR);
-    }
-}
-
-#[cfg(not(windows))]
-pub fn show_error(message: &str) {
-    eprintln!("{message}");
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

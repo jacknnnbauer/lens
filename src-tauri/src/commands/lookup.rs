@@ -45,6 +45,7 @@ pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, 
     let normalized = keys.last().cloned().unwrap_or_default();
     // 不收屈折形式的词典（牛津高阶没有 boutiques）查不到原词时再查原形；收了的照常命中原词
     let base = crate::lemma::base_form(&state, &normalized);
+    let other_form = (!base.is_empty() && !base.contains(' ') && base != crate::dict::index::normalize_key(&normalized)).then(|| base.clone());
     if !base.is_empty() && !keys.iter().any(|k| crate::dict::index::normalize_key(k) == base) {
         keys.push(base);
     }
@@ -55,6 +56,7 @@ pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, 
         request_id: request_id.clone(),
         query,
         normalized,
+        base: other_form,
         dicts: sources.iter().map(Source::brief).collect(),
     };
 

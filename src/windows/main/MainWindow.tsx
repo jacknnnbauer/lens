@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { checkUpdate, mainReady } from "../../ipc/settings";
 import { toast } from "../../stores/toast";
 import { TrayHint } from "../../components/TrayHint";
+import { Hint, markHint } from "../../components/Hint";
 import { useNavHistory } from "./navHistory";
 import { ResizeHandle } from "../../components/ResizeHandle";
 import { useInAppLookup } from "../../components/inAppLookup";
@@ -83,6 +84,8 @@ export function MainWindow() {
   const lookupPage = useRef<LookupPageHandle>(null);
   const capture = useCaptureStatus();
   const page = useRoute((s) => s.page);
+  // 导航提示只在还没查词的空白查词页出现，不挡阅读、查词结果里那些更具体的提示
+  const idleLookup = useLookup((s) => s.handle === null);
   const go = useRoute((s) => s.go);
   // 从其他页面查一个词：切回查词页（查词页一直挂载，只是隐藏）
   const lookupWord = useCallback(
@@ -157,6 +160,14 @@ export function MainWindow() {
   useEffect(() => {
     if (!layout || startApplied.current) return;
     startApplied.current = true;
+    // 全新安装的第一次启动：展开左侧导航，让人看到阅读、生词本、设置这些入口
+    if (useSettings.getState().settings?.general.introDone === false) {
+      useSettings.getState().update({
+        layout: { preset: "two-column", showNav: true, showContext: false, showStatusBar: true },
+        general: { introDone: true },
+      });
+      return;
+    }
     if (layout.startCompact) {
       useSettings.getState().updateLayout({ preset: "compact", showNav: false, showContext: false, showStatusBar: false });
     }
@@ -166,6 +177,7 @@ export function MainWindow() {
   const toggleNav = useCallback(() => {
     const cur = useSettings.getState().settings?.layout.showNav ?? false;
     useSettings.getState().updateLayout({ showNav: !cur });
+    markHint("nav");
   }, []);
   // 标题栏右侧按钮 / Ctrl+Shift+\：右侧上下文栏
   // 查词页工具栏按钮 / Ctrl+Shift+W：卡片墙
@@ -375,6 +387,9 @@ export function MainWindow() {
 
       <LibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} />
       <TrayHint />
+      <Hint id="nav" anchor="nav" show={showTitleBar && !(layout?.showNav ?? false) && !immersive && page === "lookup" && idleLookup}>
+        {tr("阅读、生词本、设置都在左侧导航里：点这里或按 Ctrl+\\ 打开。")}
+      </Hint>
       <Toast />
       <BatchDialog />
       {!immersive && <BatchChip />}

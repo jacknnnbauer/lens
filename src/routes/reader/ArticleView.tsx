@@ -9,6 +9,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DictCard } from "../../components/DictCard";
+import { Hint, markHint } from "../../components/Hint";
 import { acceptable, paragraphOf } from "../../components/inAppLookup";
 import { bookChapter, openArticle, openBook, renameArticle, saveReadingContext, setArticleProgress, setBookProgress, updateArticleBody, type Article, type BookInfo, type TocItem } from "../../ipc/articles";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
@@ -561,9 +562,22 @@ export function ArticleView({ id, onBack }: Props) {
         )}
         {chapterInfo && book && at && (
           <span className={styles.tocWrap} data-toc="">
-            <button type="button" className={styles.chapterBtn} aria-expanded={tocOpen} title={tr("目录")} onClick={() => setTocOpen((o) => !o)}>
+            <button
+              type="button"
+              className={styles.chapterBtn}
+              data-hint="toc"
+              aria-expanded={tocOpen}
+              title={tr("目录")}
+              onClick={() => {
+                markHint("toc");
+                setTocOpen((o) => !o);
+              }}
+            >
               {tocItem?.title ?? chapterInfo.title}
             </button>
+            <Hint id="toc" anchor="toc" show={!tocOpen && book.toc.length > 1}>
+              {tr("点章节名打开目录，可以跳到任意一章。")}
+            </Hint>
             {tocOpen && (
               <nav ref={tocRef} className={styles.toc} aria-label={tr("目录")}>
                 {book.toc.map((t, i) => (

@@ -13,6 +13,11 @@ export function importDicts(paths: string[]): Promise<void> {
   return invoke("import_dicts", { paths });
 }
 
+/** 词典文件挪了位置：指向新文件，沿用原来的索引（词条数不同会拒绝） */
+export function relinkDict(id: string, path: string): Promise<void> {
+  return invoke("relink_dict", { id, path });
+}
+
 export function removeDict(id: string): Promise<boolean> {
   return invoke<boolean>("remove_dict", { id });
 }

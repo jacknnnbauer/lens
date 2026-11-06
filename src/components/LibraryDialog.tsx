@@ -20,7 +20,13 @@ interface Props {
 export function LibraryDialog({ open, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const downOnBackdrop = useRef(false);
-  const { dicts, imports, error, importPaths, remove, move, setOrder } = useDicts();
+  const { dicts, imports, error, importPaths, remove, relink, move, setOrder } = useDicts();
+  // 文件挪走了：选新位置，沿用原来的索引
+  const relocate = async (id: string, kind: string) => {
+    const ext = kind === "stardict" ? "ifo" : kind;
+    const picked = await openFileDialog({ multiple: false, title: tr("找到这部词典的文件"), filters: [{ name: tr("词典"), extensions: [ext] }] });
+    if (typeof picked === "string") await relink(id, picked);
+  };
   const drag = useDragReorder(
     dicts.map((d) => d.id),
     (ids) => void setOrder(ids),
@@ -139,7 +145,7 @@ export function LibraryDialog({ open, onClose }: Props) {
                     {tr(KIND_LABEL[d.kind] ?? d.kind)}
                     {d.kind === "online" && ` · ${onlineMeta(d)}`}
                     {d.entryCount != null && ` · ${tr("{n} 条", { n: d.entryCount.toLocaleString() })}`}
-                    {!d.loaded && <span className={styles.failed}> · {tr(d.indexState === "error" ? "索引失败" : "未能加载")}</span>}
+                    {!d.loaded && <span className={styles.failed}> · {tr(d.missing ? "找不到文件" : d.indexState === "error" ? "索引失败" : "未能加载")}</span>}
                   </span>
                   {d.path && (
                     <span className={styles.path} title={d.path}>
@@ -166,6 +172,11 @@ export function LibraryDialog({ open, onClose }: Props) {
                         onClick={() => setSettingsOpen((o) => (o === d.id ? null : d.id))}
                       >
                         {tr("设置")}
+                      </button>
+                    )}
+                    {d.missing && (
+                      <button type="button" className={styles.ghost} onClick={() => void relocate(d.id, d.kind)} aria-label={tr("重新指定 {name} 的位置", { name: d.name })}>
+                        {tr("重新指定位置…")}
                       </button>
                     )}
                     <button type="button" className={styles.ghost} onClick={() => setConfirming(d.id)} aria-label={tr("移除 {name}", { name: d.name })}>

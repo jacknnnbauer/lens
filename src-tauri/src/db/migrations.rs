@@ -42,6 +42,18 @@ pub fn apply(conn: &mut Connection) -> Result<()> {
     Ok(())
 }
 
+/// 测试用：只执行到第 `upto` 个迁移，模拟旧版本的库
+#[cfg(test)]
+pub fn apply_upto(conn: &mut Connection, upto: i32) -> Result<()> {
+    for (version, sql) in MIGRATIONS.iter().filter(|(v, _)| *v <= upto) {
+        let tx = conn.transaction()?;
+        tx.execute_batch(sql)?;
+        tx.pragma_update(None, "user_version", version)?;
+        tx.commit()?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

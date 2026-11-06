@@ -202,3 +202,30 @@
 :global(html[data-immersive-cards]) .jump {
   display: none;
 }
+
+.otherForm,
+.missingNote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.missingNote {
+  color: var(--warn);
+}
+
+.otherFormLink {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.otherFormLink:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

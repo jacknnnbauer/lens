@@ -65,8 +65,9 @@ export interface FirstEntry {
 }
 
 /** 第一本命中的本地词典的词条（只查本地，不影响当前查询、不记历史）：语境卡背面用 */
-export function firstEntry(query: string): Promise<FirstEntry | null> {
-  return invoke<FirstEntry | null>("first_entry", { query });
+/** `dict`：先查这部词典，查不到再按生词本设置和配置组的顺序 */
+export function firstEntry(query: string, dict?: string | null): Promise<FirstEntry | null> {
+  return invoke<FirstEntry | null>("first_entry", { query, dict: dict ?? null });
 }
 
 export interface SenseCandidate {

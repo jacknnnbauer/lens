@@ -115,7 +115,7 @@ async function renderSingle(job: ExportJob) {
   setLang(job.lang ?? "zh");
   const { container, custom } = await mount(job.body, job.theme, job.accent);
   if (job.format === "pdf") {
-    await invoke("export_print_pdf", { path: job.path, paper: job.paper });
+    await invoke(job.outline ? "export_print_pdf_outline" : "export_print_pdf", { path: job.path, paper: job.paper });
   } else {
     await invoke("export_save_html", { path: job.path, html: serialize(container, job.title, job.theme, job.accent, custom) });
   }

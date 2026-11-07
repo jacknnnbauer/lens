@@ -12,4 +12,5 @@ pub mod online;
 pub mod popup;
 pub mod scan;
 pub mod settings;
+pub mod study;
 pub mod words;

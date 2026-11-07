@@ -19,6 +19,10 @@ export interface ExportJob {
   paper: Paper;
   /** 界面语言：导出文件里的标签、版权说明跟着它 */
   lang: Lang;
+  /** PDF 按标题生成书签目录（长文档用） */
+  outline?: boolean;
+  /** 等导出完成的时间；词多的文档要长一些 */
+  timeoutMs?: number;
 }
 
 const READY_TIMEOUT_MS = 20_000;
@@ -54,7 +58,7 @@ export async function runExport(job: ExportJob): Promise<void> {
   if (created) await ready.promise;
   else ready.cancel();
 
-  const done = waitFor<{ jobId: string; ok: boolean; error: string | null }>("export:done", DONE_TIMEOUT_MS, (p) => p.jobId === job.jobId);
+  const done = waitFor<{ jobId: string; ok: boolean; error: string | null }>("export:done", job.timeoutMs ?? DONE_TIMEOUT_MS, (p) => p.jobId === job.jobId);
   await emitTo("export", "export:render", job);
   const r = await done.promise;
   if (!r.ok) throw new Error(r.error ?? tr("导出失败"));

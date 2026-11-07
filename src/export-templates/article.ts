@@ -109,29 +109,37 @@ function shadow(entryHtml: string, style: ExportStyle): string {
   return `<template shadowrootmode="open" shadowrootserializable><style>${css}</style>${entryHtml}</template>`;
 }
 
-function entryHtml(w: ArticleWord, input: ArticleExportInput): string {
-  if (!input.options.definition || !w.entry) return "";
-  const o = { phonetics: input.options.phonetics, examples: input.options.examples, context: false, sourceDate: false };
-  const bodies = w.entry.html.map((h) => `<div class="dict-body">${shadow(trimEntry(h, o), input.style)}</div>`).join("");
+export interface GlossOptions {
+  sentence: boolean;
+  definition: boolean;
+  examples: boolean;
+  phonetics: boolean;
+}
+
+function entryHtml(w: ArticleWord, options: GlossOptions, style: ExportStyle): string {
+  if (!options.definition || !w.entry) return "";
+  const o = { phonetics: options.phonetics, examples: options.examples, context: false, sourceDate: false };
+  // 词典里的 h1–h6 不是文档的标题：标成 role="none"，打印 PDF 时不进书签（样式照旧）
+  const bodies = w.entry.html.map((h) => `<div class="dict-body">${shadow(trimEntry(h, o).replace(/<h([1-6])(?=[\s>])/gi, '<h$1 role="none"'), style)}</div>`).join("");
   return `<div class="gl-def"><div class="gl-dict">${escapeHtml(w.entry.name)}</div>${bodies}</div>`;
 }
 
-function wordHead(w: ArticleWord, n: number): string {
+function wordHead(w: ArticleWord, n: number, extra: string): string {
   const surface = w.surface && w.surface.toLowerCase() !== w.lemma.toLowerCase() ? `<span class="gl-form">${escapeHtml(w.surface)}</span>` : "";
   const tag = w.status === "saved" ? `<span class="gl-tag">${tr("已收藏")}</span>` : "";
-  return `<div class="gl-head"><span class="gl-no">${n}</span><strong>${escapeHtml(w.lemma)}</strong>${w.pos ? `<em>${escapeHtml(w.pos)}</em>` : ""}${surface}${tag}</div>`;
+  return `<div class="gl-head"><span class="gl-no">${n}</span><strong>${escapeHtml(w.lemma)}</strong>${w.pos ? `<em>${escapeHtml(w.pos)}</em>` : ""}${surface}${tag}${extra}</div>`;
+}
+
+/** 词汇表里的一个词：编号、词头、中文简释、文中原句、词典释义。`extra` 是词头行末尾追加的 HTML（全书预习里放出现次数、出处） */
+export function glossItem(w: ArticleWord, n: number, options: GlossOptions, style: ExportStyle, extra = ""): string {
+  const gloss = w.gloss ? `<p class="gl-zh">${escapeHtml(w.gloss)}</p>` : "";
+  const q = options.sentence && w.sentence ? `<blockquote class="gl-quote">${quote(w)}</blockquote>` : "";
+  return `<section class="gl-item" id="g-${n}">${wordHead(w, n, extra)}${gloss}${q}${entryHtml(w, options, style)}</section>`;
 }
 
 function glossary(input: ArticleExportInput): string {
   if (input.words.length === 0) return "";
-  const items = input.words
-    .map((w, i) => {
-      const n = i + 1;
-      const gloss = w.gloss ? `<p class="gl-zh">${escapeHtml(w.gloss)}</p>` : "";
-      const q = input.options.sentence && w.sentence ? `<blockquote class="gl-quote">${quote(w)}</blockquote>` : "";
-      return `<section class="gl-item" id="g-${n}">${wordHead(w, n)}${gloss}${q}${entryHtml(w, input)}</section>`;
-    })
-    .join("");
+  const items = input.words.map((w, i) => glossItem(w, i + 1, input.options, input.style)).join("");
   return `<section class="glossary"><h2>${tr("词汇表")}<small>${tr("{n} 个词", { n: input.words.length })}</small></h2><div class="gl-list">${items}</div></section>`;
 }
 

@@ -27,6 +27,7 @@ mod protocol;
 mod query;
 mod review;
 mod scan;
+mod study;
 mod senses;
 mod settings;
 mod themes;
@@ -368,6 +369,8 @@ pub fn run() {
             commands::scan::scan_text,
             commands::scan::set_known_words,
             commands::scan::save_scanned_words,
+            commands::study::book_study_preview,
+            commands::study::book_study_list,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,

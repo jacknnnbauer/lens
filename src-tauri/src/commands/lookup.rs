@@ -197,7 +197,8 @@ pub struct FirstEntry {
 }
 
 #[tauri::command]
-pub async fn first_entry(state: State<'_, AppState>, query: String) -> Result<Option<FirstEntry>> {
+/// `dict`：先查这部词典（全书预习里用户选的释义词典），查不到再按下面的顺序
+pub async fn first_entry(state: State<'_, AppState>, query: String, dict: Option<String>) -> Result<Option<FirstEntry>> {
     let keys = query::candidates(&query);
     if keys.is_empty() {
         return Ok(None);
@@ -207,7 +208,7 @@ pub async fn first_entry(state: State<'_, AppState>, query: String) -> Result<Op
     let chosen = state.settings.get()?.wordbook.card_dict;
     dicts.sort_by_key(|d| {
         let m = d.source.meta();
-        (m.id != chosen, is_reference_dict(&m.name))
+        (dict.as_deref() != Some(m.id.as_str()), m.id != chosen, is_reference_dict(&m.name))
     });
     tauri::async_runtime::spawn_blocking(move || -> Result<Option<FirstEntry>> {
         for d in &dicts {

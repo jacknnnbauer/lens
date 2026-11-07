@@ -211,6 +211,20 @@ fn push_text(out: &mut String, text: &str) {
 
 /// 章节的纯文字（词数、预览、找标题用）：去掉标签和 head / script / style，解开实体
 pub fn plain_of_html(html: &str) -> String {
+    strip_tags(html, false)
+}
+
+/// 同上，但段落、标题、列表项、换行之间换行：生词扫描按段落断句，标题不会和下一段的第一句连在一起
+pub fn text_of_html(html: &str) -> String {
+    strip_tags(html, true)
+}
+
+/// 段落一类的块级元素
+fn is_block(name: &str) -> bool {
+    matches!(name, "p" | "div" | "br" | "li" | "tr" | "blockquote" | "section" | "article" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "pre" | "hr" | "dd" | "dt" | "td" | "th")
+}
+
+fn strip_tags(html: &str, lines: bool) -> String {
     let mut out = String::with_capacity(html.len() / 2);
     let mut rest = html;
     while let Some(lt) = rest.find('<') {
@@ -228,7 +242,8 @@ pub fn plain_of_html(html: &str) -> String {
             }
             continue;
         }
-        out.push(' ');
+        let tag: String = tail[1..].trim_start_matches('/').chars().take_while(|c| c.is_ascii_alphanumeric()).collect::<String>().to_ascii_lowercase();
+        out.push(if lines && is_block(&tag) { '\n' } else { ' ' });
         rest = &tail[gt + 1..];
     }
     push_text(&mut out, rest);
@@ -467,6 +482,16 @@ pub mod tests {
         assert_eq!(book.toc.len(), 2, "指向不存在文件的目录项丢掉");
         assert_eq!(book.toc[1], TocItem { title: "Rain".into(), level: 1, chapter: 0, anchor: Some("rain".into()) });
         Ok(())
+    }
+
+    #[test]
+    fn text_keeps_paragraph_breaks() {
+        let html = "<html><head><title>x</title></head><body><h1>Loomings</h1><p>Call me <i>Ishmael</i>.</p><p>Some years ago&mdash;never mind.<br/>How long.</p></body></html>";
+        let t = text_of_html(html);
+        let lines: Vec<&str> = t.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+        assert_eq!(lines, ["Loomings", "Call me  Ishmael .", "Some years ago-never mind.", "How long."]);
+        // 原来的纯文字不变：不换行
+        assert!(!plain_of_html(html).contains('\n'));
     }
 
     #[test]

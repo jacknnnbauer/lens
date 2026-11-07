@@ -25,6 +25,7 @@ import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
 import { scrollRoot } from "../../windows/main/scroll";
 import { ArticleExportDialog } from "./ArticleExportDialog";
+import { BookStudyDialog } from "./BookStudyDialog";
 import { WysiwygEditor, type WysiwygApi } from "./WysiwygEditor";
 import { renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
@@ -128,6 +129,7 @@ export function ArticleView({ id, onBack }: Props) {
   const [editMode, setEditMode] = useState<"rich" | "source">(() => readPref("lens.reader.editMode", "rich", (v) => v === "rich" || v === "source"));
   const richApi = useRef<WysiwygApi | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [studying, setStudying] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const index = useRef<WordIndex | null>(null);
   // 电子书：章节和目录，以及正在读的章节（anchor 是从目录或脚注跳过来要到的位置，否则回到 pos）
@@ -720,7 +722,16 @@ export function ArticleView({ id, onBack }: Props) {
         title={chapterInfo ? `${article?.title ?? ""} · ${chapterInfo.title}` : (article?.title ?? "")}
         scan={scan}
         getHtml={exportHtml}
+        onStudy={
+          book && article
+            ? () => {
+                setExporting(false);
+                setStudying(true);
+              }
+            : undefined
+        }
       />
+      {book && article && <BookStudyDialog open={studying} onClose={() => setStudying(false)} bookId={article.id} level={level} />}
 
       {sideHost &&
         createPortal(

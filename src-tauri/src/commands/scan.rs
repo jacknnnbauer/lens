@@ -32,19 +32,7 @@ pub async fn scan_text(state: State<'_, AppState>, text: String, level: u32) -> 
     let known: HashSet<String> = state.db.with_conn(words::known_lemmas)?.into_iter().collect();
     let (coca, wordnet) = (state.coca(), state.wordnet());
     tauri::async_runtime::spawn_blocking(move || {
-        let freq = crate::freq::get();
-        let rank = |w: &str| match &coca {
-            Some(c) => c.lookup(w).first().map(|e| e.rank),
-            None => freq.rank(w),
-        };
-        let is_word = |w: &str| wordnet.as_ref().is_some_and(|wn| wn.has(w)) || freq.rank(w).is_some();
-        let irregular = |w: &str| {
-            crate::batch::parse::irregular(w)
-                .map(str::to_string)
-                .or_else(|| wordnet.as_ref().and_then(|wn| wn.irregular(w)).map(str::to_string))
-        };
-        let lx = crate::scan::Lexicon { rank: &rank, is_word: &is_word, irregular: &irregular };
-        let result = crate::scan::scan(&text, level, &lx, &saved, &known);
+        let result = crate::scan::with_lexicon(coca.as_deref(), wordnet.as_deref(), |lx| crate::scan::scan(&text, level, lx, &saved, &known));
         ScanResponse { result, source: if coca.is_some() { "coca" } else { "builtin" } }
     })
     .await

@@ -26,6 +26,8 @@ interface Props {
   scan: ScanResult | null;
   /** 阅读视图里排好版、包好词的正文 HTML */
   getHtml: () => string;
+  /** 电子书：改为生成整本书的预习包 */
+  onStudy?: () => void;
 }
 
 interface Opts {
@@ -59,7 +61,7 @@ function readPrefs(): { layout: ArticleLayout; opts: Opts } {
 
 type Phase = { kind: "idle" } | { kind: "busy"; note: string } | { kind: "done"; path: string } | { kind: "error"; message: string };
 
-export function ArticleExportDialog({ open, onClose, title, scan, getHtml }: Props) {
+export function ArticleExportDialog({ open, onClose, title, scan, getHtml, onStudy }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const prefs = useSettings((s) => s.settings?.export);
   const accent = useSettings((s) => s.settings?.appearance.accent) ?? "blue";
@@ -188,6 +190,11 @@ export function ArticleExportDialog({ open, onClose, title, scan, getHtml }: Pro
       <header className={dlg.head}>
         <h2 id="article-export-title">{tr("导出文章")}</h2>
         <span className={dlg.word}>{title}</span>
+        {onStudy && (
+          <button type="button" className={dlg.ghost} onClick={onStudy} title={tr("整本书的生词表、阅读路线表，读之前先预习")}>
+            {tr("全书预习包…")}
+          </button>
+        )}
         <button type="button" className={dlg.iconBtn} aria-label={tr("关闭")} onClick={onClose}>
           <CloseIcon />
         </button>

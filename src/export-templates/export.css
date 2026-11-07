@@ -574,3 +574,121 @@ sup.an {
 .lens-article[data-layout="cards"] .gl-def {
   margin-left: 0;
 }
+
+/* 全书预习包：路线表、分章词表、字母索引 */
+.st-road {
+  margin-top: 28px;
+}
+
+.st-road > h2,
+.st-index > h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--text);
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.st-road > h2 small,
+.st-index > h2 small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sub);
+}
+
+.st-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.st-table th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--text);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.st-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: baseline;
+}
+
+.st-table tr {
+  break-inside: avoid;
+}
+
+.st-n,
+.st-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.st-n {
+  color: var(--accent);
+}
+
+.st-title {
+  font-family: var(--font-gloss);
+}
+
+.st-density {
+  position: relative;
+  width: 22%;
+}
+
+.st-bar {
+  display: inline-block;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  opacity: 0.55;
+  vertical-align: middle;
+  max-width: calc(100% - 44px);
+}
+
+/* 分章词表：第一组另起一页，之后各章接着排，不每章都换页 */
+.st-group[data-follow] {
+  break-before: auto;
+  margin-top: 30px;
+}
+
+.st-index {
+  break-before: page;
+}
+
+.st-index ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  columns: 3;
+  column-gap: 28px;
+  font-size: 12.5px;
+}
+
+.st-index li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+  border-bottom: 1px dotted var(--line);
+  break-inside: avoid;
+}
+
+.st-index li span:first-child {
+  font-family: var(--font-gloss);
+}

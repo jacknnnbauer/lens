@@ -41,6 +41,8 @@ pub struct ScanWord {
     pub sentence: Option<String>,
     pub hl_start: usize,
     pub hl_end: usize,
+    /// 每次出现都是大写开头（都在句首）：出现多次还这样，多半是人名地名
+    pub capitalized: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -153,6 +155,23 @@ pub fn lemma(lower: &str, lx: &Lexicon) -> String {
     options.into_iter().min_by_key(|c| ((lx.rank)(c).unwrap_or(u32::MAX), c == lower)).unwrap_or_else(|| lower.to_string())
 }
 
+/// 用现成的词频表组一个 Lexicon：导入过 COCA 用 COCA 的排名，否则用内置词频表；是不是词看 WordNet 和词频表
+pub fn with_lexicon<R>(coca: Option<&crate::coca::Coca>, wordnet: Option<&crate::wordnet::WordNet>, f: impl FnOnce(&Lexicon) -> R) -> R {
+    let freq = crate::freq::get();
+    // COCA 2 万词表里没有的（an 这类功能词、较生僻的词）再查内置词频表，免得把 an 当成生词
+    let rank = |w: &str| match coca {
+        Some(c) => c.lookup(w).first().map(|e| e.rank).or_else(|| freq.rank(w)),
+        None => freq.rank(w),
+    };
+    let is_word = |w: &str| wordnet.is_some_and(|wn| wn.has(w)) || freq.rank(w).is_some();
+    let irregular = |w: &str| {
+        crate::batch::parse::irregular(w)
+            .map(str::to_string)
+            .or_else(|| wordnet.and_then(|wn| wn.irregular(w)).map(str::to_string))
+    };
+    f(&Lexicon { rank: &rank, is_word: &is_word, irregular: &irregular })
+}
+
 pub fn scan(text: &str, level: u32, lx: &Lexicon, saved: &HashSet<String>, known: &HashSet<String>) -> ScanResult {
     let mut words_out: Vec<ScanWord> = Vec::new();
     let mut index: HashMap<String, usize> = HashMap::new();
@@ -199,13 +218,14 @@ pub fn scan(text: &str, level: u32, lx: &Lexicon, saved: &HashSet<String>, known
             Some(&i) => i,
             None => {
                 let (sentence, hl_start, hl_end) = sentence_of(text, &w);
-                words_out.push(ScanWord { lemma: lem.clone(), forms: Vec::new(), count: 0, rank, status, sentence, hl_start, hl_end });
+                words_out.push(ScanWord { lemma: lem.clone(), forms: Vec::new(), count: 0, rank, status, sentence, hl_start, hl_end, capitalized: true });
                 index.insert(lem.clone(), words_out.len() - 1);
                 words_out.len() - 1
             }
         };
         let sw = &mut words_out[idx];
         sw.count += 1;
+        sw.capitalized &= first_upper;
         if !sw.forms.contains(&lower) {
             sw.forms.push(lower);
         }

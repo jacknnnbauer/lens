@@ -77,6 +77,42 @@ export function bookStudyPreview(id: number, minCount: number, scope: Scope): Pr
   return invoke<StudyPreview>("book_study_preview", { id, minCount, scope });
 }
 
-export function bookStudyList(id: number, level: number, minCount: number, includeSaved: boolean, scope: Scope, order: StudyOrder): Promise<StudyList> {
-  return invoke<StudyList>("book_study_list", { id, level, minCount, includeSaved, scope, order });
+/** `limit`：最多要多少个（书里出现次数多的优先）；null = 不限 */
+export function bookStudyList(id: number, level: number, minCount: number, includeSaved: boolean, scope: Scope, order: StudyOrder, limit: number | null): Promise<StudyList> {
+  return invoke<StudyList>("book_study_list", { id, level, minCount, includeSaved, scope, order, limit });
+}
+
+export interface GuideSection {
+  kind: "lead" | "background" | "characters" | "plot" | "themes" | "reception" | "other";
+  /** 条目里的原标题（简介为空） */
+  heading: string;
+  text: string;
+}
+
+export interface GuideArticle {
+  lang: "zh" | "en";
+  title: string;
+  url: string;
+  sections: GuideSection[];
+}
+
+export interface BookGuide {
+  book: GuideArticle;
+  author: GuideArticle | null;
+  /** 按设置不剧透，略去了情节梗概和人物 */
+  plotHidden: boolean;
+  /** 这本书在 Grokipedia 上的地址：只给链接，它的条款不允许程序抓取内容；AI 导读为空 */
+  grokipedia: string;
+  /** AI 写的导读：模型、模型说它知不知道这本书；维基百科的为 null */
+  ai: { model: string; known: boolean } | null;
+}
+
+/** 读前导读：用书名和作者查维基百科（联网，只发书名和作者）；找不到时为 null。剧透、语言按设置 › 全书预习包 */
+export function bookGuide(id: number): Promise<BookGuide | null> {
+  return invoke<BookGuide | null>("book_guide", { id });
+}
+
+/** AI 写的读前导读（设置 › AI 例句里的模型，按用量计费）。`cachedOnly`：只取存过的，不花钱；`force`：重新生成 */
+export function bookGuideAi(id: number, cachedOnly: boolean, force = false): Promise<BookGuide | null> {
+  return invoke<BookGuide | null>("book_guide_ai", { id, cachedOnly, force });
 }

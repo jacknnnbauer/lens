@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { checkUpdate, mainReady } from "../../ipc/settings";
 import { toast } from "../../stores/toast";
 import { TrayHint } from "../../components/TrayHint";
+import { StudyJobChip } from "../../components/StudyJobChip";
 import { Hint, markHint } from "../../components/Hint";
 import { useNavHistory } from "./navHistory";
 import { ResizeHandle } from "../../components/ResizeHandle";
@@ -393,6 +394,7 @@ export function MainWindow() {
       <Toast />
       <BatchDialog />
       {!immersive && <BatchChip />}
+      {!immersive && <StudyJobChip />}
       {immersive && (
         <ImmersiveBar
           revealOnHover={immersivePrefs?.revealOnHover ?? true}

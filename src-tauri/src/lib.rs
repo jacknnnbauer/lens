@@ -28,6 +28,8 @@ mod query;
 mod review;
 mod scan;
 mod study;
+mod wiki;
+mod guide_ai;
 mod senses;
 mod settings;
 mod themes;
@@ -372,6 +374,8 @@ pub fn run() {
             commands::scan::save_scanned_words,
             commands::study::book_study_preview,
             commands::study::book_study_list,
+            commands::study::book_guide,
+            commands::study::book_guide_ai,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,

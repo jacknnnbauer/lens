@@ -138,6 +138,91 @@ pub async fn book_study_preview(state: State<'_, AppState>, id: i64, min_count: 
     })
 }
 
+/// 读前导读：用书名和作者在维基百科找这本书和作者的条目（只发书名、作者）。找不到时返回 None
+#[tauri::command]
+pub async fn book_guide(state: State<'_, AppState>, id: i64) -> Result<Option<crate::wiki::BookGuide>> {
+    let article = state.db.with_conn(|c| articles::open(c, id))?.ok_or_else(deleted)?;
+    let study = state.settings.get()?.study;
+    crate::wiki::book_guide(&article.meta.title, article.meta.author.as_deref(), study.guide_lang != "en", study.spoilers).await
+}
+
+/// AI 导读存成文件：`guides/<书的哈希>-<模型>-<s|n>.json`（s = 剧透）
+fn ai_guide_file(state: &AppState, hash: &str, model: &str, spoilers: bool) -> std::path::PathBuf {
+    let model: String = model.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '.' { c } else { '_' }).collect();
+    state.root.join("guides").join(format!("{hash}-{model}-{}.json", if spoilers { "s" } else { "n" }))
+}
+
+/// 读前导读的 AI 版。`cached_only`：只看存过的（不花钱），没有时返回 None；`force`：重新生成
+#[tauri::command]
+pub async fn book_guide_ai(state: State<'_, AppState>, id: i64, cached_only: bool, force: bool) -> Result<Option<crate::wiki::BookGuide>> {
+    let article = state.db.with_conn(|c| articles::open(c, id))?.ok_or_else(deleted)?;
+    let hash = state.db.with_conn(|c| articles::book_hash(c, id))?.ok_or_else(deleted)?;
+    let settings = state.settings.get()?;
+    let (cfg, spoilers) = (settings.ai, settings.study.spoilers);
+    let provider = cfg.provider();
+    let model = cfg.active_model().to_string();
+    let file = ai_guide_file(&state, &hash, &model, spoilers);
+    if !force {
+        if let Some(g) = std::fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<crate::wiki::BookGuide>(&t).ok()) {
+            return Ok(Some(g));
+        }
+    }
+    if cached_only {
+        return Ok(None);
+    }
+    let key = crate::online::credentials::read(provider.key_id())?.ok_or_else(|| {
+        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 例句）", "No {} API key yet (Settings › AI examples)", provider.name()))
+    })?;
+    // 章节标题（默认范围里的正文）和开头一段正文
+    let all = scans(&state, id).await?;
+    let ps = parts(&all);
+    let (from, to) = effective(Scope::default(), &ps);
+    let body_parts: Vec<&Part> = ps.iter().filter(|p| p.idx >= from && p.idx <= to && !p.extra).collect();
+    let titles: Vec<String> = body_parts.iter().map(|p| p.title.clone()).collect();
+    let info = state.db.with_conn(|c| articles::book_info(c, id))?.ok_or_else(deleted)?;
+    let path = crate::commands::articles::book_file(&state.root, &hash);
+    let hrefs: Vec<String> = body_parts.iter().take(3).filter_map(|p| info.chapters.iter().find(|c| c.idx == p.idx).map(|c| c.href.clone())).collect();
+    let excerpt = tauri::async_runtime::spawn_blocking(move || {
+        let mut text = String::new();
+        for h in hrefs {
+            if let Ok(html) = crate::epub::read_chapter(&path, &h) {
+                text.push_str(crate::epub::text_of_html(&html).trim());
+                text.push('\n');
+            }
+            if text.chars().count() > crate::guide_ai::EXCERPT_CHARS {
+                break;
+            }
+        }
+        text.chars().take(crate::guide_ai::EXCERPT_CHARS).collect::<String>()
+    })
+    .await
+    .map_err(|e| Error::Other(e.to_string()))?;
+    let author = article.meta.author.clone();
+    let input = crate::guide_ai::Input { title: &article.meta.title, author: author.as_deref(), parts: &titles, excerpt: &excerpt, spoilers };
+    let user = crate::guide_ai::prompt(&input);
+    let (text, usage) = crate::ai::complete_json(
+        state.online.client(),
+        provider,
+        &key,
+        &model,
+        crate::guide_ai::SYSTEM,
+        &user,
+        crate::guide_ai::schema(),
+        crate::guide_ai::JSON_FORMAT,
+        4000,
+        std::time::Duration::from_secs(180),
+    )
+    .await?;
+    let out = crate::guide_ai::parse(&text)?;
+    let guide = crate::guide_ai::to_guide(&out, &article.meta.title, author.as_deref(), &model, spoilers);
+    state.db.with_conn(|c| crate::ai::record(c, provider, &model, &article.meta.title, usage, crate::db::now_ms()).map(|_| ()))?;
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&file, serde_json::to_string(&guide)?)?;
+    Ok(Some(guide))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StudyWord {
@@ -163,10 +248,23 @@ pub struct StudyList {
 /// 按门槛挑出的生词（`order`：chapter = 按第一次出现的先后，alpha = 按字母）和每章统计
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn book_study_list(state: State<'_, AppState>, id: i64, level: u32, min_count: u32, include_saved: bool, scope: Scope, order: String) -> Result<StudyList> {
+/// `limit`：最多要多少个（书里出现次数多的优先）
+pub async fn book_study_list(
+    state: State<'_, AppState>,
+    id: i64,
+    level: u32,
+    min_count: u32,
+    include_saved: bool,
+    scope: Scope,
+    order: String,
+    limit: Option<u32>,
+) -> Result<StudyList> {
     let (study, _, _) = load(&state, id, scope).await?;
     let (saved, known) = saved_and_known(&state)?;
-    let picked = study::pick(&study, Filter { level, min_count, include_saved }, &saved, &known);
+    let mut picked = study::pick(&study, Filter { level, min_count, include_saved }, &saved, &known);
+    if let Some(n) = limit {
+        picked = study::limit(picked, n as usize);
+    }
     let chapters = study::chapter_rows(&study, &picked);
     let mut words: Vec<StudyWord> = picked
         .iter()

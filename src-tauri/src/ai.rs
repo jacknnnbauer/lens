@@ -291,6 +291,84 @@ pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, b
     Ok((examples, usage))
 }
 
+/// 通用的 JSON 输出调用（读前导读用）：`system`、`user` 两段提示，Claude 按 schema 约束，DeepSeek 用 JSON 模式
+/// （`json_format` 是给 DeepSeek 的格式示例）。返回模型输出的 JSON 文本和用量
+#[allow(clippy::too_many_arguments)]
+pub async fn complete_json(
+    client: &reqwest::Client,
+    provider: Provider,
+    key: &str,
+    model: &str,
+    system: &str,
+    user: &str,
+    schema: Value,
+    json_format: &str,
+    max_tokens: u32,
+    timeout: Duration,
+) -> Result<(String, Usage)> {
+    let (req, body) = match provider {
+        Provider::Claude => (
+            client.post(ENDPOINT).header("x-api-key", key).header("anthropic-version", API_VERSION),
+            json!({
+                "model": model,
+                "max_tokens": max_tokens,
+                "system": system,
+                "messages": [{ "role": "user", "content": user }],
+                "output_config": { "format": { "type": "json_schema", "schema": schema } }
+            }),
+        ),
+        Provider::DeepSeek => (
+            client.post(DEEPSEEK_ENDPOINT).bearer_auth(key),
+            json!({
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": [
+                    { "role": "system", "content": format!("{system}\n\n{json_format}") },
+                    { "role": "user", "content": user }
+                ],
+                "response_format": { "type": "json_object" },
+                "stream": false
+            }),
+        ),
+    };
+    let resp = req
+        .json(&body)
+        .header("content-type", "application/json")
+        .timeout(timeout)
+        .send()
+        .await
+        .map_err(|e| Error::Online(crate::tf!("连不上 {} API：{}", "Could not reach the {} API: {}", provider.name(), e)))?;
+    let status = resp.status().as_u16();
+    let text = resp.text().await.map_err(|e| Error::Online(e.to_string()))?;
+    if !(200..300).contains(&status) {
+        return Err(http_error(provider, status, &text));
+    }
+    let v: Value = serde_json::from_str(&text).map_err(|e| Error::Online(e.to_string()))?;
+    let usage = usage_of(provider, &v);
+    let truncated = match provider {
+        Provider::Claude => v.get("stop_reason").and_then(Value::as_str) == Some("max_tokens"),
+        Provider::DeepSeek => v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length"),
+    };
+    if truncated {
+        return Err(Error::Online(crate::i18n::t("输出被截断，请重试", "The output was cut off. Please try again").into()));
+    }
+    if provider == Provider::Claude && v.get("stop_reason").and_then(Value::as_str) == Some("refusal") {
+        return Err(Error::Online(crate::i18n::t("模型拒绝了这个请求", "The model declined this request").into()));
+    }
+    let out = match provider {
+        Provider::Claude => v
+            .get("content")
+            .and_then(Value::as_array)
+            .and_then(|blocks| blocks.iter().find(|b| b.get("type").and_then(Value::as_str) == Some("text")))
+            .and_then(|b| b.get("text"))
+            .and_then(Value::as_str),
+        Provider::DeepSeek => v.pointer("/choices/0/message/content").and_then(Value::as_str),
+    }
+    .filter(|t| !t.trim().is_empty())
+    .ok_or_else(|| Error::Online(crate::i18n::t("模型返回了空内容，请重试", "The model returned an empty reply. Please try again").into()))?;
+    Ok((out.to_string(), usage))
+}
+
 // —— 用量记账（迁移 0006 的 ai_usage 表）——
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

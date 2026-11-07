@@ -51,7 +51,16 @@ function waitFor<T>(event: string, ms: number, accept: (p: T) => boolean = () =>
   };
 }
 
-export async function runExport(job: ExportJob): Promise<void> {
+/** 导出窗口一次只排一份文档：后台生成预习包时再导出单词，排队等前一份完成 */
+let queue: Promise<unknown> = Promise.resolve();
+
+export function runExport(job: ExportJob): Promise<void> {
+  const next = queue.then(() => runOne(job));
+  queue = next.catch(() => undefined);
+  return next;
+}
+
+async function runOne(job: ExportJob): Promise<void> {
   // 先挂上监听，再创建窗口，避免错过就绪事件
   const ready = waitFor<null>("export:ready", READY_TIMEOUT_MS);
   const created = await invoke<boolean>("export_prepare");

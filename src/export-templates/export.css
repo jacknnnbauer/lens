@@ -661,10 +661,106 @@ sup.an {
   max-width: calc(100% - 44px);
 }
 
-/* 分章词表：第一组另起一页，之后各章接着排，不每章都换页 */
-.st-group[data-follow] {
+/* 分组接着排，不每组都换页；简明 / 详细词表各自另起一页 */
+.st-group {
   break-before: auto;
-  margin-top: 30px;
+  margin-top: 26px;
+}
+
+.st-simple,
+.st-detail,
+.st-guide {
+  break-before: page;
+}
+
+.st-simple > h2,
+.st-detail > h2,
+.st-guide > h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--text);
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.st-simple > h2 small,
+.st-detail > h2 small,
+.st-simple h3 small,
+.st-group > h3 small {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sub);
+}
+
+.st-simple h3,
+.st-group > h3,
+.st-guide h3 {
+  margin: 22px 0 6px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  break-after: avoid;
+}
+
+.st-group > h3 {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* 简明单词表：一行一个词 */
+.sl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sl-table td {
+  padding: 3px 8px 3px 0;
+  border-bottom: 1px dotted var(--line);
+  vertical-align: baseline;
+}
+
+.sl-table tr {
+  break-inside: avoid;
+}
+
+.sl-w {
+  width: 22%;
+  font-family: var(--font-gloss);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sl-p {
+  width: 9%;
+  font-style: italic;
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+/* 读前导读 */
+.st-guide p {
+  margin: 0 0 8px;
+  font-family: var(--font-gloss);
+  font-size: 13.5px;
+  line-height: 1.75;
+  text-align: justify;
+}
+
+.st-guide .st-note {
+  margin-top: 16px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  text-align: left;
+}
+
+.st-guide a {
+  color: var(--accent);
 }
 
 .st-index {

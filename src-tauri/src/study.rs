@@ -201,6 +201,19 @@ pub fn pick<'a>(study: &'a BookStudy, f: Filter, saved: &HashSet<String>, known:
         .collect()
 }
 
+/// 只留 `n` 个：书里出现次数多的优先（这本书里反复出现，背了最划算），一样多时留更常用的词；
+/// 留下的词保持原来的先后
+pub fn limit(picked: Vec<(&BookLemma, Mark)>, n: usize) -> Vec<(&BookLemma, Mark)> {
+    if picked.len() <= n {
+        return picked;
+    }
+    let mut order: Vec<usize> = (0..picked.len()).collect();
+    order.sort_by_key(|&i| (std::cmp::Reverse(picked[i].0.count), picked[i].0.rank.unwrap_or(u32::MAX), i));
+    let mut keep: Vec<usize> = order.into_iter().take(n).collect();
+    keep.sort_unstable();
+    keep.into_iter().map(|i| picked[i]).collect()
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LevelCount {
@@ -365,6 +378,18 @@ mod tests {
         assert_eq!(lemmas(p), [("harpoon".into(), Mark::New)]);
         let p = pick(&s, Filter { level: 8000, min_count: 1, include_saved: true }, &saved, &known);
         assert_eq!(lemmas(p), [("whale".into(), Mark::Saved), ("harpoon".into(), Mark::New)]);
+    }
+
+    #[test]
+    fn limit_keeps_the_most_frequent_in_book_order() {
+        let s = study();
+        let none = HashSet::new();
+        let picked = pick(&s, Filter { level: 8000, min_count: 1, include_saved: false }, &none, &none);
+        // whale 3 次、leviathan 1 次（无排名）、harpoon 1 次（15000）
+        let two: Vec<&str> = limit(picked.clone(), 2).iter().map(|(l, _)| l.lemma.as_str()).collect();
+        assert_eq!(two, ["whale", "harpoon"], "次数一样时留更常用的 harpoon，顺序不变");
+        assert_eq!(limit(picked.clone(), 10).len(), 3);
+        assert!(limit(picked, 0).is_empty());
     }
 
     #[test]

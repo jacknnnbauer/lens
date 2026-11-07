@@ -167,9 +167,18 @@ export interface Settings {
   export: ExportPrefs;
   batch: BatchPrefs;
   ai: AiPrefs;
+  study: StudyPrefs;
   customThemes: CustomTheme[];
   activeProfile: string;
   [section: string]: unknown;
+}
+
+/** 全书预习包 */
+export interface StudyPrefs {
+  /** 读前导读里放情节梗概和人物（会剧透结局） */
+  spoilers: boolean;
+  /** zh = 有中文条目就用中文维基，en = 英文维基 */
+  guideLang: "zh" | "en";
 }
 
 export type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };

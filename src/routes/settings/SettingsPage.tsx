@@ -31,6 +31,7 @@ const SECTIONS = [
   { id: "ai", name: "AI 例句" },
   { id: "copy", name: "复制" },
   { id: "export", name: "导出" },
+  { id: "study", name: "全书预习包" },
   { id: "shortcuts", name: "快捷键" },
   { id: "capture", name: "取词" },
   { id: "data", name: "数据" },
@@ -911,6 +912,28 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
                 </button>
               </span>
             </div>
+          </div>
+        </section>
+
+        <section id="set-study" className={styles.section} aria-labelledby="h-study">
+          <h2 id="h-study">{tr("全书预习包")}</h2>
+          <p className={styles.hint}>{tr("阅读 › 导出 › 全书预习包。读前导读要联网查维基百科，只发送书名和作者。")}</p>
+          <Toggle
+            label={tr("读前导读里放情节梗概和人物介绍")}
+            hint={tr("会剧透结局。关掉时只放简介、背景、主题和评价")}
+            checked={settings.study?.spoilers ?? false}
+            onChange={(v) => update({ study: { spoilers: v } })}
+          />
+          <div className={styles.grid2}>
+            <Select
+              label={tr("读前导读的语言")}
+              value={settings.study?.guideLang ?? "zh"}
+              options={[
+                ["zh", "中文优先（没有中文条目时用英文）"],
+                ["en", "英文"],
+              ]}
+              onChange={(v) => update({ study: { guideLang: v as "zh" | "en" } })}
+            />
           </div>
         </section>
 

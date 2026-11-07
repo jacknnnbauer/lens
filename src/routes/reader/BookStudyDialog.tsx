@@ -3,21 +3,18 @@
 // 第一期只用本机数据：生词统计、本地词典；导读、分章提要这类要联网的内容以后再加。
 
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useRef, useState } from "react";
 import { ExportStyleOptions, PaperOptions } from "../../components/ExportStyleOptions";
 import { CloseIcon } from "../../components/icons";
-import { prepareEntry } from "../../dict-render/prepare";
-import { buildStudyBody, duration, type StudyExportWord } from "../../export-templates/study";
+import { duration } from "../../export-templates/study";
 import { exportTheme, isoDate, safeFileName, type ExportStyle, type Paper } from "../../export-templates/template";
-import { inlineEntry } from "../../export/resources";
-import { runExport } from "../../export/run";
 import { getLang, tr } from "../../i18n";
-import { firstEntry, senseGlosses, type SenseGloss } from "../../ipc/lookup";
-import { saveScannedWords } from "../../ipc/scan";
-import { bookStudyList, bookStudyPreview, type Scope, type StudyOrder, type StudyPreview } from "../../ipc/study";
+import { bookGuide, bookGuideAi, bookStudyPreview, type BookGuide, type Scope, type StudyOrder, type StudyPreview } from "../../ipc/study";
 import { useDicts } from "../../stores/dicts";
 import { useSettings } from "../../stores/settings";
+import { useStudyJob } from "../../stores/studyJob";
+import { toast } from "../../stores/toast";
 import { useAppliedTheme } from "../../theme/useApplyTheme";
 import dlg from "../../components/ExportDialog.module.css";
 import styles from "./BookStudyDialog.module.css";
@@ -46,6 +43,15 @@ interface Opts {
   roadmap: boolean;
   index: boolean;
   save: boolean;
+  /** 最多要多少个词（书里出现次数多的优先）；0 = 不限 */
+  limit: number;
+  /** 简明单词表（单词、词性、中文）、详细词表（原句、词典释义） */
+  simple: boolean;
+  detail: boolean;
+  /** 读前导读 */
+  guide: boolean;
+  /** 导读来源：维基百科、AI（按用量计费）、两份都放 */
+  guideSource: "wiki" | "ai" | "both";
 }
 
 const PREF_KEY = "lens.reader.study";
@@ -63,12 +69,16 @@ const DEFAULT_OPTS: Opts = {
   roadmap: true,
   index: true,
   save: false,
+  limit: 0,
+  simple: true,
+  detail: true,
+  guide: true,
+  guideSource: "wiki",
 };
-const GLOSS_BATCH = 100;
+/** 数量上限的常用档位；别的数在「自定义」里填 */
+const LIMITS = [0, 100, 200, 300, 500, 800, 1000];
 /** 带完整词典释义超过这么多词时提醒：PDF 会很长 */
 const LONG_LIST = 400;
-/** 上千个词的 PDF 排版、打印要几分钟 */
-const EXPORT_TIMEOUT_MS = 15 * 60_000;
 
 function readPrefs(): Opts {
   try {
@@ -84,7 +94,10 @@ function scopeOf(range: { from: number; to: number } | null, includeExtras: bool
   return { from: range?.from ?? null, to: range?.to ?? null, includeExtras };
 }
 
-type Phase = { kind: "idle" } | { kind: "busy"; note: string } | { kind: "done"; path: string; words: number } | { kind: "error"; message: string };
+type GuideState = { kind: "loading" } | { kind: "found"; guide: BookGuide } | { kind: "none" } | { kind: "error"; message: string };
+/** AI 导读：idle = 还没生成（要用户点按钮，花钱） */
+type AiGuideState = { kind: "idle" } | { kind: "loading" } | { kind: "found"; guide: BookGuide } | { kind: "error"; message: string };
+
 
 export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -104,14 +117,19 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
   const [style, setStyle] = useState<ExportStyle>("paperWhite");
   const [paper, setPaper] = useState<Paper>("a4");
   const [name, setName] = useState("");
-  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const cancelled = useRef(false);
+  const [guide, setGuide] = useState<GuideState>({ kind: "loading" });
+  const [aiGuide, setAiGuide] = useState<AiGuideState>({ kind: "idle" });
+  /** 数量上限选了「自定义」 */
+  const [customLimit, setCustomLimit] = useState(false);
+  const study = useSettings((s) => s.settings?.study);
 
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
     if (open && !d.open) {
-      setOpts(readPrefs());
+      const p = readPrefs();
+      setOpts(p);
+      setCustomLimit(!LIMITS.includes(p.limit));
       setLevel(readerLevel);
       setRange(null);
       setPreview(null);
@@ -120,7 +138,6 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
         setStyle(prefs.style);
         setPaper(prefs.paper);
       }
-      setPhase({ kind: "idle" });
       d.showModal();
     }
     if (!open && d.open) d.close();
@@ -147,14 +164,55 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
     };
   }, [open, bookId, opts.minCount, opts.includeExtras, range]);
 
+  // AI 导读：只取存过的（不花钱）；没有就等用户点「用 AI 生成」
+  const aiProvider = useSettings((s) => s.settings?.ai.provider) ?? "claude";
+  useEffect(() => {
+    if (!open || !opts.guide || opts.guideSource === "wiki") return;
+    let alive = true;
+    bookGuideAi(bookId, true).then(
+      (g) => alive && setAiGuide(g ? { kind: "found", guide: g } : { kind: "idle" }),
+      () => alive && setAiGuide({ kind: "idle" }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [open, bookId, opts.guide, opts.guideSource, study?.spoilers]);
+  const makeAiGuide = async (force: boolean) => {
+    setAiGuide({ kind: "loading" });
+    try {
+      const g = await bookGuideAi(bookId, false, force);
+      setAiGuide(g ? { kind: "found", guide: g } : { kind: "idle" });
+    } catch (e) {
+      setAiGuide({ kind: "error", message: String(e) });
+    }
+  };
+
+  // 读前导读：勾选时查一次维基百科（只发书名和作者），剧透、语言改了重新查
+  useEffect(() => {
+    if (!open || !opts.guide || opts.guideSource === "ai") return;
+    let alive = true;
+    setGuide({ kind: "loading" });
+    bookGuide(bookId).then(
+      (g) => alive && setGuide(g ? { kind: "found", guide: g } : { kind: "none" }),
+      (e) => alive && setGuide({ kind: "error", message: String(e) }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [open, bookId, opts.guide, opts.guideSource, study?.spoilers, study?.guideLang]);
+
   const set = <K extends keyof Opts>(k: K, v: Opts[K]) => setOpts((o) => ({ ...o, [k]: v }));
   const extrasInRange = preview ? preview.parts.filter((p) => p.extra && p.idx >= preview.from && p.idx <= preview.to).map((p) => p.title) : [];
   const chosen = preview?.levels.find((l) => l.level === level) ?? null;
-  const count = chosen ? chosen.words + (opts.includeSaved ? chosen.saved : 0) : 0;
-  const busy = phase.kind === "busy";
+  const available = chosen ? chosen.words + (opts.includeSaved ? chosen.saved : 0) : 0;
+  const count = opts.limit > 0 ? Math.min(opts.limit, available) : available;
 
+  const running = useStudyJob((s) => s.job?.state === "running");
+  const startJob = useStudyJob((s) => s.start);
+
+  /** 选好保存位置就交给后台：对话框关掉，右下角显示进度，可以照常查词、阅读 */
   const generate = async () => {
-    if (!preview || busy) return;
+    if (!preview || running) return;
     const fileName = `${safeFileName(name.replace(/\.(pdf|html?)$/i, "")) || "lens"}.${format}`;
     const path = await saveDialog({
       title: tr("导出全书预习包"),
@@ -162,102 +220,51 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
       filters: [format === "pdf" ? { name: "PDF", extensions: ["pdf"] } : { name: "HTML", extensions: ["html"] }],
     });
     if (!path) return;
-    cancelled.current = false;
-    const stop = () => {
-      if (cancelled.current) throw new Error(tr("已停止"));
-    };
+    const started = startJob({
+      bookId,
+      title: preview.title,
+      author: preview.author,
+      level,
+      minCount: opts.minCount,
+      includeSaved: opts.includeSaved,
+      scope: scopeOf(range, opts.includeExtras),
+      order: opts.order,
+      limit: opts.limit > 0 ? opts.limit : null,
+      dict: opts.dict || null,
+      gloss: opts.gloss,
+      sentence: opts.sentence,
+      definition: opts.definition,
+      examples: opts.examples,
+      phonetics: opts.phonetics,
+      roadmap: opts.roadmap,
+      index: opts.index,
+      simple: opts.simple,
+      detail: opts.detail,
+      save: opts.save,
+      guides: !opts.guide
+        ? []
+        : [
+            ...(opts.guideSource !== "ai" && guide.kind === "found" ? [guide.guide] : []),
+            ...(opts.guideSource !== "wiki" && aiGuide.kind === "found" ? [aiGuide.guide] : []),
+          ],
+      stats: { total: preview.total, minutes: preview.minutes, coverage: chosen?.coverage ?? 1 },
+      format,
+      style,
+      theme: exportTheme(style, appliedTheme),
+      accent,
+      paper,
+      path,
+      lang: getLang(),
+    });
+    if (!started) return;
     try {
-      setPhase({ kind: "busy", note: tr("正在挑选生词…") });
-      const list = await bookStudyList(bookId, level, opts.minCount, opts.includeSaved, scopeOf(range, opts.includeExtras), opts.order);
-      if (list.words.length === 0) throw new Error(tr("这个门槛下没有生词，换一档词汇量试试"));
-
-      // 词性和各义项的中文：先查选的释义词典，再按配置组顺序查别的双解词典；原形查不到时查书里的写法
-      const glosses = new Map<string, SenseGloss>();
-      for (let i = 0; i < list.words.length; i += GLOSS_BATCH) {
-        stop();
-        setPhase({ kind: "busy", note: tr("正在取简释 {i} / {n}", { i: Math.min(i + GLOSS_BATCH, list.words.length), n: list.words.length }) });
-        const batch = await senseGlosses(
-          list.words.slice(i, i + GLOSS_BATCH).map((w) => ({ lemma: w.lemma, forms: w.forms })),
-          opts.dict || null,
-        ).catch(() => []);
-        for (const g of batch) glosses.set(g.word, g);
-      }
-
-      const rows: StudyExportWord[] = [];
-      for (const [i, w] of list.words.entries()) {
-        stop();
-        let entry: StudyExportWord["entry"] = null;
-        if (opts.definition) {
-          if (i % 10 === 0) setPhase({ kind: "busy", note: tr("正在查词典 {i} / {n}", { i: i + 1, n: list.words.length }) });
-          const r = await firstEntry(w.lemma, opts.dict || null, w.forms).catch(() => null);
-          if (r) {
-            const html = r.entries.map((e) => prepareEntry(e.body, r.dictId).html);
-            entry = { name: r.name, html: format === "html" ? await Promise.all(html.map(inlineEntry)) : html };
-          }
-        }
-        const g = glosses.get(w.lemma);
-        rows.push({
-          lemma: w.lemma,
-          surface: w.sentence ? w.sentence.slice(w.hlStart, w.hlEnd) : (w.forms[0] ?? w.lemma),
-          status: w.status,
-          pos: g?.pos ?? null,
-          gloss: opts.gloss ? (g?.senses[0] ?? null) : null,
-          senses: opts.gloss ? g?.senses : undefined,
-          sentence: w.sentence,
-          hlStart: w.hlStart,
-          hlEnd: w.hlEnd,
-          entry,
-          count: w.count,
-          chapter: w.chapter,
-        });
-      }
-
-      if (opts.save) {
-        stop();
-        setPhase({ kind: "busy", note: tr("正在收进生词本…") });
-        const items = rows
-          .filter((r) => r.status === "new")
-          .map((r) => ({ lemma: r.lemma, surface: r.surface, sentence: r.sentence, hlStart: r.hlStart, hlEnd: r.hlEnd, brief: r.gloss }));
-        await saveScannedWords(items, preview.title, [preview.title]);
-      }
-
-      stop();
-      setPhase({ kind: "busy", note: tr("正在排版，词多时要几分钟…") });
-      const body = buildStudyBody({
-        title: preview.title,
-        author: preview.author,
-        words: rows,
-        chapters: list.chapters,
-        order: opts.order,
-        style,
-        date: new Date(),
-        level,
-        options: { sentence: opts.sentence, definition: opts.definition, examples: opts.examples, phonetics: opts.phonetics, roadmap: opts.roadmap, index: opts.index },
-        stats: { total: preview.total, minutes: preview.minutes, coverage: chosen?.coverage ?? 1 },
-      });
-      await runExport({
-        jobId: crypto.randomUUID(),
-        format,
-        body,
-        title: `${preview.title} · ${tr("读前预习")}`,
-        theme: exportTheme(style, appliedTheme),
-        accent,
-        path,
-        paper,
-        lang: getLang(),
-        outline: format === "pdf",
-        timeoutMs: EXPORT_TIMEOUT_MS,
-      });
-      try {
-        localStorage.setItem(PREF_KEY, JSON.stringify(opts));
-      } catch {
-        // 同上
-      }
-      update({ export: { style, paper, dir: path.replace(/[\\/][^\\/]*$/, "") } });
-      setPhase({ kind: "done", path, words: rows.length });
-    } catch (e) {
-      setPhase({ kind: "error", message: String(e instanceof Error ? e.message : e) });
+      localStorage.setItem(PREF_KEY, JSON.stringify(opts));
+    } catch {
+      // 记不住只是回到默认值
     }
+    update({ export: { style, paper, dir: path.replace(/[\\/][^\\/]*$/, "") } });
+    toast(tr("已在后台生成，可以继续查词、阅读"), tr("右下角看进度"));
+    onClose();
   };
 
   return (
@@ -265,19 +272,12 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
       ref={dialog}
       className={dlg.dialog}
       onClose={onClose}
-      onCancel={(e) => {
-        // 生成中按 Esc 不关窗：先停下
-        if (busy) {
-          e.preventDefault();
-          cancelled.current = true;
-        }
-      }}
       aria-labelledby="book-study-title"
     >
       <header className={dlg.head}>
         <h2 id="book-study-title">{tr("全书预习包")}</h2>
         <span className={dlg.word}>{preview?.title ?? ""}</span>
-        <button type="button" className={dlg.iconBtn} aria-label={tr("关闭")} onClick={onClose} disabled={busy}>
+        <button type="button" className={dlg.iconBtn} aria-label={tr("关闭")} onClick={onClose}>
           <CloseIcon />
         </button>
       </header>
@@ -358,7 +358,45 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                       <option value={5}>{tr("5 次")}</option>
                     </select>
                   </label>
+                  <label title={tr("超过这个数时，留下书里出现次数最多的词（一样多时留更常用的）")}>
+                    <span>{tr("数量上限")}</span>
+                    <select
+                      value={customLimit ? "custom" : String(opts.limit)}
+                      onChange={(e) => {
+                        if (e.target.value === "custom") {
+                          setCustomLimit(true);
+                          if (LIMITS.includes(opts.limit)) set("limit", 400);
+                        } else {
+                          setCustomLimit(false);
+                          set("limit", Number(e.target.value));
+                        }
+                      }}
+                    >
+                      {LIMITS.map((n) => (
+                        <option key={n} value={n}>
+                          {n === 0 ? tr("不限") : tr("最多 {n} 个", { n })}
+                        </option>
+                      ))}
+                      <option value="custom">{tr("自定义…")}</option>
+                    </select>
+                  </label>
+                  {customLimit && (
+                    <label>
+                      <span>{tr("最多几个")}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20000}
+                        step={50}
+                        value={opts.limit || ""}
+                        onChange={(e) => set("limit", Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                      />
+                    </label>
+                  )}
                 </div>
+                {opts.limit > 0 && available > opts.limit && (
+                  <p className={styles.note}>{tr("这一档有 {all} 个，只留书里出现次数最多的 {n} 个。", { all: available.toLocaleString(), n: opts.limit.toLocaleString() })}</p>
+                )}
                 <div className={dlg.checks}>
                   <label>
                     <input type="checkbox" checked={opts.includeSaved} onChange={(e) => set("includeSaved", e.target.checked)} />
@@ -376,6 +414,16 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
 
               <fieldset>
                 <legend>{tr("生词表")}</legend>
+                <div className={dlg.checks}>
+                  <label>
+                    <input type="checkbox" checked={opts.simple} onChange={(e) => set("simple", e.target.checked)} />
+                    {tr("简明单词表（单词、词性、中文，像课本后面的单词表，快速过一遍）")}
+                  </label>
+                  <label>
+                    <input type="checkbox" checked={opts.detail} onChange={(e) => set("detail", e.target.checked)} />
+                    {tr("详细词表（书中原句、词典释义）")}
+                  </label>
+                </div>
                 <div className={dlg.formats}>
                   {(
                     [
@@ -395,7 +443,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                 <div className={dlg.selects}>
                   <label>
                     <span>{tr("释义词典")}</span>
-                    <select value={opts.dict} onChange={(e) => set("dict", e.target.value)} disabled={!opts.definition}>
+                    <select value={opts.dict} onChange={(e) => set("dict", e.target.value)}>
                       <option value="">{tr("自动（生词本设置的词典优先）")}</option>
                       {dicts.map((d) => (
                         <option key={d.id} value={d.id}>
@@ -407,7 +455,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                 </div>
                 <div className={dlg.checks}>
                   <label>
-                    <input type="checkbox" checked={opts.sentence} onChange={(e) => set("sentence", e.target.checked)} />
+                    <input type="checkbox" checked={opts.sentence} disabled={!opts.detail} onChange={(e) => set("sentence", e.target.checked)} />
                     {tr("书中原句")}
                   </label>
                   <label title={tr("各义项的中文，取自选的释义词典；它不是双解词典或没收这个词时，按配置组顺序找别的双解词典")}>
@@ -415,19 +463,19 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                     {tr("中文释义（各义项）")}
                   </label>
                   <label>
-                    <input type="checkbox" checked={opts.definition} onChange={(e) => set("definition", e.target.checked)} />
+                    <input type="checkbox" checked={opts.definition} disabled={!opts.detail} onChange={(e) => set("definition", e.target.checked)} />
                     {tr("词典释义")}
                   </label>
                   <label>
-                    <input type="checkbox" checked={opts.examples} disabled={!opts.definition} onChange={(e) => set("examples", e.target.checked)} />
+                    <input type="checkbox" checked={opts.examples} disabled={!opts.detail || !opts.definition} onChange={(e) => set("examples", e.target.checked)} />
                     {tr("词典例句")}
                   </label>
                   <label>
-                    <input type="checkbox" checked={opts.phonetics} disabled={!opts.definition} onChange={(e) => set("phonetics", e.target.checked)} />
+                    <input type="checkbox" checked={opts.phonetics} disabled={!opts.detail || !opts.definition} onChange={(e) => set("phonetics", e.target.checked)} />
                     {tr("音标")}
                   </label>
                 </div>
-                {opts.definition && count > LONG_LIST && (
+                {opts.detail && opts.definition && count > LONG_LIST && (
                   <p className={styles.note}>{tr("{n} 个词带完整词典释义，PDF 会很长，生成要几分钟。只要中文简释可以取消「词典释义」。", { n: count.toLocaleString() })}</p>
                 )}
               </fieldset>
@@ -436,11 +484,51 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                 <legend>{tr("还包括")}</legend>
                 <div className={dlg.checks}>
                   <label>
+                    <input type="checkbox" checked={opts.guide} onChange={(e) => set("guide", e.target.checked)} />
+                    {tr("读前导读（作者、背景、简介、主题、评价）")}
+                  </label>
+                </div>
+                {opts.guide && (
+                  <div className={dlg.selects}>
+                    <label>
+                      <span>{tr("导读来源")}</span>
+                      <select value={opts.guideSource} onChange={(e) => set("guideSource", e.target.value as Opts["guideSource"])}>
+                        <option value="wiki">{tr("维基百科（免费，联网）")}</option>
+                        <option value="ai">{tr("AI 生成（按用量计费）")}</option>
+                        <option value="both">{tr("两份都放")}</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
+                {opts.guide && opts.guideSource !== "ai" && <GuideStatus state={guide} spoilers={study?.spoilers ?? false} />}
+                {opts.guide && opts.guideSource === "wiki" && guide.kind === "none" && (
+                  <p className={styles.note}>{tr("可以把导读来源改成「AI 生成」。")}</p>
+                )}
+                {opts.guide && opts.guideSource !== "wiki" && (
+                  <p className={styles.note} role="status">
+                    {aiGuide.kind === "found"
+                      ? tr("AI 导读已生成（{model}）", { model: aiGuide.guide.ai?.model ?? "" }) + (aiGuide.guide.ai?.known === false ? tr("，模型表示不了解这本书") : "")
+                      : aiGuide.kind === "loading"
+                        ? tr("AI 正在写导读，大约半分钟到一分钟…")
+                        : aiGuide.kind === "error"
+                          ? tr("AI 导读失败：{msg}", { msg: aiGuide.message })
+                          : tr("AI 导读还没生成：会把书名、作者、章节标题和开头约两千字发给 {provider}，按用量计费，结果会存下来，同一本书不再收费。", {
+                              provider: aiProvider === "deepseek" ? "DeepSeek" : "Claude",
+                            })}{" "}
+                    {aiGuide.kind !== "loading" && (
+                      <button type="button" className={dlg.ghost} onClick={() => void makeAiGuide(aiGuide.kind === "found")}>
+                        {aiGuide.kind === "found" ? tr("重新生成") : tr("用 AI 生成导读")}
+                      </button>
+                    )}
+                  </p>
+                )}
+                <div className={dlg.checks}>
+                  <label>
                     <input type="checkbox" checked={opts.roadmap} onChange={(e) => set("roadmap", e.target.checked)} />
                     {tr("阅读路线表（每章篇幅、预计用时、生词密度）")}
                   </label>
                   <label>
-                    <input type="checkbox" checked={opts.index} disabled={opts.order !== "chapter"} onChange={(e) => set("index", e.target.checked)} />
+                    <input type="checkbox" checked={opts.index} disabled={opts.order !== "chapter" || !opts.detail} onChange={(e) => set("index", e.target.checked)} />
                     {tr("字母索引")}
                   </label>
                   <label>
@@ -484,50 +572,61 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
       </div>
 
       <footer className={dlg.foot}>
-        {phase.kind === "done" ? (
-          <>
-            <span className={dlg.status} role="status">
-              {tr("已导出 {n} 个词到 {path}", { n: phase.words, path: phase.path })}
-            </span>
-            <button type="button" className={dlg.ghost} onClick={() => void revealItemInDir(phase.path)}>
-              {tr("在文件夹中显示")}
-            </button>
-            <button type="button" className={dlg.primary} onClick={onClose}>
-              {tr("完成")}
-            </button>
-          </>
-        ) : (
-          <>
-            <label className={dlg.name}>
-              {tr("文件名")}
-              <input value={name} onChange={(e) => setName(e.target.value)} spellCheck={false} disabled={busy} />
-              <span>.{format}</span>
-            </label>
-            {phase.kind === "error" && (
-              <span className={dlg.error} role="alert">
-                {phase.message}
-              </span>
-            )}
-            {busy && (
-              <span className={dlg.status} role="status">
-                {phase.note}
-              </span>
-            )}
-            {busy ? (
-              <button type="button" className={dlg.ghost} onClick={() => (cancelled.current = true)}>
-                {tr("停止")}
-              </button>
-            ) : (
-              <button type="button" className={dlg.ghost} onClick={onClose}>
-                {tr("取消")}
-              </button>
-            )}
-            <button type="button" className={dlg.primary} disabled={!preview || busy || count === 0} onClick={() => void generate()}>
-              {busy ? tr("正在生成…") : tr("生成 {n} 个词的预习包", { n: count.toLocaleString() })}
-            </button>
-          </>
+        <label className={dlg.name}>
+          {tr("文件名")}
+          <input value={name} onChange={(e) => setName(e.target.value)} spellCheck={false} />
+          <span>.{format}</span>
+        </label>
+        {running && (
+          <span className={dlg.status} role="status">
+            {tr("已有一个预习包在后台生成，完成后再开始下一个")}
+          </span>
         )}
+        <button type="button" className={dlg.ghost} onClick={onClose}>
+          {tr("取消")}
+        </button>
+        <button type="button" className={dlg.primary} disabled={!preview || running || count === 0} onClick={() => void generate()} title={tr("选好保存位置后在后台生成，可以关掉对话框继续做别的")}>
+          {tr("在后台生成 {n} 个词的预习包", { n: count.toLocaleString() })}
+        </button>
       </footer>
     </dialog>
+  );
+}
+
+/** 读前导读找到了哪篇条目；剧透、语言在设置里改 */
+function GuideStatus({ state, spoilers }: { state: GuideState; spoilers: boolean }) {
+  const text =
+    state.kind === "loading"
+      ? tr("正在查维基百科…")
+      : state.kind === "none"
+        ? tr("维基百科上没找到这本书，导读这部分不放")
+        : state.kind === "error"
+          ? tr("查维基百科失败：{msg}", { msg: state.message })
+          : tr("找到：{title}（{lang}）{author}", {
+              title: state.guide.book.title,
+              lang: state.guide.book.lang === "zh" ? tr("中文维基百科") : tr("英文维基百科"),
+              author: state.guide.author ? tr("，作者：{name}", { name: state.guide.author.title }) : "",
+            });
+  return (
+    <p className={styles.note} role="status">
+      {text}
+      {state.kind === "found" && ` · ${tr(spoilers ? "含情节梗概（会剧透）" : "不剧透")}`}
+      {state.kind === "found" && (
+        <>
+          {" · "}
+          <a
+            href={state.guide.grokipedia}
+            onClick={(e) => {
+              e.preventDefault();
+              void openUrl(state.guide.grokipedia);
+            }}
+          >
+            {tr("在 Grokipedia 上看")}
+          </a>
+        </>
+      )}
+      {" · "}
+      {tr("剧透和语言在 设置 › 全书预习包")}
+    </p>
   );
 }

@@ -122,6 +122,22 @@ pub struct Wordbook {
     pub auto_save_lookup: bool,
 }
 
+/// 全书预习包
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Study {
+    /// 读前导读里放情节梗概（会剧透结局）
+    pub spoilers: bool,
+    /// 读前导读用哪种语言的维基百科：zh = 有中文条目就用中文，en = 英文
+    pub guide_lang: String,
+}
+
+impl Default for Study {
+    fn default() -> Self {
+        Self { spoilers: false, guide_lang: "zh".into() }
+    }
+}
+
 /// 常规：整个应用的行为。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -360,6 +376,7 @@ pub struct Settings {
     pub export: Export,
     pub batch: Batch,
     pub ai: Ai,
+    pub study: Study,
     /// 自定义主题（主题库里「复制并编辑」或导入的）
     pub custom_themes: Vec<crate::themes::CustomTheme>,
     pub active_profile: String,
@@ -381,6 +398,7 @@ impl Default for Settings {
             export: Export::default(),
             batch: Batch::default(),
             ai: Ai::default(),
+            study: Study::default(),
             custom_themes: Vec::new(),
             active_profile: "reading".into(),
             rest: Map::new(),

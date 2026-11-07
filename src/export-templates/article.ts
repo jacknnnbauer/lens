@@ -16,6 +16,8 @@ export interface ArticleWord {
   status: "new" | "saved";
   pos: string | null;
   gloss: string | null;
+  /** 各义项的中文（全书预习用）；有两个以上时代替 gloss 逐条列出 */
+  senses?: string[];
   sentence: string | null;
   hlStart: number;
   hlEnd: number;
@@ -132,7 +134,12 @@ function wordHead(w: ArticleWord, n: number, extra: string): string {
 
 /** 词汇表里的一个词：编号、词头、中文简释、文中原句、词典释义。`extra` 是词头行末尾追加的 HTML（全书预习里放出现次数、出处） */
 export function glossItem(w: ArticleWord, n: number, options: GlossOptions, style: ExportStyle, extra = ""): string {
-  const gloss = w.gloss ? `<p class="gl-zh">${escapeHtml(w.gloss)}</p>` : "";
+  const gloss =
+    w.senses && w.senses.length > 1
+      ? `<p class="gl-zh">${w.senses.map((s, i) => `<span class="gl-sense"><b>${i + 1}</b>${escapeHtml(s)}</span>`).join("")}</p>`
+      : w.gloss
+        ? `<p class="gl-zh">${escapeHtml(w.gloss)}</p>`
+        : "";
   const q = options.sentence && w.sentence ? `<blockquote class="gl-quote">${quote(w)}</blockquote>` : "";
   return `<section class="gl-item" id="g-${n}">${wordHead(w, n, extra)}${gloss}${q}${entryHtml(w, options, style)}</section>`;
 }

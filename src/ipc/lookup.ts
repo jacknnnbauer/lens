@@ -65,9 +65,9 @@ export interface FirstEntry {
 }
 
 /** 第一本命中的本地词典的词条（只查本地，不影响当前查询、不记历史）：语境卡背面用 */
-/** `dict`：先查这部词典，查不到再按生词本设置和配置组的顺序 */
-export function firstEntry(query: string, dict?: string | null): Promise<FirstEntry | null> {
-  return invoke<FirstEntry | null>("first_entry", { query, dict: dict ?? null });
+/** `dict`：先查这部词典，查不到再按生词本设置和配置组的顺序；`alts`：原形查不到时再查的写法（书里的变形） */
+export function firstEntry(query: string, dict?: string | null, alts?: string[]): Promise<FirstEntry | null> {
+  return invoke<FirstEntry | null>("first_entry", { query, dict: dict ?? null, alts: alts ?? null });
 }
 
 export interface SenseCandidate {
@@ -116,6 +116,20 @@ export interface WordGloss {
 }
 
 /** 词汇网络表格视图：每个词的词性和第一段中文释义 */
+export interface SenseGloss {
+  word: string;
+  pos: string | null;
+  /** 各义项的中文（最多 4 个） */
+  senses: string[];
+  /** 取自哪部词典 */
+  dict: string | null;
+}
+
+/** 全书预习：每个词各义项的中文，先查 `dict`；原形查不到时查 `forms`（书里的写法）。一次最多 200 个 */
+export function senseGlosses(words: Array<{ lemma: string; forms: string[] }>, dict: string | null): Promise<SenseGloss[]> {
+  return invoke<SenseGloss[]>("sense_glosses", { words, dict });
+}
+
 export function wordGlosses(words: string[]): Promise<WordGloss[]> {
   return invoke<WordGloss[]>("word_glosses", { words });
 }

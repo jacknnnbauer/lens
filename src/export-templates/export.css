@@ -692,3 +692,17 @@ sup.an {
 .st-index li span:first-child {
   font-family: var(--font-gloss);
 }
+
+/* 各义项的中文：1 大量地；丰盛地  2 十分清楚 */
+.gl-sense {
+  margin-right: 14px;
+  white-space: normal;
+}
+
+.gl-sense b {
+  margin-right: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}

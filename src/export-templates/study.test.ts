@@ -56,6 +56,13 @@ describe("study export", () => {
     expect(html).not.toContain("字母索引");
   });
 
+  it("lists every Chinese sense when there are several", () => {
+    const i = input("chapter");
+    i.words[0] = { ...i.words[0], gloss: "十分清楚", senses: ["十分清楚；非常明白", "大量地；丰盛地"] };
+    const html = buildStudyBody(i);
+    expect(html).toContain('<span class="gl-sense"><b>1</b>十分清楚；非常明白</span><span class="gl-sense"><b>2</b>大量地；丰盛地</span>');
+  });
+
   it("formats durations", () => {
     expect(duration(45)).toBe("45 分钟");
     expect(duration(120)).toBe("2 小时");

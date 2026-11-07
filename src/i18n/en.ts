@@ -555,6 +555,8 @@ export const en: Record<string, string> = {
   "取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。":
     "If the context sentence isn't available within this time, the popup opens with the clipboard text.",
   "数据文件夹": "Data folder",
+  "各义项的中文，取自选的释义词典；它不是双解词典或没收这个词时，按配置组顺序找别的双解词典": "Chinese for each sense, from the chosen dictionary; if it isn't bilingual or lacks the word, from the other bilingual dictionaries in profile order",
+  "中文释义（各义项）": "Chinese for each sense",
   "范围": "Range",
   "默认是正文：跳过前言、注释和书末出版社附赠的内容": "The main text by default: front matter, notes and the publisher's extras at the end are left out",
   "从": "From",

@@ -13,7 +13,7 @@ import { exportTheme, isoDate, safeFileName, type ExportStyle, type Paper } from
 import { inlineEntry } from "../../export/resources";
 import { runExport } from "../../export/run";
 import { getLang, tr } from "../../i18n";
-import { firstEntry, wordGlosses, type WordGloss } from "../../ipc/lookup";
+import { firstEntry, senseGlosses, type SenseGloss } from "../../ipc/lookup";
 import { saveScannedWords } from "../../ipc/scan";
 import { bookStudyList, bookStudyPreview, type Scope, type StudyOrder, type StudyPreview } from "../../ipc/study";
 import { useDicts } from "../../stores/dicts";
@@ -64,7 +64,7 @@ const DEFAULT_OPTS: Opts = {
   index: true,
   save: false,
 };
-const GLOSS_BATCH = 80;
+const GLOSS_BATCH = 100;
 /** 带完整词典释义超过这么多词时提醒：PDF 会很长 */
 const LONG_LIST = 400;
 /** 上千个词的 PDF 排版、打印要几分钟 */
@@ -171,12 +171,15 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
       const list = await bookStudyList(bookId, level, opts.minCount, opts.includeSaved, scopeOf(range, opts.includeExtras), opts.order);
       if (list.words.length === 0) throw new Error(tr("这个门槛下没有生词，换一档词汇量试试"));
 
-      // 词性和中文简释（双解词典里取），一次最多 80 个
-      const glosses = new Map<string, WordGloss>();
+      // 词性和各义项的中文：先查选的释义词典，再按配置组顺序查别的双解词典；原形查不到时查书里的写法
+      const glosses = new Map<string, SenseGloss>();
       for (let i = 0; i < list.words.length; i += GLOSS_BATCH) {
         stop();
         setPhase({ kind: "busy", note: tr("正在取简释 {i} / {n}", { i: Math.min(i + GLOSS_BATCH, list.words.length), n: list.words.length }) });
-        const batch = await wordGlosses(list.words.slice(i, i + GLOSS_BATCH).map((w) => w.lemma)).catch(() => []);
+        const batch = await senseGlosses(
+          list.words.slice(i, i + GLOSS_BATCH).map((w) => ({ lemma: w.lemma, forms: w.forms })),
+          opts.dict || null,
+        ).catch(() => []);
         for (const g of batch) glosses.set(g.word, g);
       }
 
@@ -186,7 +189,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
         let entry: StudyExportWord["entry"] = null;
         if (opts.definition) {
           if (i % 10 === 0) setPhase({ kind: "busy", note: tr("正在查词典 {i} / {n}", { i: i + 1, n: list.words.length }) });
-          const r = await firstEntry(w.lemma, opts.dict || null).catch(() => null);
+          const r = await firstEntry(w.lemma, opts.dict || null, w.forms).catch(() => null);
           if (r) {
             const html = r.entries.map((e) => prepareEntry(e.body, r.dictId).html);
             entry = { name: r.name, html: format === "html" ? await Promise.all(html.map(inlineEntry)) : html };
@@ -198,7 +201,8 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
           surface: w.sentence ? w.sentence.slice(w.hlStart, w.hlEnd) : (w.forms[0] ?? w.lemma),
           status: w.status,
           pos: g?.pos ?? null,
-          gloss: opts.gloss ? (g?.gloss ?? null) : null,
+          gloss: opts.gloss ? (g?.senses[0] ?? null) : null,
+          senses: opts.gloss ? g?.senses : undefined,
           sentence: w.sentence,
           hlStart: w.hlStart,
           hlEnd: w.hlEnd,
@@ -406,9 +410,9 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                     <input type="checkbox" checked={opts.sentence} onChange={(e) => set("sentence", e.target.checked)} />
                     {tr("书中原句")}
                   </label>
-                  <label>
+                  <label title={tr("各义项的中文，取自选的释义词典；它不是双解词典或没收这个词时，按配置组顺序找别的双解词典")}>
                     <input type="checkbox" checked={opts.gloss} onChange={(e) => set("gloss", e.target.checked)} />
-                    {tr("中文简释")}
+                    {tr("中文释义（各义项）")}
                   </label>
                   <label>
                     <input type="checkbox" checked={opts.definition} onChange={(e) => set("definition", e.target.checked)} />

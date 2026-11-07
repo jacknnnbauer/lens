@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State, Window};
 
 use crate::app_state::AppState;
@@ -171,6 +171,94 @@ pub async fn word_glosses(state: State<'_, AppState>, words: Vec<String>) -> Res
     .map_err(|e| crate::error::Error::Other(e.to_string()))
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SenseQuery {
+    pub lemma: String,
+    /// 书里出现过的写法：词典没收原形（accurse）时查这些（accursed）
+    #[serde(default)]
+    pub forms: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SenseGloss {
+    pub word: String,
+    pub pos: Option<String>,
+    /// 各义项的中文（最多 4 个）；没有中文时为空
+    pub senses: Vec<String>,
+    /// 取自哪部词典
+    pub dict: Option<String>,
+}
+
+/// 全书预习的中文释义：每个词列出各义项的中文。先查 `dict`（用户选的释义词典），再按配置组顺序查别的双解词典；
+/// 每部词典先查原形，再查书里的写法，再查按词尾还原的候选
+#[tauri::command]
+pub async fn sense_glosses(state: State<'_, AppState>, words: Vec<SenseQuery>, dict: Option<String>) -> Result<Vec<SenseGloss>> {
+    let mut dicts: Vec<LoadedDict> = locals(profile_sources(&state)?).into_iter().filter(|d| !is_reference_dict(&d.source.meta().name)).collect();
+    if let Some(id) = dict.as_deref() {
+        // 选的词典不在当前配置组里也照样先查
+        if !dicts.iter().any(|d| d.source.meta().id == id) {
+            if let Some(d) = state.dicts.get(id)? {
+                dicts.push(d);
+            }
+        }
+        dicts.sort_by_key(|d| d.source.meta().id != id);
+    }
+    let wordnet = state.wordnet();
+    tauri::async_runtime::spawn_blocking(move || {
+        words
+            .into_iter()
+            .take(200)
+            .map(|q| {
+                let word = q.lemma;
+                let pos = wordnet
+                    .as_ref()
+                    .and_then(|wn| crate::wordnet::pos_labels(wn.poses(&word)))
+                    .or_else(|| crate::gloss::pos_by_suffix(&word).map(str::to_string));
+                let mut keys = vec![word.clone()];
+                for k in q.forms.into_iter().chain(crate::batch::parse::suffix_candidates(&word).into_iter().filter(|c| wordnet.as_ref().is_none_or(|wn| wn.has(c)))) {
+                    if !keys.contains(&k) {
+                        keys.push(k);
+                    }
+                }
+                let found = dicts.iter().find_map(|d| {
+                    keys.iter().find_map(|k| {
+                        let hits = d.source.lookup(k).ok()?;
+                        let senses = hits.iter().find_map(|e| {
+                            let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
+                            let s = crate::gloss::chinese_senses(t);
+                            if !s.is_empty() {
+                                return Some(s);
+                            }
+                            crate::gloss::chinese_gloss(t).map(|g| vec![g])
+                        })?;
+                        Some((senses, d.source.meta().name.clone()))
+                    })
+                });
+                // 派生词词典里没有单独的中文（justly、swiftness、seamen）：用原词的第一个义项，注明「由 just 派生」
+                let found = found.or_else(|| {
+                    crate::gloss::derivation_bases(&word).into_iter().filter(|b| wordnet.as_ref().is_none_or(|wn| wn.has(b))).find_map(|base| {
+                        dicts.iter().find_map(|d| {
+                            let hits = d.source.lookup(&base).ok()?;
+                            let first = hits.iter().find_map(|e| {
+                                let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
+                                crate::gloss::chinese_gloss(t)
+                            })?;
+                            let note = crate::tf!("（由 {} 派生）{}", "(from {}) {}", base, first);
+                            Some((vec![note], d.source.meta().name.clone()))
+                        })
+                    })
+                });
+                let (senses, dict) = found.map_or((Vec::new(), None), |(s, n)| (s, Some(n)));
+                SenseGloss { word, pos, senses, dict }
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| crate::error::Error::Other(e.to_string()))
+}
+
 /// 义项图谱（实验）：把各词典命中的词条对齐成义项组。前端在查词完成后把命中卡片的词条 HTML 传进来。
 #[tauri::command]
 pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) -> Result<crate::senses::SenseAtlas> {
@@ -198,8 +286,16 @@ pub struct FirstEntry {
 
 #[tauri::command]
 /// `dict`：先查这部词典（全书预习里用户选的释义词典），查不到再按下面的顺序
-pub async fn first_entry(state: State<'_, AppState>, query: String, dict: Option<String>) -> Result<Option<FirstEntry>> {
-    let keys = query::candidates(&query);
+/// `alts`：查不到时再查的写法（全书预习里是书中出现过的变形：词典没收 accurse 时查 accursed）
+pub async fn first_entry(state: State<'_, AppState>, query: String, dict: Option<String>, alts: Option<Vec<String>>) -> Result<Option<FirstEntry>> {
+    let mut keys = query::candidates(&query);
+    for a in alts.unwrap_or_default() {
+        for k in query::candidates(&a) {
+            if !keys.contains(&k) {
+                keys.push(k);
+            }
+        }
+    }
     if keys.is_empty() {
         return Ok(None);
     }

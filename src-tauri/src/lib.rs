@@ -348,6 +348,7 @@ pub fn run() {
             commands::lookup::context_sense,
             commands::lookup::word_family,
             commands::lookup::word_glosses,
+            commands::lookup::sense_glosses,
             commands::fulltext::fulltext_status,
             commands::fulltext::fulltext_build,
             commands::fulltext::fulltext_cancel,

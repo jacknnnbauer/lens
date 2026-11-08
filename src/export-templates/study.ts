@@ -1,4 +1,4 @@
-// 全书预习包（阅读 › 导出 › 全书预习包）：卷首概况 → 读前导读（维基百科）→ 阅读路线表（每章篇幅、用时、生词密度）
+// 全书预习包（阅读 › 导出 › 全书预习包）：卷首概况 → 精读本（AI 通读全书，可选，见 digest.ts）→ 读前导读（维基百科）→ 阅读路线表（每章篇幅、用时、生词密度）
 // → 简明单词表（单词、词性、中文，像课本单词表）→ 详细词表（原句、词典释义）→ 字母索引。
 // 生词按章节先后分组（每章是这一章第一次出现的词），或按字母分组；详细词表每个词的样式和文章导出的词汇表相同。
 // 各部分标题是 h2、分组标题是 h3，打印 PDF 时生成两级书签。
@@ -6,7 +6,9 @@
 import { escapeHtml } from "../copy/convert";
 import { tr } from "../i18n";
 import type { BookGuide, ChapterRow, GuideSection, StudyOrder } from "../ipc/study";
+import type { Digest } from "../ipc/digest";
 import { glossItem, type ArticleWord, type GlossOptions } from "./article";
+import { buildDigestSections } from "./digest";
 import { COPYRIGHT, isoDate, type ExportStyle } from "./template";
 
 export interface StudyExportWord extends ArticleWord {
@@ -29,6 +31,8 @@ export interface StudyExportInput {
   stats: { total: number; minutes: number; coverage: number };
   /** 读前导读（维基百科、AI，可以两份都有）；没选或没找到时为空 */
   guides: BookGuide[];
+  /** 精读本（AI 通读全书写的分析，放在最前面）；没选时不给 */
+  digest?: Digest | null;
 }
 
 /** 分钟数 → 「3 小时 20 分」/「45 分钟」 */
@@ -185,5 +189,5 @@ export function buildStudyBody(input: StudyExportInput): string {
     .join(" · ");
   const style = input.style === "inkSaving" ? "ink" : input.style.startsWith("theme:") ? "theme" : input.style;
   const has = input.words.length > 0;
-  return `<main class="lens-export lens-article lens-study" data-layout="book" data-style="${style}"><header class="ar-head"><div class="ar-kicker">${tr("读前预习")}</div><h1>${escapeHtml(input.title)}</h1><p class="ar-meta">${meta}</p></header>${input.guides.map(guideSection).join("")}${o.roadmap ? roadmap(input, no) : ""}${o.simple && has ? simpleList(input) : ""}${o.detail && has ? detailList(input) : ""}${o.detail && o.index && input.order === "chapter" && has ? alphaIndex(input) : ""}<footer class="copyright">${tr(COPYRIGHT)}</footer></main>`;
+  return `<main class="lens-export lens-article lens-study" data-layout="book" data-style="${style}"><header class="ar-head"><div class="ar-kicker">${input.digest ? tr("精读本") : tr("读前预习")}</div><h1>${escapeHtml(input.title)}</h1><p class="ar-meta">${meta}</p></header>${input.digest ? buildDigestSections(input.digest) : ""}${input.guides.map(guideSection).join("")}${o.roadmap ? roadmap(input, no) : ""}${o.simple && has ? simpleList(input) : ""}${o.detail && has ? detailList(input) : ""}${o.detail && o.index && input.order === "chapter" && has ? alphaIndex(input) : ""}<footer class="copyright">${tr(COPYRIGHT)}</footer></main>`;
 }

@@ -11,6 +11,7 @@ mod commands;
 mod context_sense;
 mod db;
 mod dict;
+mod digest;
 mod epub;
 mod error;
 mod export;
@@ -376,6 +377,9 @@ pub fn run() {
             commands::study::book_study_list,
             commands::study::book_guide,
             commands::study::book_guide_ai,
+            commands::digest::book_digest_plan,
+            commands::digest::book_digest_step,
+            commands::digest::book_digest,
             commands::ai::coca_status,
             commands::ai::coca_import,
             commands::ai::coca_lookup,

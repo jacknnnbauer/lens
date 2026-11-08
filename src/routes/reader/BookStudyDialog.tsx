@@ -10,6 +10,7 @@ import { CloseIcon } from "../../components/icons";
 import { duration } from "../../export-templates/study";
 import { exportTheme, isoDate, safeFileName, type ExportStyle, type Paper } from "../../export-templates/template";
 import { getLang, tr } from "../../i18n";
+import { bookDigestPlan, type DigestPlan } from "../../ipc/digest";
 import { bookGuide, bookGuideAi, bookStudyPreview, type BookGuide, type Scope, type StudyOrder, type StudyPreview } from "../../ipc/study";
 import { useDicts } from "../../stores/dicts";
 import { useSettings } from "../../stores/settings";
@@ -52,6 +53,8 @@ interface Opts {
   guide: boolean;
   /** 导读来源：维基百科、AI（按用量计费）、两份都放 */
   guideSource: "wiki" | "ai" | "both";
+  /** 精读本：AI 通读全书写的分析（按用量计费，完整剧透） */
+  digest: boolean;
 }
 
 const PREF_KEY = "lens.reader.study";
@@ -74,6 +77,7 @@ const DEFAULT_OPTS: Opts = {
   detail: true,
   guide: true,
   guideSource: "wiki",
+  digest: false,
 };
 /** 数量上限的常用档位；别的数在「自定义」里填 */
 const LIMITS = [0, 100, 200, 300, 500, 800, 1000];
@@ -122,6 +126,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
   /** 数量上限选了「自定义」 */
   const [customLimit, setCustomLimit] = useState(false);
   const study = useSettings((s) => s.settings?.study);
+  const [plan, setPlan] = useState<DigestPlan | { error: string } | null>(null);
 
   useEffect(() => {
     const d = dialog.current;
@@ -177,6 +182,19 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
       alive = false;
     };
   }, [open, bookId, opts.guide, opts.guideSource, study?.spoilers]);
+  // 精读本：要做几步、做完了哪些、估算花费（打开选项时才算）
+  useEffect(() => {
+    if (!open || !opts.digest) return;
+    let alive = true;
+    setPlan(null);
+    bookDigestPlan(bookId).then(
+      (p) => alive && setPlan(p),
+      (e) => alive && setPlan({ error: String(e) }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [open, bookId, opts.digest]);
   const makeAiGuide = async (force: boolean) => {
     setAiGuide({ kind: "loading" });
     try {
@@ -247,6 +265,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
             ...(opts.guideSource !== "ai" && guide.kind === "found" ? [guide.guide] : []),
             ...(opts.guideSource !== "wiki" && aiGuide.kind === "found" ? [aiGuide.guide] : []),
           ],
+      digest: opts.digest,
       stats: { total: preview.total, minutes: preview.minutes, coverage: chosen?.coverage ?? 1 },
       format,
       style,
@@ -484,6 +503,13 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                 <legend>{tr("还包括")}</legend>
                 <div className={dlg.checks}>
                   <label>
+                    <input type="checkbox" checked={opts.digest} onChange={(e) => set("digest", e.target.checked)} />
+                    {tr("精读本：AI 通读全书，写出可以代替原书的分析（梗概、人物、逐章提要和原文、主题、问答、自测；完整剧透）")}
+                  </label>
+                </div>
+                {opts.digest && <DigestStatus plan={plan} />}
+                <div className={dlg.checks}>
+                  <label>
                     <input type="checkbox" checked={opts.guide} onChange={(e) => set("guide", e.target.checked)} />
                     {tr("读前导读（作者、背景、简介、主题、评价）")}
                   </label>
@@ -585,7 +611,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
         <button type="button" className={dlg.ghost} onClick={onClose}>
           {tr("取消")}
         </button>
-        <button type="button" className={dlg.primary} disabled={!preview || running || count === 0} onClick={() => void generate()} title={tr("选好保存位置后在后台生成，可以关掉对话框继续做别的")}>
+        <button type="button" className={dlg.primary} disabled={!preview || running || count === 0 || (opts.digest && (!plan || "error" in plan || (!plan.hasKey && plan.done.length < plan.steps)))} onClick={() => void generate()} title={tr("选好保存位置后在后台生成，可以关掉对话框继续做别的")}>
           {tr("在后台生成 {n} 个词的预习包", { n: count.toLocaleString() })}
         </button>
       </footer>
@@ -594,6 +620,49 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
 }
 
 /** 读前导读找到了哪篇条目；剧透、语言在设置里改 */
+function usd(n: number): string {
+  return n < 0.01 ? "<$0.01" : `$${n.toFixed(2)}`;
+}
+
+function DigestStatus({ plan }: { plan: DigestPlan | { error: string } | null }) {
+  if (!plan)
+    return (
+      <p className={styles.note} role="status">
+        {tr("正在估算…")}
+      </p>
+    );
+  if ("error" in plan)
+    return (
+      <p className={styles.note} role="alert">
+        {plan.error}
+      </p>
+    );
+  if (!plan.hasKey && plan.done.length < plan.steps)
+    return (
+      <p className={styles.note} role="alert">
+        {tr("要先在设置 › AI 例句里填写 {provider} API Key。", { provider: plan.provider })}
+      </p>
+    );
+  const left = plan.steps - plan.done.length;
+  return (
+    <p className={styles.note} role="status">
+      {left === 0
+        ? tr("精读本已生成过（{model}），直接放进去，不再收费。", { model: plan.model })
+        : tr("会把正文 {chapters} 章、{words} 词分 {chunks} 段发给 {provider}（{model}），估计花费约 {cost}，在后台大约要十几分钟。", {
+            chapters: plan.chapters,
+            words: plan.words.toLocaleString(),
+            chunks: plan.chunks,
+            provider: plan.provider,
+            model: plan.model,
+            cost: usd(left === plan.steps ? plan.costUsd : plan.remainingUsd),
+          }) +
+          (plan.done.length > 0
+            ? tr("上次已做完 {n} / {all} 步，这次接着做。", { n: plan.done.length, all: plan.steps })
+            : tr("每一步都会存下来，中途停止下次接着做。"))}
+    </p>
+  );
+}
+
 function GuideStatus({ state, spoilers }: { state: GuideState; spoilers: boolean }) {
   const text =
     state.kind === "loading"

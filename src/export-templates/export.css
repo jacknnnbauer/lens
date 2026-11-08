@@ -802,3 +802,218 @@ sup.an {
   font-weight: 600;
   color: var(--accent);
 }
+
+/* 精读本：整体、人物卡、逐章提要和书中原文、问答、自测 */
+.dg {
+  break-before: page;
+}
+
+.dg > h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--text);
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.dg > h2 small,
+.dg h3 small,
+.dg h4 small {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sub);
+}
+
+.dg h3 {
+  margin: 22px 0 6px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  break-after: avoid;
+}
+
+.dg h4 {
+  margin: 0 0 4px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dg p,
+.dg li,
+.dg dd {
+  margin: 0 0 8px;
+  font-family: var(--font-gloss);
+  font-size: 13.5px;
+  line-height: 1.75;
+}
+
+.dg p b,
+.dg-faq b,
+.dg-debate b {
+  margin-right: 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.dg-one {
+  margin: 14px 0 18px !important;
+  padding: 12px 16px;
+  border-left: 4px solid var(--accent);
+  font-size: 17px !important;
+  font-weight: 600;
+}
+
+.dg-talk {
+  padding: 4px 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.dg-strong {
+  font-weight: 600;
+}
+
+.dg-structure td:first-child {
+  white-space: nowrap;
+}
+
+.dg-cards {
+  display: grid;
+  gap: 12px;
+}
+
+.dg-card {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  break-inside: avoid;
+}
+
+.dg-card p {
+  margin-bottom: 4px;
+}
+
+/* 书中原文：英文原文、译文、为什么重要和出处 */
+.dg-q {
+  margin: 8px 0 12px;
+  padding: 6px 14px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  break-inside: avoid;
+}
+
+.dg-q .dg-en {
+  margin-bottom: 2px;
+  font-style: italic;
+}
+
+.dg-q .dg-zh {
+  margin-bottom: 2px;
+  color: var(--text);
+}
+
+.dg-q .dg-why {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.dg-ref {
+  margin-left: 8px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+.dg-ref::before {
+  content: "→ ";
+}
+
+.dg-where {
+  font-size: 12px !important;
+}
+
+.dg-part {
+  margin: 30px 0 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  break-after: avoid;
+}
+
+.dg-ch[data-kind="digression"] p {
+  color: var(--sub);
+}
+
+.dg-events {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.dg-events li {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.dg-dl dt {
+  margin-top: 10px;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.dg-dl dt small {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--sub);
+}
+
+.dg-dl dd {
+  margin: 2px 0 0;
+}
+
+.dg-faq,
+.dg-debate {
+  margin-bottom: 12px;
+  break-inside: avoid;
+}
+
+.dg-faq p,
+.dg-debate p {
+  margin-bottom: 2px;
+}
+
+.dg-quiz {
+  padding-left: 26px;
+}
+
+.dg-quiz li {
+  margin-bottom: 4px;
+}
+
+.dg-note {
+  margin-top: 18px !important;
+}
+
+/* 精读本的第一部分紧跟书名，不空出一页 */
+.ar-head + .dg {
+  break-before: auto;
+  margin-top: 28px;
+}
+
+.dg-range {
+  white-space: nowrap;
+  color: var(--sub);
+}

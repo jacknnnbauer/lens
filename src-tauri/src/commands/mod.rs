@@ -4,6 +4,7 @@ pub mod ai;
 pub mod articles;
 pub mod batch;
 pub mod dicts;
+pub mod digest;
 pub mod export;
 pub mod fulltext;
 pub mod history;

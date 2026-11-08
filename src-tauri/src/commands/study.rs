@@ -24,12 +24,12 @@ pub struct Scope {
     pub include_extras: bool,
 }
 
-fn deleted() -> Error {
+pub(crate) fn deleted() -> Error {
     Error::Other(crate::i18n::t("这本书已被删除", "This book has been deleted").into())
 }
 
 /// 读出整本书、逐章扫描（同一本书第二次直接用缓存）
-async fn scans(state: &AppState, id: i64) -> Result<Arc<Vec<ChapterScan>>> {
+pub(crate) async fn scans(state: &AppState, id: i64) -> Result<Arc<Vec<ChapterScan>>> {
     let (hash, info) = state.db.with_conn(|c| Ok((articles::book_hash(c, id)?, articles::book_info(c, id)?)))?;
     let (Some(hash), Some(info)) = (hash, info) else { return Err(deleted()) };
     if let Ok(cache) = CACHE.lock() {
@@ -62,12 +62,12 @@ async fn scans(state: &AppState, id: i64) -> Result<Arc<Vec<ChapterScan>>> {
 }
 
 /// 有正文的部分（书里的章节序号、标题、是不是附加内容）
-fn parts(scans: &[ChapterScan]) -> Vec<Part> {
+pub(crate) fn parts(scans: &[ChapterScan]) -> Vec<Part> {
     scans.iter().filter(|c| c.tokens > 0).map(|c| Part { idx: c.idx, title: c.title.clone(), extra: study::is_extra(&c.title) }).collect()
 }
 
 /// 实际用的范围：给了就用，没给用默认范围
-fn effective(scope: Scope, parts: &[Part]) -> (i64, i64) {
+pub(crate) fn effective(scope: Scope, parts: &[Part]) -> (i64, i64) {
     let titles: Vec<(i64, &str)> = parts.iter().map(|p| (p.idx, p.title.as_str())).collect();
     let (df, dt) = study::default_range(&titles).unwrap_or((0, i64::MAX));
     let (from, to) = (scope.from.unwrap_or(df), scope.to.unwrap_or(dt));

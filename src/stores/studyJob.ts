@@ -12,6 +12,7 @@ import type { Lang } from "../i18n";
 import { tr } from "../i18n";
 import { firstEntry, senseGlosses, type SenseGloss } from "../ipc/lookup";
 import { saveScannedWords } from "../ipc/scan";
+import { bookDigest, bookDigestPlan, bookDigestStep, type Digest } from "../ipc/digest";
 import { bookStudyList, type BookGuide, type Scope, type StudyOrder } from "../ipc/study";
 
 export interface StudyJobSpec {
@@ -37,6 +38,8 @@ export interface StudyJobSpec {
   detail: boolean;
   save: boolean;
   guides: BookGuide[];
+  /** 先让 AI 通读全书写精读本（放在最前面） */
+  digest: boolean;
   stats: { total: number; minutes: number; coverage: number };
   format: "pdf" | "html";
   style: ExportStyle;
@@ -63,6 +66,54 @@ const GLOSS_BATCH = 100;
 /** 上千个词的 PDF 排版、打印要几分钟 */
 const EXPORT_TIMEOUT_MS = 15 * 60_000;
 
+/** 同时跑几步通读（不同的段互不相关） */
+const DIGEST_PARALLEL = 4;
+
+/**
+ * 精读本：先按段通读（并发），再做四步综合。每步后端都存了文件，做过的直接跳过；
+ * 某一步失败重试一次，还不行就报错（已做完的保留，下次接着做）。
+ */
+async function makeDigest(bookId: number, report: (note: string, p: number | null) => void, stop: () => void): Promise<Digest> {
+  report(tr("精读本：准备中…"), null);
+  const plan = await bookDigestPlan(bookId);
+  if (!plan.hasKey && plan.done.length < plan.steps) throw new Error(tr("精读本要用 AI：先在设置 › AI 例句里填写 {provider} API Key", { provider: plan.provider }));
+  const done = new Set(plan.done);
+  const total = plan.steps;
+  const tick = (note: string) => report(note, done.size / total);
+  const once = async (step: number) => {
+    stop();
+    try {
+      await bookDigestStep(bookId, step);
+    } catch {
+      stop();
+      await bookDigestStep(bookId, step);
+    }
+    done.add(step);
+  };
+  const reading = Array.from({ length: plan.chunks }, (_, i) => i).filter((i) => !done.has(i));
+  const readNote = () => tr("精读本：AI 正在通读全书 {i} / {n} 段", { i: [...done].filter((s) => s < plan.chunks).length, n: plan.chunks });
+  tick(readNote());
+  let next = 0;
+  const worker = async () => {
+    while (next < reading.length) {
+      const step = reading[next++];
+      await once(step);
+      tick(readNote());
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(DIGEST_PARALLEL, reading.length) }, worker));
+  // 综合的四步互不依赖，一起做
+  const synth = Array.from({ length: total - plan.chunks }, (_, i) => plan.chunks + i).filter((s) => !done.has(s));
+  if (synth.length) {
+    tick(tr("精读本：正在写人物、主题、问答和自测（几分钟）…"));
+    await Promise.all(synth.map(once));
+  }
+  stop();
+  const d = await bookDigest(bookId);
+  if (!d) throw new Error(tr("精读本没有做完，请重试"));
+  return d;
+}
+
 let cancelled = false;
 
 interface StudyJobState {
@@ -82,7 +133,17 @@ export const useStudyJob = create<StudyJobState>((set, get) => {
     const stop = () => {
       if (cancelled) throw new Error(tr("已停止"));
     };
-    progress(tr("正在挑选生词…"), null);
+    // 精读本占进度条的前一半
+    let digest: Digest | null = null;
+    let base = 0;
+    let span = 1;
+    if (spec.digest) {
+      digest = await makeDigest(spec.bookId, (note, p) => progress(note, p == null ? null : p * 0.5), stop);
+      base = 0.5;
+      span = 0.5;
+    }
+    const report = (note: string, p: number | null) => progress(note, p == null ? null : base + p * span);
+    report(tr("正在挑选生词…"), null);
     const list = await bookStudyList(spec.bookId, spec.level, spec.minCount, spec.includeSaved, spec.scope, spec.order, spec.limit);
     if (list.words.length === 0) throw new Error(tr("这个门槛下没有生词，换一档词汇量试试"));
     const n = list.words.length;
@@ -91,7 +152,7 @@ export const useStudyJob = create<StudyJobState>((set, get) => {
     const glosses = new Map<string, SenseGloss>();
     for (let i = 0; i < n; i += GLOSS_BATCH) {
       stop();
-      progress(tr("正在取简释 {i} / {n}", { i: Math.min(i + GLOSS_BATCH, n), n }), (0.15 * i) / n);
+      report(tr("正在取简释 {i} / {n}", { i: Math.min(i + GLOSS_BATCH, n), n }), (0.15 * i) / n);
       const batch = await senseGlosses(
         list.words.slice(i, i + GLOSS_BATCH).map((w) => ({ lemma: w.lemma, forms: w.forms })),
         spec.dict,
@@ -105,7 +166,7 @@ export const useStudyJob = create<StudyJobState>((set, get) => {
       stop();
       let entry: StudyExportWord["entry"] = null;
       if (withEntries) {
-        if (i % 10 === 0) progress(tr("正在查词典 {i} / {n}", { i: i + 1, n }), 0.15 + (0.6 * i) / n);
+        if (i % 10 === 0) report(tr("正在查词典 {i} / {n}", { i: i + 1, n }), 0.15 + (0.6 * i) / n);
         const r = await firstEntry(w.lemma, spec.dict, w.forms).catch(() => null);
         if (r) {
           const html = r.entries.map((e) => prepareEntry(e.body, r.dictId).html);
@@ -131,7 +192,7 @@ export const useStudyJob = create<StudyJobState>((set, get) => {
 
     if (spec.save) {
       stop();
-      progress(tr("正在收进生词本…"), 0.78);
+      report(tr("正在收进生词本…"), 0.78);
       const items = rows
         .filter((r) => r.status === "new")
         .map((r) => ({ lemma: r.lemma, surface: r.surface, sentence: r.sentence, hlStart: r.hlStart, hlEnd: r.hlEnd, brief: r.gloss }));
@@ -139,7 +200,7 @@ export const useStudyJob = create<StudyJobState>((set, get) => {
     }
 
     stop();
-    progress(tr("正在排版，词多时要几分钟…"), 0.8);
+    report(tr("正在排版，词多时要几分钟…"), 0.8);
     const body = buildStudyBody({
       title: spec.title,
       author: spec.author,
@@ -161,12 +222,13 @@ export const useStudyJob = create<StudyJobState>((set, get) => {
       },
       stats: spec.stats,
       guides: spec.guides,
+      digest,
     });
     await runExport({
       jobId: crypto.randomUUID(),
       format: spec.format,
       body,
-      title: `${spec.title} · ${tr("读前预习")}`,
+      title: `${spec.title} · ${digest ? tr("精读本") : tr("读前预习")}`,
       theme: spec.theme,
       accent: spec.accent,
       path: spec.path,

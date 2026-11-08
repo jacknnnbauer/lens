@@ -8,7 +8,7 @@ import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCaptureStatus } from "../../components/HotkeyNotice";
 import { htmlToMarkdown, sourceLine } from "../../copy/convert";
-import { aiKeyStatus, aiSetKey, aiUsage, aiUsageClear, cocaImport, cocaStatus, type CocaStatus, type ModelUsage, type UsageSummary } from "../../ipc/ai";
+import { aiKeyStatus, aiSetKey, aiTest, aiUsage, aiUsageClear, cocaImport, cocaStatus, type CocaStatus, type ModelUsage, type UsageSummary } from "../../ipc/ai";
 import { appPaths, checkUpdate, type AiPrefs, type AppPaths, type UpdateInfo, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
 import { exportStyleChoices, PAPER_CHOICES } from "../../components/ExportStyleOptions";
@@ -142,6 +142,20 @@ function AiSettings() {
     }
   };
 
+  const [testing, setTesting] = useState(false);
+  const testConnection = async () => {
+    setTesting(true);
+    setMessage({ text: tr("正在测试连接…") });
+    try {
+      const r = await aiTest();
+      setMessage({ text: tr("连接正常：{provider} · {model}，用时 {s} 秒", { provider: r.provider, model: r.model, s: (r.ms / 1000).toFixed(1) }) });
+    } catch (e) {
+      setMessage({ text: tr("连接失败：{msg}", { msg: String(e) }), error: true });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const saveKey = async (value: string | null) => {
     try {
       setHasKey(await aiSetKey(provider, value));
@@ -203,6 +217,11 @@ function AiSettings() {
           <button type="button" className={styles.ghost} disabled={!key.trim()} onClick={() => void saveKey(key)}>
             {tr("保存")}
           </button>
+          {hasKey && (
+            <button type="button" className={styles.ghost} disabled={testing} onClick={() => void testConnection()} title={tr("用当前模型发一句最短的请求，检查网络、API Key 和模型名")}>
+              {tr("测试连接")}
+            </button>
+          )}
           {hasKey && (
             <button type="button" className={styles.ghost} onClick={() => void saveKey(null)}>
               {tr("删除")}

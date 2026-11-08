@@ -59,3 +59,162 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* 各部分之间用细线隔开，部分里的各块有固定间距 */
+.form {
+  gap: 0;
+}
+
+.form > fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 0;
+}
+
+.form > fieldset + fieldset {
+  border-top: 1px solid var(--line);
+}
+
+.form > fieldset legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 0;
+  font-size: 15px;
+}
+
+.form > fieldset legend + * {
+  clear: both;
+}
+
+/* 可勾选的选项卡片：标题 + 灰色说明 */
+.opts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.opt {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.opt[data-checked] {
+  border-color: var(--accent);
+  background: var(--hl);
+}
+
+.opt[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.opt input {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.opt strong {
+  display: block;
+  font-weight: 600;
+}
+
+.opt small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sub);
+}
+
+.opt:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* 释义词典 + 每个词包含：同一行，窄时换行 */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 240px;
+  font-size: 13px;
+}
+
+.field span {
+  font-weight: 600;
+}
+
+.field select {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding-bottom: 6px;
+  font-size: 13px;
+}
+
+.chips > span {
+  font-weight: 600;
+}
+
+.chips label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chips input {
+  accent-color: var(--accent);
+}
+
+/* 选项下面的细节：缩进，左边一条色线 */
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.sub .note {
+  margin: 0;
+}
+
+.subHead {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.opt input {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.sub .field {
+  align-self: flex-start;
+  width: min(360px, 100%);
+}

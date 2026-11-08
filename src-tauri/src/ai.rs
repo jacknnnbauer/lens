@@ -243,7 +243,8 @@ fn http_error(provider: Provider, status: u16, body: &str) -> Error {
     let detail = serde_json::from_str::<Value>(body)
         .ok()
         .and_then(|v| v.pointer("/error/message").and_then(Value::as_str).map(str::to_string))
-        .unwrap_or_default();
+        // 没有标准的错误信息时带上返回内容的开头，方便排查
+        .unwrap_or_else(|| body.trim().chars().take(200).collect());
     let msg = match status {
         401 => crate::i18n::t("API Key 无效，请在设置 › AI 例句里重新填写", "The API key is invalid. Re-enter it in Settings › AI examples").to_string(),
         402 => crate::i18n::t("账户余额不足，请先充值", "Insufficient balance. Please top up your account").to_string(),
@@ -264,15 +265,40 @@ pub fn body_for(provider: Provider, model: &str, word: &str, brief: Option<&str>
     }
 }
 
-/// 按服务商发送请求（body 来自 body_for）并解析；同时返回这次用掉的 token。
-pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, body: &Value) -> Result<(Vec<Example>, Usage)> {
-    let req = match provider {
+/// 发给服务商的请求：认证头和 JSON 正文。`.json()` 已经带了 Content-Type，不能再加一个——
+/// 重复的 Content-Type 会被 DeepSeek 拒绝（415）
+pub fn request(client: &reqwest::Client, provider: Provider, key: &str, body: &Value) -> reqwest::RequestBuilder {
+    match provider {
         Provider::Claude => client.post(ENDPOINT).header("x-api-key", key).header("anthropic-version", API_VERSION),
         Provider::DeepSeek => client.post(DEEPSEEK_ENDPOINT).bearer_auth(key),
     }
-    .json(body);
-    let resp = req
-        .header("content-type", "application/json")
+    .json(body)
+}
+
+/// 连通性测试：用当前模型发一句最短的请求（输出最多 16 个 token），确认网络、API Key、模型名都没问题。返回用量
+pub async fn ping(client: &reqwest::Client, provider: Provider, key: &str, model: &str) -> Result<Usage> {
+    let messages = json!([{ "role": "user", "content": "Reply with the single word OK." }]);
+    let body = match provider {
+        Provider::Claude => json!({ "model": model, "max_tokens": 16, "messages": messages }),
+        Provider::DeepSeek => json!({ "model": model, "max_tokens": 16, "messages": messages, "stream": false }),
+    };
+    let resp = request(client, provider, key, &body)
+        .timeout(Duration::from_secs(30))
+        .send()
+        .await
+        .map_err(|e| Error::Online(crate::tf!("连不上 {} API：{}", "Could not reach the {} API: {}", provider.name(), e)))?;
+    let status = resp.status().as_u16();
+    let text = resp.text().await.map_err(|e| Error::Online(e.to_string()))?;
+    if !(200..300).contains(&status) {
+        return Err(http_error(provider, status, &text));
+    }
+    let v: Value = serde_json::from_str(&text).map_err(|e| Error::Online(e.to_string()))?;
+    Ok(usage_of(provider, &v))
+}
+
+/// 按服务商发送请求（body 来自 body_for）并解析；同时返回这次用掉的 token。
+pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, body: &Value) -> Result<(Vec<Example>, Usage)> {
+    let resp = request(client, provider, key, body)
         .timeout(TIMEOUT)
         .send()
         .await
@@ -333,7 +359,6 @@ pub async fn complete_json(
     };
     let resp = req
         .json(&body)
-        .header("content-type", "application/json")
         .timeout(timeout)
         .send()
         .await
@@ -459,6 +484,16 @@ pub fn store(conn: &Connection, word: &str, model: &str, examples: &[Example], n
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn requests_carry_one_content_type() {
+        // 两个 Content-Type 会被 DeepSeek 拒绝（415）
+        let c = reqwest::Client::new();
+        for p in [Provider::Claude, Provider::DeepSeek] {
+            let r = request(&c, p, "k", &json!({})).build().unwrap();
+            assert_eq!(r.headers().get_all("content-type").iter().count(), 1, "{}", p.name());
+        }
+    }
     use super::*;
     use crate::db::Db;
 
@@ -541,3 +576,4 @@ mod tests {
         })
     }
 }
+

@@ -385,6 +385,7 @@ pub fn run() {
             commands::ai::coca_lookup,
             commands::ai::ai_key_status,
             commands::ai::ai_set_key,
+            commands::ai::ai_test,
             commands::ai::ai_examples,
             commands::ai::ai_usage,
             commands::ai::ai_usage_clear,

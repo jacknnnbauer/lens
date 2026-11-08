@@ -302,7 +302,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
       </header>
 
       <div className={dlg.content}>
-        <div className={dlg.form}>
+        <div className={`${dlg.form} ${styles.form}`}>
           {previewError ? (
             <p className={dlg.error} role="alert">
               {previewError}
@@ -433,15 +433,9 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
 
               <fieldset>
                 <legend>{tr("生词表")}</legend>
-                <div className={dlg.checks}>
-                  <label>
-                    <input type="checkbox" checked={opts.simple} onChange={(e) => set("simple", e.target.checked)} />
-                    {tr("简明单词表（单词、词性、中文，像课本后面的单词表，快速过一遍）")}
-                  </label>
-                  <label>
-                    <input type="checkbox" checked={opts.detail} onChange={(e) => set("detail", e.target.checked)} />
-                    {tr("详细词表（书中原句、词典释义）")}
-                  </label>
+                <div className={styles.opts}>
+                  <Opt checked={opts.simple} onChange={(v) => set("simple", v)} title={tr("简明单词表")} desc={tr("单词、词性、中文，像课本后面的单词表，快速过一遍")} />
+                  <Opt checked={opts.detail} onChange={(v) => set("detail", v)} title={tr("详细词表")} desc={tr("每个词带书中原句和词典释义")} />
                 </div>
                 <div className={dlg.formats}>
                   {(
@@ -459,8 +453,8 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                     </label>
                   ))}
                 </div>
-                <div className={dlg.selects}>
-                  <label>
+                <div className={styles.line}>
+                  <label className={styles.field}>
                     <span>{tr("释义词典")}</span>
                     <select value={opts.dict} onChange={(e) => set("dict", e.target.value)}>
                       <option value="">{tr("自动（生词本设置的词典优先）")}</option>
@@ -471,28 +465,29 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                       ))}
                     </select>
                   </label>
-                </div>
-                <div className={dlg.checks}>
-                  <label>
-                    <input type="checkbox" checked={opts.sentence} disabled={!opts.detail} onChange={(e) => set("sentence", e.target.checked)} />
-                    {tr("书中原句")}
-                  </label>
-                  <label title={tr("各义项的中文，取自选的释义词典；它不是双解词典或没收这个词时，按配置组顺序找别的双解词典")}>
-                    <input type="checkbox" checked={opts.gloss} onChange={(e) => set("gloss", e.target.checked)} />
-                    {tr("中文释义（各义项）")}
-                  </label>
-                  <label>
-                    <input type="checkbox" checked={opts.definition} disabled={!opts.detail} onChange={(e) => set("definition", e.target.checked)} />
-                    {tr("词典释义")}
-                  </label>
-                  <label>
-                    <input type="checkbox" checked={opts.examples} disabled={!opts.detail || !opts.definition} onChange={(e) => set("examples", e.target.checked)} />
-                    {tr("词典例句")}
-                  </label>
-                  <label>
-                    <input type="checkbox" checked={opts.phonetics} disabled={!opts.detail || !opts.definition} onChange={(e) => set("phonetics", e.target.checked)} />
-                    {tr("音标")}
-                  </label>
+                  <div className={styles.chips} role="group" aria-label={tr("每个词包含")}>
+                    <span>{tr("每个词包含")}</span>
+                    <label title={tr("各义项的中文，取自选的释义词典；它不是双解词典或没收这个词时，按配置组顺序找别的双解词典")}>
+                      <input type="checkbox" checked={opts.gloss} onChange={(e) => set("gloss", e.target.checked)} />
+                      {tr("中文释义")}
+                    </label>
+                    <label>
+                      <input type="checkbox" checked={opts.sentence} disabled={!opts.detail} onChange={(e) => set("sentence", e.target.checked)} />
+                      {tr("书中原句")}
+                    </label>
+                    <label>
+                      <input type="checkbox" checked={opts.definition} disabled={!opts.detail} onChange={(e) => set("definition", e.target.checked)} />
+                      {tr("词典释义")}
+                    </label>
+                    <label>
+                      <input type="checkbox" checked={opts.examples} disabled={!opts.detail || !opts.definition} onChange={(e) => set("examples", e.target.checked)} />
+                      {tr("词典例句")}
+                    </label>
+                    <label>
+                      <input type="checkbox" checked={opts.phonetics} disabled={!opts.detail || !opts.definition} onChange={(e) => set("phonetics", e.target.checked)} />
+                      {tr("音标")}
+                    </label>
+                  </div>
                 </div>
                 {opts.detail && opts.definition && count > LONG_LIST && (
                   <p className={styles.note}>{tr("{n} 个词带完整词典释义，PDF 会很长，生成要几分钟。只要中文简释可以取消「词典释义」。", { n: count.toLocaleString() })}</p>
@@ -500,23 +495,27 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
               </fieldset>
 
               <fieldset>
-                <legend>{tr("还包括")}</legend>
-                <div className={dlg.checks}>
-                  <label>
-                    <input type="checkbox" checked={opts.digest} onChange={(e) => set("digest", e.target.checked)} />
-                    {tr("精读本：AI 通读全书，写出可以代替原书的分析（梗概、人物、逐章提要和原文、主题、问答、自测；完整剧透）")}
-                  </label>
+                <legend>
+                  {tr("读懂这本书")} <small>{tr("放在生词表前面")}</small>
+                </legend>
+                <div className={styles.opts}>
+                  <Opt
+                    checked={opts.digest}
+                    onChange={(v) => set("digest", v)}
+                    title={tr("精读本（AI，按用量计费）")}
+                    desc={tr("AI 通读全书，写出可以代替原书的分析：梗概、人物、逐章提要和原文、主题、问答、自测。完整剧透")}
+                  />
+                  <Opt checked={opts.guide} onChange={(v) => set("guide", v)} title={tr("读前导读")} desc={tr("作者、背景、简介、主题、评价")} />
                 </div>
-                {opts.digest && <DigestStatus plan={plan} />}
-                <div className={dlg.checks}>
-                  <label>
-                    <input type="checkbox" checked={opts.guide} onChange={(e) => set("guide", e.target.checked)} />
-                    {tr("读前导读（作者、背景、简介、主题、评价）")}
-                  </label>
-                </div>
+                {opts.digest && (
+                  <div className={styles.sub}>
+                    <span className={styles.subHead}>{tr("精读本")}</span>
+                    <DigestStatus plan={plan} />
+                  </div>
+                )}
                 {opts.guide && (
-                  <div className={dlg.selects}>
-                    <label>
+                  <div className={styles.sub}>
+                    <label className={styles.field}>
                       <span>{tr("导读来源")}</span>
                       <select value={opts.guideSource} onChange={(e) => set("guideSource", e.target.value as Opts["guideSource"])}>
                         <option value="wiki">{tr("维基百科（免费，联网）")}</option>
@@ -524,43 +523,42 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                         <option value="both">{tr("两份都放")}</option>
                       </select>
                     </label>
+                    {opts.guideSource !== "ai" && <GuideStatus state={guide} spoilers={study?.spoilers ?? false} />}
+                    {opts.guideSource === "wiki" && guide.kind === "none" && <p className={styles.note}>{tr("可以把导读来源改成「AI 生成」。")}</p>}
+                    {opts.guideSource !== "wiki" && (
+                      <p className={styles.note} role="status">
+                        {aiGuide.kind === "found"
+                          ? tr("AI 导读已生成（{model}）", { model: aiGuide.guide.ai?.model ?? "" }) + (aiGuide.guide.ai?.known === false ? tr("，模型表示不了解这本书") : "")
+                          : aiGuide.kind === "loading"
+                            ? tr("AI 正在写导读，大约半分钟到一分钟…")
+                            : aiGuide.kind === "error"
+                              ? tr("AI 导读失败：{msg}", { msg: aiGuide.message })
+                              : tr("AI 导读还没生成：会把书名、作者、章节标题和开头约两千字发给 {provider}，按用量计费，结果会存下来，同一本书不再收费。", {
+                                  provider: aiProvider === "deepseek" ? "DeepSeek" : "Claude",
+                                })}{" "}
+                        {aiGuide.kind !== "loading" && (
+                          <button type="button" className={dlg.ghost} onClick={() => void makeAiGuide(aiGuide.kind === "found")}>
+                            {aiGuide.kind === "found" ? tr("重新生成") : tr("用 AI 生成导读")}
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </div>
                 )}
-                {opts.guide && opts.guideSource !== "ai" && <GuideStatus state={guide} spoilers={study?.spoilers ?? false} />}
-                {opts.guide && opts.guideSource === "wiki" && guide.kind === "none" && (
-                  <p className={styles.note}>{tr("可以把导读来源改成「AI 生成」。")}</p>
-                )}
-                {opts.guide && opts.guideSource !== "wiki" && (
-                  <p className={styles.note} role="status">
-                    {aiGuide.kind === "found"
-                      ? tr("AI 导读已生成（{model}）", { model: aiGuide.guide.ai?.model ?? "" }) + (aiGuide.guide.ai?.known === false ? tr("，模型表示不了解这本书") : "")
-                      : aiGuide.kind === "loading"
-                        ? tr("AI 正在写导读，大约半分钟到一分钟…")
-                        : aiGuide.kind === "error"
-                          ? tr("AI 导读失败：{msg}", { msg: aiGuide.message })
-                          : tr("AI 导读还没生成：会把书名、作者、章节标题和开头约两千字发给 {provider}，按用量计费，结果会存下来，同一本书不再收费。", {
-                              provider: aiProvider === "deepseek" ? "DeepSeek" : "Claude",
-                            })}{" "}
-                    {aiGuide.kind !== "loading" && (
-                      <button type="button" className={dlg.ghost} onClick={() => void makeAiGuide(aiGuide.kind === "found")}>
-                        {aiGuide.kind === "found" ? tr("重新生成") : tr("用 AI 生成导读")}
-                      </button>
-                    )}
-                  </p>
-                )}
-                <div className={dlg.checks}>
-                  <label>
-                    <input type="checkbox" checked={opts.roadmap} onChange={(e) => set("roadmap", e.target.checked)} />
-                    {tr("阅读路线表（每章篇幅、预计用时、生词密度）")}
-                  </label>
-                  <label>
-                    <input type="checkbox" checked={opts.index} disabled={opts.order !== "chapter" || !opts.detail} onChange={(e) => set("index", e.target.checked)} />
-                    {tr("字母索引")}
-                  </label>
-                  <label>
-                    <input type="checkbox" checked={opts.save} onChange={(e) => set("save", e.target.checked)} />
-                    {tr("同时收进生词本（带书中原句，标签为书名）")}
-                  </label>
+              </fieldset>
+
+              <fieldset>
+                <legend>{tr("附加")}</legend>
+                <div className={styles.opts}>
+                  <Opt checked={opts.roadmap} onChange={(v) => set("roadmap", v)} title={tr("阅读路线表")} desc={tr("每章篇幅、预计用时、生词密度")} />
+                  <Opt
+                    checked={opts.index}
+                    disabled={opts.order !== "chapter" || !opts.detail}
+                    onChange={(v) => set("index", v)}
+                    title={tr("字母索引")}
+                    desc={tr("按章排的详细词表后面附 A–Z 索引")}
+                  />
+                  <Opt checked={opts.save} onChange={(v) => set("save", v)} title={tr("收进生词本")} desc={tr("带书中原句，标签为书名")} />
                 </div>
               </fieldset>
 
@@ -620,6 +618,19 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
 }
 
 /** 读前导读找到了哪篇条目；剧透、语言在设置里改 */
+/** 一个可勾选的选项：标题加一行灰色说明 */
+function Opt({ checked, onChange, title, desc, disabled }: { checked: boolean; onChange: (v: boolean) => void; title: string; desc?: string; disabled?: boolean }) {
+  return (
+    <label className={styles.opt} data-checked={(checked && !disabled) || undefined} data-disabled={disabled || undefined}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span>
+        <strong>{title}</strong>
+        {desc && <small>{desc}</small>}
+      </span>
+    </label>
+  );
+}
+
 function usd(n: number): string {
   return n < 0.01 ? "<$0.01" : `$${n.toFixed(2)}`;
 }

@@ -41,6 +41,9 @@ export const cocaLookup = (word: string) => invoke<CocaEntry[]>("coca_lookup", {
 /** provider 省略时为 claude */
 export const aiKeyStatus = (provider?: string) => invoke<boolean>("ai_key_status", { provider: provider ?? null });
 /** 传 null 删除 */
+/** 测试连接：用当前服务商和模型发一句最短的请求（花费不到一分钱） */
+export const aiTest = () => invoke<{ provider: string; model: string; ms: number }>("ai_test");
+
 export const aiSetKey = (provider: string, key: string | null) => invoke<boolean>("ai_set_key", { provider, key });
 
 /** cachedOnly：只取缓存，不调用接口（查词时自动显示用，不花钱） */

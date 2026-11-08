@@ -75,6 +75,31 @@ pub async fn ai_set_key(provider: Option<String>, key: Option<String>) -> Result
     }
 }
 
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiTest {
+    pub provider: &'static str,
+    pub model: String,
+    pub ms: u64,
+}
+
+/// 设置 › AI 例句的「测试连接」：用当前服务商和模型发一句最短的请求
+#[tauri::command]
+pub async fn ai_test(state: State<'_, AppState>) -> Result<AiTest> {
+    let cfg = state.settings.get()?.ai;
+    let provider = cfg.provider();
+    let model = cfg.active_model().to_string();
+    let key = credentials::read(provider.key_id())?.ok_or_else(|| {
+        crate::error::Error::Online(crate::tf!("还没有填写 {} API Key", "No {} API key yet", provider.name()))
+    })?;
+    let t = std::time::Instant::now();
+    let usage = ai::ping(state.online.client(), provider, &key, &model).await?;
+    let ms = t.elapsed().as_millis() as u64;
+    let label = crate::i18n::t("（测试连接）", "(connection test)");
+    state.db.with_conn(|c| ai::record(c, provider, &model, label, usage, crate::db::now_ms()).map(|_| ()))?;
+    Ok(AiTest { provider: provider.name(), model, ms })
+}
+
 /// 双语例句：有缓存直接返回；`force` 时重新生成；`cached_only` 时没有缓存就返回 None（不花钱）。
 #[tauri::command]
 pub async fn ai_examples(

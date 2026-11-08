@@ -41,6 +41,13 @@ html:not([data-maximized]) body::after {
   pointer-events: none;
 }
 
+/* 打印 PDF 时不画：fixed 元素会印在每一页上，成了一圈框线 */
+@media print {
+  body::after {
+    display: none;
+  }
+}
+
 button,
 input,
 select,

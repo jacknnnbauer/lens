@@ -7,6 +7,20 @@ body {
   color: var(--text);
 }
 
+/* 打印时 PDF 的页边距不涂背景色，正文区的浅底色会在每页四周留出一圈「框线」。
+   白底打印版、省墨版不涂底色；只有用主题配色时保留 */
+@media print {
+  html,
+  body {
+    background: transparent;
+  }
+
+  body:has(.lens-export[data-style="theme"]),
+  body:has(.lens-export[data-style="followTheme"]) {
+    background: var(--panel);
+  }
+}
+
 /* 纵向排列用普通块 + margin，不用 flex：Chromium 打印时，跨页的 flex 子项高度按分页前计算，
    后面的卡片 / 页脚会压到它溢出的内容上（卡片重叠） */
 .lens-export {
@@ -537,12 +551,9 @@ sup.an {
   font-weight: 600;
 }
 
+/* 词典释义：不加框，缩进排在原句下面 */
 .gl-def {
   margin: 10px 0 0 30px;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-decoration-break: clone;
 }
 
 .gl-dict {

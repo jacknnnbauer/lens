@@ -19,11 +19,10 @@ const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
 /// 逐章复述一段八章约一万字，8000 不够；仍被截断时会把这一段拆小再读
 const MAX_TOKENS: u32 = 32_000;
 
-/// 一本书的精读本要用的东西：书、哈希、分好的段（每章带 href）、模型
+/// 一本书的精读本要用的东西：书、哈希、分好的段（每章带正文）、模型
 struct Ctx {
     title: String,
     author: Option<String>,
-    hash: String,
     chunks: Vec<Vec<(ChapterRef, String)>>,
     provider: crate::ai::Provider,
     model: String,
@@ -36,23 +35,53 @@ fn safe(model: &str) -> String {
     model.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '.' { c } else { '_' }).collect()
 }
 
-/// 默认范围里的正文各章（跳过前言、附赠内容），按篇幅分段
+/// 最近一本书的章（书的哈希 → 各章标题和正文）：每一步都要用，不重复读文件
+static UNITS: std::sync::Mutex<Option<(String, std::sync::Arc<Vec<(String, String)>>)>> = std::sync::Mutex::new(None);
+
+/// 默认范围里的正文（跳过前言、附赠内容），按书里的章号切成章（见 `digest::build_units`），按篇幅分段。
+/// 章的序号是精读本自己的（从 1 起），不是 epub 里的文件序号
 async fn ctx(state: &AppState, id: i64) -> Result<Ctx> {
     let article = state.db.with_conn(|c| articles::open(c, id))?.ok_or_else(deleted)?;
     let hash = state.db.with_conn(|c| articles::book_hash(c, id))?.ok_or_else(deleted)?;
-    let info = state.db.with_conn(|c| articles::book_info(c, id))?.ok_or_else(deleted)?;
-    let all = scans(state, id).await?;
-    let ps = parts(&all);
-    let (from, to) = effective(Scope::default(), &ps);
-    let mut refs = Vec::new();
-    for p in ps.iter().filter(|p| p.idx >= from && p.idx <= to && !p.extra) {
-        let (Some(scan), Some(ch)) = (all.iter().find(|c| c.idx == p.idx), info.chapters.iter().find(|c| c.idx == p.idx)) else { continue };
-        refs.push((ChapterRef { idx: p.idx, title: p.title.clone(), words: scan.tokens as usize }, ch.href.clone()));
-    }
+    let cached = UNITS.lock().ok().and_then(|g| g.as_ref().filter(|(h, _)| *h == hash).map(|(_, u)| u.clone()));
+    let units = match cached {
+        Some(u) => u,
+        None => {
+            let info = state.db.with_conn(|c| articles::book_info(c, id))?.ok_or_else(deleted)?;
+            let all = scans(state, id).await?;
+            let ps = parts(&all);
+            let (from, to) = effective(Scope::default(), &ps);
+            let files: Vec<(String, String)> = ps
+                .iter()
+                .filter(|p| p.idx >= from && p.idx <= to && !p.extra)
+                .filter_map(|p| info.chapters.iter().find(|c| c.idx == p.idx).map(|c| (p.title.clone(), c.href.clone())))
+                .collect();
+            let path = crate::commands::articles::book_file(&state.root, &hash);
+            let units = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<(String, String)>> {
+                let texts = files
+                    .into_iter()
+                    .map(|(title, href)| Ok((title, crate::epub::text_of_html(&crate::epub::read_chapter(&path, &href)?))))
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(digest::build_units(&texts))
+            })
+            .await
+            .map_err(|e| Error::Other(e.to_string()))??;
+            let units = std::sync::Arc::new(units);
+            if let Ok(mut g) = UNITS.lock() {
+                *g = Some((hash.clone(), units.clone()));
+            }
+            units
+        }
+    };
+    let refs: Vec<(ChapterRef, String)> = units
+        .iter()
+        .enumerate()
+        .map(|(i, (title, text))| (ChapterRef { idx: i as i64 + 1, title: title.clone(), words: text.split_whitespace().count() }, text.clone()))
+        .collect();
     let plain: Vec<ChapterRef> = refs.iter().map(|(r, _)| r.clone()).collect();
     let chunks = digest::chunks(&plain)
         .into_iter()
-        .map(|g| g.into_iter().map(|r| { let href = refs.iter().find(|(x, _)| x.idx == r.idx).map(|(_, h)| h.clone()).unwrap_or_default(); (r, href) }).collect())
+        .map(|g| g.into_iter().map(|r| (r.clone(), refs[(r.idx - 1) as usize].1.clone())).collect())
         .collect();
     let cfg = state.settings.get()?.ai;
     let provider = cfg.provider();
@@ -61,7 +90,6 @@ async fn ctx(state: &AppState, id: i64) -> Result<Ctx> {
     Ok(Ctx {
         title: article.meta.title,
         author: article.meta.author,
-        hash,
         words: plain.iter().map(|c| c.words).sum(),
         chapters: plain.len(),
         chunks,
@@ -203,21 +231,8 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
     })?;
     let author = c.author.as_deref();
     let (output, usage) = if step < n {
-        // 读出这一段各章的正文
-        let path = crate::commands::articles::book_file(&state.root, &c.hash);
-        let group = c.chunks[step].clone();
-        let texts = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<(ChapterRef, String)>> {
-            group
-                .into_iter()
-                .map(|(r, href)| {
-                    let html = crate::epub::read_chapter(&path, &href)?;
-                    let text = crate::epub::text_of_html(&html);
-                    Ok((r, digest::clip_words(&text, digest::MAX_CHAPTER_WORDS).to_string()))
-                })
-                .collect()
-        })
-        .await
-        .map_err(|e| Error::Other(e.to_string()))??;
+        // 这一段各章的正文（太长的章只发前面一部分）
+        let texts: Vec<(ChapterRef, String)> = c.chunks[step].iter().map(|(r, t)| (r.clone(), digest::clip_words(t, digest::MAX_CHAPTER_WORDS).to_string())).collect();
         // 输出超过上限被截断时把这一段拆成两半再读；只剩一章还写不下，就要求它写短一点
         let mut queue: std::collections::VecDeque<(Vec<(ChapterRef, String)>, bool)> = std::collections::VecDeque::from([(texts, false)]);
         let mut parts: Vec<ChunkNotes> = Vec::new();
@@ -317,6 +332,7 @@ pub async fn book_digest(state: State<'_, AppState>, id: i64) -> Result<Option<D
         return Ok(None);
     }
     let (mut chapters, quotes, dropped) = digest::merge(read_notes(&c)?);
+    digest::cap_must_read(&mut chapters);
     let mut synthesis = Synthesis::default();
     for s in 0..digest::SYNTH_STEPS {
         digest::merge_synth(&mut synthesis, &std::fs::read_to_string(step_file(&c, c.chunks.len() + s))?)?;

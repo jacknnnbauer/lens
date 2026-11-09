@@ -20,7 +20,7 @@ use serde_json::{json, Value};
 use crate::error::{Error, Result};
 
 /// 改了提示或格式就升这个号，旧的缓存不再用
-pub const VERSION: u32 = 5;
+pub const VERSION: u32 = 7;
 /// 每段最多这么多词、这么多章
 pub const CHUNK_WORDS: usize = 8000;
 pub const CHUNK_CHAPTERS: usize = 8;
@@ -40,6 +40,110 @@ pub const SCENE_MAX_WORDS: usize = 700;
 pub const SCENE_CLIP_WORDS: usize = 60;
 /// 通读之后的步数：综合 + 名场面
 pub const AFTER_READ_STEPS: usize = SYNTH_STEPS + SCENE_STEPS;
+
+// —— 章：按书里的章号重新切 ——
+
+/// 一行只有章号：「12」「XII」「Chapter 12」「CHAPTER XII」。返回章号
+pub fn chapter_marker(line: &str) -> Option<u32> {
+    let t = line.trim().trim_end_matches('.');
+    let t = t.strip_prefix("Chapter ").or_else(|| t.strip_prefix("CHAPTER ")).unwrap_or(t).trim();
+    if t.is_empty() || t.len() > 8 {
+        return None;
+    }
+    // 扫描、转换留下的错：「1 O」「l2」——有数字时去掉空格，O 当 0、l 和 I 当 1
+    let squeezed: String = t.chars().filter(|c| !c.is_whitespace()).collect();
+    if squeezed.chars().any(|c| c.is_ascii_digit()) && squeezed.chars().all(|c| c.is_ascii_digit() || "OoIl".contains(c)) {
+        let fixed: String = squeezed.chars().map(|c| match c { 'O' | 'o' => '0', 'I' | 'l' => '1', c => c }).collect();
+        return fixed.parse().ok().filter(|n| (1..=300).contains(n));
+    }
+    if t.chars().all(|c| c.is_ascii_digit()) {
+        return t.parse().ok().filter(|n| (1..=300).contains(n));
+    }
+    // 罗马数字（只认大写，免得把单词 I、mix 当成章号）
+    if t.chars().all(|c| "IVXLC".contains(c)) {
+        let v = |c: char| match c {
+            'I' => 1,
+            'V' => 5,
+            'X' => 10,
+            'L' => 50,
+            _ => 100,
+        };
+        let cs: Vec<u32> = t.chars().map(v).collect();
+        let n = cs.iter().enumerate().map(|(i, &x)| if cs.get(i + 1).is_some_and(|&y| y > x) { -(x as i64) } else { x as i64 }).sum::<i64>();
+        return u32::try_from(n).ok().filter(|n| (1..=300).contains(n));
+    }
+    None
+}
+
+fn words_of(s: &str) -> usize {
+    s.split_whitespace().count()
+}
+
+/// 版权页、目录页这类很短的附加页
+fn is_front_page(text: &str) -> bool {
+    let l = text.to_lowercase();
+    words_of(text) < 600 && (l.contains("isbn") || l.contains("all rights reserved") || l.contains("catalogue record") || l.contains("copyright ©"))
+}
+
+/// 默认范围里各部分（标题、纯文本）→ 要通读的章（标题、正文）。
+///
+/// 多数 epub 一个文件一章，原样用。有的书（尤其 Calibre 转出来的）把好几章塞进一个文件、章首只有一行数字「1」「2」：
+/// 这时整本书连起来按章号重新切（章号要递增，最多跳三章，免得把正文里单独一行的数字当成章号），
+/// 第一个章号之前的短内容（版权页）丢掉，跨文件的章接起来。至少有一个文件里出现两个以上章号才这样切。
+pub fn build_units(files: &[(String, String)]) -> Vec<(String, String)> {
+    let mut accepted: Vec<(usize, usize, u32)> = Vec::new(); // (文件, 行, 章号)
+    let mut last: Option<u32> = None;
+    for (fi, (_, text)) in files.iter().enumerate() {
+        for (li, line) in text.lines().enumerate() {
+            let Some(n) = chapter_marker(line) else { continue };
+            let ok = match last {
+                None => n <= 3,
+                Some(l) => n > l && n <= l + 3,
+            };
+            if ok {
+                accepted.push((fi, li, n));
+                last = Some(n);
+            }
+        }
+    }
+    let per_file_max = (0..files.len()).map(|fi| accepted.iter().filter(|a| a.0 == fi).count()).max().unwrap_or(0);
+    if accepted.len() < 3 || per_file_max < 2 {
+        return files.iter().filter(|(_, t)| !is_front_page(t) && words_of(t) > 0).cloned().collect();
+    }
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut cur: Option<(String, String)> = None;
+    let mut pre = String::new();
+    let mut k = 0;
+    for (fi, (title, text)) in files.iter().enumerate() {
+        for (li, line) in text.lines().enumerate() {
+            if k < accepted.len() && accepted[k].0 == fi && accepted[k].1 == li {
+                if let Some(c) = cur.take() {
+                    out.push(c);
+                } else if words_of(&pre) >= 500 && !is_front_page(&pre) {
+                    // 第一章之前的长内容（序言）单独算一部分
+                    out.push((title.clone(), std::mem::take(&mut pre)));
+                }
+                cur = Some((format!("Chapter {}", accepted[k].2), String::new()));
+                k += 1;
+                continue;
+            }
+            match cur.as_mut() {
+                Some((_, body)) => {
+                    body.push_str(line);
+                    body.push('\n');
+                }
+                None => {
+                    pre.push_str(line);
+                    pre.push('\n');
+                }
+            }
+        }
+    }
+    if let Some(c) = cur {
+        out.push(c);
+    }
+    out
+}
 
 // —— 章的编号 ——
 
@@ -65,6 +169,7 @@ pub fn resolve(n: i64, chapters: &[(i64, String)]) -> Option<i64> {
 
 /// 综合结果里所有的章编号换成书里的章节序号；对不上的丢掉（单个的填 0，排版时不显示）
 pub fn resolve_synthesis(s: &mut Synthesis, chapters: &[(i64, String)]) {
+    labels_in_text(s, chapters);
     let one = |n: i64| resolve(n, chapters).unwrap_or(0);
     let many = |v: &mut Vec<i64>| *v = v.iter().filter_map(|&n| resolve(n, chapters)).collect();
     for p in &mut s.structure {
@@ -660,6 +765,20 @@ fn clean(v: &[String]) -> Vec<String> {
     v.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
 }
 
+/// 「值得读原文」全书最多约五分之一（至少三章）：模型是一段一段判断的，段多章少时会给太多。
+/// 超出的按紧张程度留最高的（一样高时留靠前的），其余改成 normal
+pub fn cap_must_read(chapters: &mut [ChapterNote]) {
+    let max = (chapters.len() / 5).max(3);
+    let mut reads: Vec<usize> = (0..chapters.len()).filter(|&i| chapters[i].advice == "read").collect();
+    if reads.len() <= max {
+        return;
+    }
+    reads.sort_by(|&a, &b| chapters[b].tension.cmp(&chapters[a].tension).then(a.cmp(&b)));
+    for &i in &reads[max..] {
+        chapters[i].advice = "normal".into();
+    }
+}
+
 /// 一段拆成几份分别通读后再拼回一段（段内的原文编号接着排）
 pub fn join_chunks(parts: Vec<ChunkNotes>) -> ChunkNotes {
     let mut out = ChunkNotes::default();
@@ -704,7 +823,8 @@ pub fn merge(parts: Vec<ChunkNotes>) -> (Vec<ChapterNote>, Vec<Quote>, u32) {
 pub const SYNTH_SYSTEM: &str = "你是给中国读者写英文原著精读本的编辑。读者不会再读原书，读完你的材料要能跟人自如地聊这本书、讲给别人听，被问到细节也答得上来。\
 你会收到全书的逐章复述和从书里摘下的原文（带编号 Q1、Q2…）。用简体中文写，具体、准确，多写人名、章节和细节，少写空话。\
 人名第一次出现时写中文译名加英文原名，例如「亚哈（Ahab）」。凡是要填章的地方，都填章前方括号里的四位数编号（不是书里的章号）。\
-你自己对这本书、作者、出版和评价史的了解可以用，但只写确实知道的事实，拿不准的不写。需要引用原文时只用给出的编号，不要自己写英文原文。";
+你自己对这本书、作者、出版和评价史的了解可以用，但只写确实知道的事实，拿不准的不写。需要引用原文时只用给出的编号，不要自己写英文原文。\
+文字里提到某一章时写「第 N 章」（书里的章号），不要把四位编号写进文字。";
 
 /// 综合时发给的逐章复述最多这么多字（约六万 token，DeepSeek 的上下文放得下）
 pub const NOTES_CHARS: usize = 80_000;
@@ -1169,14 +1289,100 @@ pub fn tidy_diagrams(d: &mut Diagrams) {
 }
 
 /// 一次综合的输出（只有这一步的几项）并进总的结果
+///
+/// 逐项解析：DeepSeek 的 JSON 模式不强制格式，模型偶尔多写一项、把列表写成一段话，只丢掉格式不对的那一项（图解按每种图分别丢）
 pub fn merge_synth(into: &mut Synthesis, text: &str) -> Result<()> {
-    let s: Synthesis = serde_json::from_str(text).map_err(parse_err)?;
+    let v: Value = serde_json::from_str(text).map_err(parse_err)?;
+    let Some(obj) = v.as_object() else {
+        return Err(Error::Online(crate::i18n::t("模型输出的不是 JSON 对象", "The model output is not a JSON object").into()));
+    };
     let d = Synthesis::default();
-    macro_rules! take {
-        ($($f:ident),*) => { $( if s.$f != d.$f { into.$f = s.$f.clone(); } )* };
+    let mut take = |s: Synthesis| {
+        macro_rules! take {
+            ($($f:ident),*) => { $( if s.$f != d.$f { into.$f = s.$f.clone(); } )* };
+        }
+        take!(one_line, paragraph, talk, structure, characters, relations, background, glossary, timeline, motifs, themes, technique, reception, criticism, origins, misconceptions, topics, golden, further, faq, quiz);
+        // 图解：已有的几种图不被这一项里没有的图覆盖掉
+        if s.diagrams != d.diagrams {
+            let (n, o) = (&s.diagrams, &mut into.diagrams);
+            if !n.chosen.is_empty() {
+                o.chosen = n.chosen.clone();
+            }
+            macro_rules! sub {
+                ($($f:ident),*) => { $( if n.$f != Default::default() { o.$f = n.$f.clone(); } )* };
+            }
+            sub!(relations, plot, tree, family, route, rhythm, compare, causal, concepts);
+        }
+    };
+    for (k, val) in obj {
+        match serde_json::from_value::<Synthesis>(json!({ k: val })) {
+            Ok(s) => take(s),
+            Err(e) if k == "diagrams" => {
+                tracing::warn!(error = %e, "精读本：图解有格式不对的部分，逐种解析");
+                for (sk, sv) in val.as_object().into_iter().flatten() {
+                    match serde_json::from_value::<Synthesis>(json!({ "diagrams": { sk: sv } })) {
+                        Ok(s) => take(s),
+                        Err(e) => tracing::warn!(key = %sk, error = %e, "精读本：丢掉格式不对的一种图"),
+                    }
+                }
+            }
+            Err(e) => tracing::warn!(key = %k, error = %e, "精读本：丢掉格式不对的一项"),
+        }
     }
-    take!(one_line, paragraph, talk, structure, characters, relations, background, glossary, timeline, motifs, themes, technique, reception, criticism, origins, misconceptions, topics, golden, further, faq, quiz, diagrams);
     Ok(())
+}
+
+/// 文字里出现的四位章编号（模型偶尔把「[1013]」照抄进正文）换成「第 N 章」或章名
+pub fn ids_to_labels(text: &str, chapters: &[(i64, String)]) -> String {
+    let label = |n: i64| -> Option<String> {
+        let idx = n - ID_BASE;
+        let (_, title) = chapters.iter().find(|(i, _)| *i == idx)?;
+        let num = title.split(|c: char| !c.is_ascii_digit()).find(|w| !w.is_empty());
+        Some(match num {
+            Some(d) => format!("第 {d} 章"),
+            None => title.clone(),
+        })
+    };
+    let b = text.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < text.len() {
+        let run = b[i..].iter().take_while(|c| c.is_ascii_digit()).count();
+        if run == 4 && (i == 0 || !b[i - 1].is_ascii_digit()) {
+            if let Some(l) = text[i..i + 4].parse::<i64>().ok().filter(|&n| n > ID_BASE).and_then(label) {
+                out.push_str(&l);
+                i += 4;
+                continue;
+            }
+        }
+        if run > 0 {
+            out.push_str(&text[i..i + run]);
+            i += run;
+            continue;
+        }
+        let ch = text[i..].chars().next().unwrap_or(' ');
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    out
+}
+
+/// 综合结果里所有文字中的四位章编号换成章名
+fn labels_in_text(s: &mut Synthesis, chapters: &[(i64, String)]) {
+    fn walk(v: &mut Value, chapters: &[(i64, String)]) {
+        match v {
+            Value::String(t) => *t = ids_to_labels(t, chapters),
+            Value::Array(a) => a.iter_mut().for_each(|x| walk(x, chapters)),
+            Value::Object(o) => o.values_mut().for_each(|x| walk(x, chapters)),
+            _ => {}
+        }
+    }
+    if let Ok(mut v) = serde_json::to_value(&*s) {
+        walk(&mut v, chapters);
+        if let Ok(fixed) = serde_json::from_value(v) {
+            *s = fixed;
+        }
+    }
 }
 
 /// 引用了不存在的原文编号就去掉，免得 PDF 里出现空引用
@@ -1360,6 +1566,13 @@ and nothing particular to interest me on shore, I thought I would sail about a l
         resolve_synthesis(&mut s, &chs);
         let kinds: Vec<&str> = s.diagrams.chosen.iter().map(|c| c.kind.as_str()).collect();
         assert_eq!(kinds, ["relations", "route"], "不认识的、重复的、没数据的去掉");
+        // 多写了一项、格式不对：只丢那一项
+        let mut s2 = Synthesis::default();
+        merge_synth(&mut s2, r#"{"technique":"手法","structure":"本该是列表","diagrams":{"chosen":[{"kind":"route","why":""}],"route":{"stops":[{"place":"罗马","chapter":1013,"what":""}]},"plot":"坏的"}}"#).unwrap();
+        assert_eq!(s2.technique, "手法");
+        assert!(s2.structure.is_empty());
+        assert_eq!(s2.diagrams.route.stops.len(), 1, "图解里坏的那种丢掉，其他保留");
+        assert_eq!(ids_to_labels("岸上（1013—1145）与 [1010]，1851 年", &chs), "岸上（第 1 章—第 133 章）与 [ETYMOLOGY]，1851 年");
         assert_eq!(s.diagrams.route.stops.iter().map(|x| x.chapter).collect::<Vec<_>>(), vec![13, 145]);
         for step in 0..SYNTH_STEPS {
             assert!(synth_schema(step)["properties"].as_object().is_some_and(|m| !m.is_empty()), "step {step}");
@@ -1418,6 +1631,53 @@ and nothing particular to interest me on shore, I thought I would sail about a l
         let mut list = vec![Scene { id: 2, why: "旧".into(), ..Scene::default() }];
         apply_scene_notes(&mut list, &parse_scenes(r#"{"scenes":[{"id":2,"zh":"译文","context":"前因","why":""}]}"#).unwrap());
         assert_eq!((list[0].zh.as_str(), list[0].context.as_str(), list[0].why.as_str()), ("译文", "前因", "旧"));
+    }
+
+    #[test]
+    fn must_read_is_capped_by_tension() {
+        let note = |idx: i64, tension: u8| ChapterNote {
+            idx,
+            title: String::new(),
+            summary: String::new(),
+            kind: "plot".into(),
+            events: vec![],
+            characters: vec![],
+            advice: "read".into(),
+            advice_why: String::new(),
+            tension,
+            quotes: vec![],
+            scene: None,
+        };
+        let mut chs: Vec<ChapterNote> = (1..=20).map(|i| note(i, if i == 7 || i == 19 { 5 } else { 2 })).collect();
+        cap_must_read(&mut chs);
+        let kept: Vec<i64> = chs.iter().filter(|c| c.advice == "read").map(|c| c.idx).collect();
+        assert_eq!(kept, vec![1, 7, 19, 2].into_iter().collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn chapters_are_split_by_bare_numbers() {
+        assert_eq!(chapter_marker(" 12 "), Some(12));
+        assert_eq!(chapter_marker("XIV"), Some(14));
+        assert_eq!(chapter_marker("Chapter 3."), Some(3));
+        assert_eq!(chapter_marker("CHAPTER 1 Loomings"), None);
+        assert_eq!(chapter_marker("I"), Some(1));
+        assert_eq!(chapter_marker("1956"), None);
+        assert_eq!(chapter_marker("1 O"), Some(10), "OCR 把 0 认成 O");
+        assert_eq!(chapter_marker("Oh"), None);
+        let body = |s: &str| format!("{s} ").repeat(200);
+        let files = vec![
+            ("Published by Vintage".to_string(), "Published by Vintage. ISBN 0 09 928287 9. A CIP catalogue record.".to_string()),
+            ("Published by Vintage".to_string(), format!("1\n{}\n2\n{}\n‘Yes.’\n4\n{}", body("one"), body("two"), body("four"))),
+            ("Tom Ripley".to_string(), format!("{}\n5\n{}\n7\n{}\n1956\n", body("still four"), body("five"), body("seven"))),
+        ];
+        let units = build_units(&files);
+        let titles: Vec<&str> = units.iter().map(|u| u.0.as_str()).collect();
+        assert_eq!(titles, ["Chapter 1", "Chapter 2", "Chapter 4", "Chapter 5", "Chapter 7"], "版权页丢掉，跳号也认");
+        assert!(units[2].1.contains("still four"), "跨文件的章接上");
+        assert!(units[4].1.contains("1956"), "不递增的数字是正文");
+        // 一个文件一章的书原样用
+        let moby = vec![("CHAPTER 1 Loomings".to_string(), "CHAPTER 1\nLoomings\nCall me Ishmael.".to_string()), ("CHAPTER 2 The Carpet-Bag".to_string(), "CHAPTER 2\nThe Carpet-Bag\nI stuffed.".to_string()), ("CHAPTER 3".to_string(), "CHAPTER 3\nx".to_string())];
+        assert_eq!(build_units(&moby).iter().map(|u| u.0.as_str()).collect::<Vec<_>>(), ["CHAPTER 1 Loomings", "CHAPTER 2 The Carpet-Bag", "CHAPTER 3"]);
     }
 
     #[test]

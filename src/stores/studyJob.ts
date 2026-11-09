@@ -80,13 +80,17 @@ async function makeDigest(bookId: number, report: (note: string, p: number | nul
   const done = new Set(plan.done);
   const total = plan.steps;
   const tick = (note: string) => report(note, done.size / total);
+  // 网络偶尔断（长请求要几分钟）：失败后等 5 秒、20 秒再试，共三次
   const once = async (step: number) => {
-    stop();
-    try {
-      await bookDigestStep(bookId, step);
-    } catch {
+    for (let attempt = 0; ; attempt++) {
       stop();
-      await bookDigestStep(bookId, step);
+      try {
+        await bookDigestStep(bookId, step);
+        break;
+      } catch (e) {
+        if (attempt >= 2) throw e;
+        await new Promise((r) => setTimeout(r, attempt === 0 ? 5_000 : 20_000));
+      }
     }
     done.add(step);
   };

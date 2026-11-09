@@ -6,14 +6,29 @@ import { buildStudyBody } from "./study";
 const empty = {
   oneLine: "", paragraph: "", talk: "", structure: [], characters: [], relations: "", background: "", glossary: [], timeline: [], motifs: [], themes: [],
   technique: "", reception: "", criticism: [], origins: "", misconceptions: [], topics: [], golden: [], further: [], faq: [], quiz: [],
+  diagrams: {
+    chosen: [],
+    relations: { center: "", groups: [], people: [], links: [] },
+    plot: { events: [], links: [] },
+    tree: { nodes: [] },
+    family: { nodes: [] },
+    route: { stops: [] },
+    rhythm: { marks: [] },
+    compare: { title: "", items: [] },
+    causal: { nodes: [], links: [] },
+    concepts: { nodes: [], links: [] },
+  },
 };
 
 const digest: Digest = {
   model: "deepseek-v4-flash",
   dropped: 2,
+  authorDied: 1891,
+  publicDomain: true,
+  scenes: [{ id: 1, chapter: 3, title: "开篇", text: "Call me Ishmael. Some years ago…", why: "全书开头", importance: 5, zh: "叫我以实玛利。", context: "以实玛利心情低落。", clipped: false }],
   chapters: [
-    { idx: 3, title: "CHAPTER 1. Loomings.", summary: "以实玛利决定出海。", kind: "plot", events: ["决定出海"], characters: ["Ishmael"], quotes: [1] },
-    { idx: 34, title: "CHAPTER 32. Cetology.", summary: "鲸类学。", kind: "digression", events: [], characters: [], quotes: [] },
+    { idx: 3, title: "CHAPTER 1. Loomings.", summary: "以实玛利决定出海。", kind: "plot", events: ["决定出海"], characters: ["Ishmael"], advice: "read", adviceWhy: "名开头", tension: 3, quotes: [1] },
+    { idx: 34, title: "CHAPTER 32. Cetology.", summary: "鲸类学。", kind: "digression", events: [], characters: [], advice: "skip", adviceWhy: "分类学", tension: 1, quotes: [] },
   ],
   quotes: [{ id: 1, chapter: 3, text: "Call me Ishmael.", zh: "叫我以实玛利。", why: "全书第一句 <名句>" }],
   synthesis: {
@@ -34,13 +49,19 @@ describe("digest sections", () => {
 
   it("renders the parts in order, with quotes, chapter bookmarks and quiz answers after the questions", () => {
     const html = buildDigestSections(digest);
-    const order = ["整体", "人物与世界", "逐章提要", "细节自测"].map((h) => html.indexOf(`<h2>${h}`));
+    const order = ["整体", "人物与世界", "名场面", "逐章复述", "细节自测"].map((h) => html.indexOf(`<h2>${h}`));
     expect(order.every((i, k) => i >= 0 && (k === 0 || i > order[k - 1]))).toBe(true);
     expect(html).toContain('<p class="dg-en">Call me Ishmael.</p>');
     expect(html).toContain("&lt;名句&gt;");
-    expect(html).toContain('<h3>CHAPTER 1. Loomings.</h3>');
+    expect(html).toContain('<h3>CHAPTER 1. Loomings.<small aria-hidden="true">值得读原文</small></h3>');
     expect(html).toContain('<div class="dg-part">岸上</div>');
     expect(html).toContain('data-kind="digression"');
+    expect(html).toContain("<h3>阅读建议</h3>");
+    expect(html).toContain("<dt>CHAPTER 1. Loomings.</dt><dd>名开头</dd>");
+    expect(html).toContain("<b>可以跳过</b>第 32 章");
+    expect(html).toContain("名场面 1 · 开篇");
+    expect(html).toContain("作者卒于 1891 年");
+    expect(html).toContain("本章有名场面 1：开篇");
     expect(html.indexOf("叙述者叫什么")).toBeLessThan(html.indexOf("<h3>答案</h3>"));
     expect(html).toContain("2 段模型给出的引文");
     // 没内容的部分不出现

@@ -1,10 +1,12 @@
 // 精读本的排版：放在全书预习包的最前面，读完就可以不读原书。
-// 顺序按《How to Read a Book》分析阅读：整体 → 人物与世界 → 情节与逐章提要（带书中原文）→ 主题与写作
+// 顺序按《How to Read a Book》分析阅读：整体（含阅读建议）→ 人物与世界 → 情节时间线 → 名场面（整段原文）
+// → 逐章复述（带书中原文）→ 主题与写作
 // → 评价与影响 → 对话准备 → 细节自测（答案放在后面）。各部分标题是 h2，逐章提要的每章是 h3，PDF 里有书签。
 
 import { escapeHtml } from "../copy/convert";
 import { tr } from "../i18n";
-import type { Digest, DigestQuote } from "../ipc/digest";
+import type { Digest, DigestChapter, DigestQuote } from "../ipc/digest";
+import { diagramsHtml } from "./diagrams";
 
 function paras(text: string, cls = ""): string {
   const c = cls ? ` class="${cls}"` : "";
@@ -22,6 +24,13 @@ export function chapterLabel(title: string): string {
   if (m) return tr("第 {n} 章", { n: Number(m[1]) });
   return title.length > 28 ? `${title.slice(0, 26)}…` : title;
 }
+
+const ADVICE: Record<DigestChapter["advice"], string> = {
+  read: "值得读原文",
+  normal: "",
+  skim: "可略读",
+  skip: "可跳过",
+};
 
 export function buildDigestSections(d: Digest): string {
   const s = d.synthesis;
@@ -45,7 +54,28 @@ export function buildDigestSections(d: Digest): string {
 
   const note = `<p class="st-note dg-note">${tr("精读本由 AI（{model}）通读全书写成，可能有错误；书中原文都在原书里逐字核对过。", { model: escapeHtml(d.model) })}${
     d.dropped > 0 ? tr("另有 {n} 段模型给出的引文在书里找不到，已丢弃。", { n: d.dropped }) : ""
+  }${
+    d.scenes.length === 0
+      ? ""
+      : d.publicDomain
+        ? tr("作者卒于 {year} 年，这本书已进入公有领域，名场面放了整段原文。", { year: d.authorDied ?? "" })
+        : tr("这本书可能仍在版权期内（或查不到作者卒年），名场面只放开头几句原文。")
   }</p>`;
+  // 阅读建议：想读一部分原文时读哪些章、哪些可以略过
+  const pick = (a: DigestChapter["advice"]) => d.chapters.filter((c) => c.advice === a);
+  const mustRead = pick("read");
+  const skim = pick("skim");
+  const skip = pick("skip");
+  const advice =
+    mustRead.length + skim.length + skip.length === 0
+      ? ""
+      : `<p class="st-note">${tr("读完这份精读本已经可以不读原书；想读一部分原文时，按下面的建议挑。")}</p>${
+          mustRead.length
+            ? `<dl class="dg-dl dg-advice">${mustRead.map((c) => `<dt>${escapeHtml(c.title)}</dt><dd>${escapeHtml(c.adviceWhy)}</dd>`).join("")}</dl>`
+            : ""
+        }${skim.length ? `<p class="dg-adv-list"><b>${tr("可以略读")}</b>${skim.map((c) => ref(c.idx)).join("、")}</p>` : ""}${
+          skip.length ? `<p class="dg-adv-list"><b>${tr("可以跳过")}</b>${skip.map((c) => ref(c.idx)).join("、")}</p>` : ""
+        }`;
   // 一、整体
   const structure = s.structure.length
     ? `<table class="st-table dg-structure"><thead><tr><th>${tr("部分")}</th><th>${tr("章节")}</th><th>${tr("讲什么")}</th></tr></thead><tbody>${s.structure
@@ -58,8 +88,9 @@ export function buildDigestSections(d: Digest): string {
     tr("这本书讲什么"),
     (s.oneLine ? `<p class="dg-one">${escapeHtml(s.oneLine)}</p>` : "") +
       h3(tr("一段话梗概"), paras(s.paragraph)) +
-      h3(tr("三分钟讲解稿"), `<div class="dg-talk">${paras(s.talk)}</div>`) +
+      h3(tr("三分钟讲解稿"), s.talk.trim() ? `<div class="dg-talk">${paras(s.talk)}</div>` : "") +
       h3(tr("全书结构"), structure) +
+      h3(tr("阅读建议"), advice) +
       note,
   );
 
@@ -87,16 +118,34 @@ export function buildDigestSections(d: Digest): string {
     : "";
   const parts = new Map<number, string>();
   for (const p of s.structure) if (!parts.has(p.from)) parts.set(p.from, p.title);
+  const sceneOf = new Map(d.scenes.map((x) => [x.chapter, x]));
   const chapters = d.chapters
     .map((c) => {
       const part = parts.get(c.idx);
       const events = c.events.length ? `<ul class="dg-events">${c.events.map((e) => `<li>${escapeHtml(e)}</li>`).join("")}</ul>` : "";
       const qs = c.quotes.map((id) => quotes.get(id)).filter((q): q is DigestQuote => !!q);
-      return `${part ? `<div class="dg-part">${escapeHtml(part)}</div>` : ""}<div class="dg-ch" data-kind="${c.kind}"><h3>${escapeHtml(c.title)}${c.kind === "digression" ? `<small aria-hidden="true">${tr("题外话")}</small>` : ""}</h3>${paras(c.summary)}${events}${qs.map((q) => quote(q)).join("")}</div>`;
+      const tags = [c.kind === "digression" ? tr("题外话") : "", ADVICE[c.advice] ? tr(ADVICE[c.advice]) : ""].filter(Boolean).join(" · ");
+      const scene = sceneOf.get(c.idx);
+      const why = c.advice !== "normal" && c.adviceWhy ? `<p class="dg-adv">${tr(ADVICE[c.advice])}：${escapeHtml(c.adviceWhy)}</p>` : "";
+      const link = scene ? `<p class="dg-adv">${tr("本章有名场面 {n}：{title}", { n: scene.id, title: escapeHtml(scene.title) })}</p>` : "";
+      return `${part ? `<div class="dg-part">${escapeHtml(part)}</div>` : ""}<div class="dg-ch" data-kind="${c.kind}" data-advice="${c.advice}"><h3>${escapeHtml(c.title)}${tags ? `<small aria-hidden="true">${tags}</small>` : ""}</h3>${paras(c.summary)}${events}${why}${link}${qs.map((q) => quote(q)).join("")}</div>`;
     })
     .join("");
   const plot = sec("dg-timeline-sec", tr("情节时间线"), tr("{n} 个关键事件", { n: s.timeline.length }), timeline);
-  const byChapter = sec("dg-chapters", tr("逐章提要"), tr("{n} 章，原文 {q} 段", { n: d.chapters.length, q: d.quotes.length }), `<p class="st-note">${tr("引用的英文都逐字取自原书；标「题外话」的章节以议论、知识为主，不推进情节。")}</p>${chapters}`);
+  const byChapter = sec("dg-chapters", tr("逐章复述"), tr("{n} 章，原文 {q} 段", { n: d.chapters.length, q: d.quotes.length }), `<p class="st-note">${tr("引用的英文都逐字取自原书；标「题外话」的章节以议论、知识为主，不推进情节。")}</p>${chapters}`);
+
+  // 名场面：整段原文（非公版书只有开头）、译文、前因后果
+  const scenes = d.scenes
+    .map(
+      (x) =>
+        `<div class="dg-scene"><h3>${tr("名场面 {n}", { n: x.id })} · ${escapeHtml(x.title)}<small aria-hidden="true">${ref(x.chapter)}</small></h3>${
+          x.context ? `<p class="dg-context"><b>${tr("前因后果")}</b>${escapeHtml(x.context)}</p>` : ""
+        }<blockquote class="dg-q dg-long">${paras(x.text, "dg-en")}${x.clipped ? `<p class="dg-why">${tr("（仅开头，以下从略）")}</p>` : ""}</blockquote>${
+          x.zh ? `<div class="dg-zh-long">${paras(x.zh)}</div>` : ""
+        }${x.why ? `<p class="dg-why">${escapeHtml(x.why)}</p>` : ""}</div>`,
+    )
+    .join("");
+  const famous = sec("dg-scenes", tr("名场面"), tr("{n} 段原文", { n: d.scenes.length }), scenes);
 
   // 四、主题与写作
   const themes = s.themes.map((t) => `<h3>${escapeHtml(t.name)}</h3>${paras(t.text)}${refs(t.chapters) ? `<p class="dg-where">${tr("依据：")}${refs(t.chapters)}</p>` : ""}`).join("");
@@ -125,5 +174,16 @@ export function buildDigestSections(d: Digest): string {
     : "";
   const test = sec("dg-test", tr("细节自测"), tr("{n} 题", { n: s.quiz.length }), quiz);
 
-  return whole + world + plot + byChapter + ideas + fame + talk + test;
+  // 图解：AI 选的几张图（人物关系、伏笔、等级、路线、节奏、对照…）
+  const figures = s.diagrams
+    ? diagramsHtml(
+        s.diagrams,
+        d.chapters,
+        s.structure.map((p) => ({ title: p.title, from: p.from, to: p.to })),
+        (idx) => (titles.has(idx) ? chapterLabel(titles.get(idx)!) : ""),
+      )
+    : "";
+  const visual = sec("dg-figures", tr("图解"), tr("{n} 张图", { n: (figures.match(/class="dg-figure"/g) ?? []).length }), figures);
+
+  return whole + visual + world + plot + famous + byChapter + ideas + fame + talk + test;
 }

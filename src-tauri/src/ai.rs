@@ -317,6 +317,15 @@ pub async fn generate(client: &reqwest::Client, provider: Provider, key: &str, b
     Ok((examples, usage))
 }
 
+fn truncated_error() -> Error {
+    Error::Online(crate::i18n::t("输出被截断，请重试", "The output was cut off. Please try again").into())
+}
+
+/// 是不是「输出超过 max_tokens 被截断」：调用方可以把请求拆小再试
+pub fn is_truncated(e: &Error) -> bool {
+    matches!((e, &truncated_error()), (Error::Online(a), Error::Online(b)) if a == b)
+}
+
 /// 通用的 JSON 输出调用（读前导读用）：`system`、`user` 两段提示，Claude 按 schema 约束，DeepSeek 用 JSON 模式
 /// （`json_format` 是给 DeepSeek 的格式示例）。返回模型输出的 JSON 文本和用量
 #[allow(clippy::too_many_arguments)]
@@ -375,7 +384,7 @@ pub async fn complete_json(
         Provider::DeepSeek => v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length"),
     };
     if truncated {
-        return Err(Error::Online(crate::i18n::t("输出被截断，请重试", "The output was cut off. Please try again").into()));
+        return Err(truncated_error());
     }
     if provider == Provider::Claude && v.get("stop_reason").and_then(Value::as_str) == Some("refusal") {
         return Err(Error::Online(crate::i18n::t("模型拒绝了这个请求", "The model declined this request").into()));
@@ -576,4 +585,5 @@ mod tests {
         })
     }
 }
+
 

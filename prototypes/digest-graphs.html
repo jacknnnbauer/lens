@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>精读本图示原型</title>
+<style>
+  :root {
+    --bg: #faf8f4;
+    --paper: #ffffff;
+    --text: #1f2328;
+    --sub: #6b7280;
+    --line: #e5e1d8;
+    --conflict: #c2410c;
+    --bond: #15803d;
+    --rank: #64748b;
+    --fate: #7c3aed;
+    --cause: #2563eb;
+    --g-captain: #fde7d6;
+    --g-mate: #e0ecff;
+    --g-harpoon: #e3f4e6;
+    --g-crew: #fff4c2;
+    --g-shore: #efe7fb;
+    --g-sea: #e2f3f6;
+    --g-whale: #eceff3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181b; --paper: #1f2125; --text: #e8e6e1; --sub: #9aa0a8; --line: #33363c;
+      --conflict: #fb923c; --bond: #4ade80; --rank: #94a3b8; --fate: #c4b5fd; --cause: #93c5fd;
+      --g-captain: #4a2f1f; --g-mate: #1f3150; --g-harpoon: #1f3b28; --g-crew: #463c14; --g-shore: #352a4a; --g-sea: #1d3a40; --g-whale: #2e3238;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .lead { color: var(--sub); margin: 0 0 28px; }
+  section { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px 18px; margin-bottom: 28px; }
+  h2 { font-size: 20px; margin: 0 0 4px; }
+  h2 small { font-size: 13px; font-weight: 400; color: var(--sub); margin-left: 8px; }
+  .note { color: var(--sub); font-size: 12.5px; margin: 0 0 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--sub); margin: 6px 0 4px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { display: inline-block; width: 26px; height: 0; border-top: 2.5px solid; }
+  .legend i.dash { border-top-style: dashed; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--text); }
+  .catalog { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .catalog th, .catalog td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .catalog th { color: var(--sub); font-weight: 600; }
+  .catalog td:first-child { font-weight: 600; white-space: nowrap; }
+  .catalog .yes { color: var(--bond); white-space: nowrap; }
+  .catalog .no { color: var(--sub); white-space: nowrap; }
+  .why { margin: 2px 0 10px; font-size: 13px; }
+  .why b { color: var(--cause); margin-right: 6px; }
+  .halo { paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<main>
+  <h1>精读本 · 图示原型</h1>
+  <p class="lead">以《白鲸》为例。图都是静态 SVG，直接印进 PDF；数据由 AI 在精读本里一起生成，程序负责排版。</p>
+  <section>
+    <h2>AI 怎么决定画哪些图<small>Lens 提供一套图示类型，AI 读完全书后自己挑对这本书有用的</small></h2>
+    <p class="note">每种图有固定的数据格式，程序负责排版，保证印进 PDF 不乱。AI 一般挑 3–6 种，每张图配一句「这张图帮你看懂什么」；不适合的类型不画（比如没有旅程的书不画路线图）。</p>
+    <table class="catalog">
+      <thead><tr><th>类型</th><th>画什么</th><th>《白鲸》选不选</th></tr></thead>
+      <tbody>
+        <tr><td>人物关系图</td><td>人物、分组、关系（对立 / 友谊 / 上下级 / 宿命）</td><td class="yes">选</td></tr>
+        <tr><td>故事进展 / 伏笔图</td><td>主线事件，伏笔→应验、前因→后果的连线</td><td class="yes">选</td></tr>
+        <tr><td>组织 / 等级树</td><td>船、军队、宫廷、公司里谁管谁</td><td class="yes">选：船上等级</td></tr>
+        <tr><td>地点路线图</td><td>旅程经过的地方和在那里发生的事（示意，不是真地图）</td><td class="yes">选：航线</td></tr>
+        <tr><td>全书节奏图</td><td>每章是情节还是题外话、紧张程度起伏</td><td class="yes">选</td></tr>
+        <tr><td>对照图</td><td>几个人物、阵营、事件按同样几项横向比较</td><td class="yes">选：九次海上相遇</td></tr>
+        <tr><td>家谱</td><td>几代人的血缘、婚姻</td><td class="no">不选：没有家族线</td></tr>
+        <tr><td>因果链 / 论证结构</td><td>历史、社科、议论书：论点←理由←证据</td><td class="no">不选：小说</td></tr>
+        <tr><td>概念关系图</td><td>哲学、科普书里的核心概念和它们的关系</td><td class="no">不选</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>人物关系图<small>中心是主角，内圈是和他直接相关的人，外圈是其他人</small></h2>
+    <div class="legend">
+      <span><i style="border-color:var(--conflict)"></i>对立、冲突</span>
+      <span><i style="border-color:var(--bond)"></i>友谊、亲情、救助</span>
+      <span><i style="border-color:var(--rank)"></i>上下级、雇佣</span>
+      <span><i class="dash" style="border-color:var(--fate)"></i>预言、警告、宿命</span>
+    </div>
+    <svg id="rel" viewBox="0 0 820 800" role="img" aria-label="《白鲸》人物关系图"></svg>
+  </section>
+
+  <section>
+    <h2>故事进展图<small>主线按全书几大部分排列，右侧弧线把伏笔连到它的应验</small></h2>
+    <div class="legend">
+      <span><i class="dash" style="border-color:var(--fate)"></i>伏笔 → 应验</span>
+      <span><i style="border-color:var(--cause)"></i>前因 → 后果</span>
+    </div>
+    <svg id="plot" viewBox="0 0 800 100" role="img" aria-label="《白鲸》故事进展图"></svg>
+  </section>
+
+  <section>
+    <h2>船上等级<small>组织 / 等级树</small></h2>
+    <p class="why"><b>帮你看懂</b>每条小艇是一个小队：大副带一个鱼叉手和几个桨手。谁在谁的艇上，决定了追鲸时谁和谁同生死；亚哈私藏的帕西人艇队，是船东都不知道的。</p>
+    <svg id="tree" viewBox="0 0 800 400" role="img" aria-label="裴廓德号的船上等级"></svg>
+  </section>
+
+  <section>
+    <h2>航线<small>地点路线图（示意）</small></h2>
+    <p class="why"><b>帮你看懂</b>亚哈不是满世界乱追：他按季节推算白鲸出没的海域，一路从大西洋绕到太平洋赤道，最后在他算好的地方、算好的季节遇上白鲸。</p>
+    <svg id="route" viewBox="0 0 800 330" role="img" aria-label="裴廓德号的航线"></svg>
+  </section>
+
+  <section>
+    <h2>全书节奏<small>每一格是一章，高度是紧张程度</small></h2>
+    <p class="why"><b>帮你看懂</b>灰色的题外话（鲸类学、捕鲸作业）把情节切成一段段，越往后越少；紧张程度在第 36 章立誓、第 119 章风暴和最后三天追逐处冲到顶点。</p>
+    <div class="legend"><span><i style="border-color:var(--cause);border-top-width:8px"></i>情节章</span><span><i style="border-color:var(--rank);border-top-width:8px;opacity:.45"></i>题外话章</span></div>
+    <svg id="rhythm" viewBox="0 0 800 260" role="img" aria-label="《白鲸》全书节奏"></svg>
+  </section>
+
+  <section>
+    <h2>九次海上相遇<small>对照图</small></h2>
+    <p class="why"><b>帮你看懂</b>九艘船按顺序越来越不祥：前面有喜剧（处女号、玫瑰花蕾号），后面全是白鲸留下的伤亡。每一次相遇都是给亚哈的一面镜子，他一次也没有回头。</p>
+    <div class="legend"><span><i style="border-color:var(--conflict);border-top-width:8px"></i>凶兆、伤亡</span><span><i style="border-color:var(--fate);border-top-width:8px"></i>警告</span><span><i style="border-color:var(--bond);border-top-width:8px"></i>喜剧、反衬</span></div>
+    <svg id="gams" viewBox="0 0 800 500" role="img" aria-label="九次海上相遇对照"></svg>
+  </section>
+</main>
+
+<script>
+// —— 数据（正式版由 AI 生成）——
+const GROUPS = {
+  captain: { label: "船长", fill: "--g-captain" },
+  mate: { label: "大副", fill: "--g-mate" },
+  harpoon: { label: "鱼叉手", fill: "--g-harpoon" },
+  crew: { label: "水手", fill: "--g-crew" },
+  shore: { label: "岸上", fill: "--g-shore" },
+  sea: { label: "海上相遇", fill: "--g-sea" },
+  whale: { label: "白鲸", fill: "--g-whale" },
+};
+const people = [
+  { id: "ahab", zh: "亚哈", en: "Ahab", group: "captain" },
+  { id: "starbuck", zh: "斯达巴克", en: "Starbuck", group: "mate" },
+  { id: "stubb", zh: "斯塔布", en: "Stubb", group: "mate" },
+  { id: "flask", zh: "弗拉斯克", en: "Flask", group: "mate" },
+  { id: "fedallah", zh: "费达拉", en: "Fedallah", group: "harpoon" },
+  { id: "queequeg", zh: "魁魁格", en: "Queequeg", group: "harpoon" },
+  { id: "tashtego", zh: "塔什特戈", en: "Tashtego", group: "harpoon" },
+  { id: "daggoo", zh: "达古", en: "Daggoo", group: "harpoon" },
+  { id: "ishmael", zh: "以实玛利", en: "Ishmael · 叙述者", group: "crew" },
+  { id: "pip", zh: "皮普", en: "Pip", group: "crew" },
+  { id: "owners", zh: "法勒、比勒达", en: "Peleg, Bildad", group: "shore" },
+  { id: "mapple", zh: "梅普尔神父", en: "Father Mapple", group: "shore" },
+  { id: "elijah", zh: "以利亚", en: "Elijah", group: "shore" },
+  { id: "boomer", zh: "布默船长", en: "Boomer", group: "sea" },
+  { id: "gabriel", zh: "加百列", en: "Gabriel", group: "sea" },
+  { id: "rachel", zh: "拉结号", en: "the Rachel", group: "sea" },
+  { id: "moby", zh: "莫比·迪克", en: "Moby Dick", group: "whale" },
+];
+const relations = [
+  { a: "ahab", b: "moby", kind: "conflict", label: "被咬断腿，誓要复仇" },
+  { a: "ahab", b: "starbuck", kind: "conflict", label: "反对复仇" },
+  { a: "ahab", b: "stubb", kind: "rank", label: "被骂作狗" },
+  { a: "ahab", b: "flask", kind: "rank", label: "三副" },
+  { a: "ahab", b: "fedallah", kind: "fate", label: "秘密契约、预言" },
+  { a: "ahab", b: "pip", kind: "bond", label: "收容、相怜" },
+  { a: "ahab", b: "ishmael", kind: "rank", label: "船长与水手" },
+  { a: "ahab", b: "owners", kind: "rank", label: "船东雇他" },
+  { a: "ahab", b: "boomer", kind: "bond", label: "劝他放手" },
+  { a: "ahab", b: "gabriel", kind: "fate", label: "诅咒、警告" },
+  { a: "ishmael", b: "queequeg", kind: "bond", label: "结拜兄弟" },
+  { a: "starbuck", b: "queequeg", kind: "rank", label: "他的鱼叉手" },
+  { a: "stubb", b: "tashtego", kind: "rank", label: "他的鱼叉手" },
+  { a: "flask", b: "daggoo", kind: "rank", label: "他的鱼叉手" },
+  { a: "stubb", b: "pip", kind: "conflict", label: "弃于海上" },
+  { a: "owners", b: "ishmael", kind: "rank", label: "签约" },
+  { a: "elijah", b: "ishmael", kind: "fate", label: "凶兆" },
+  { a: "mapple", b: "ishmael", kind: "fate", label: "约拿布道" },
+  { a: "boomer", b: "moby", kind: "conflict", label: "被撕掉手臂" },
+  { a: "fedallah", b: "moby", kind: "conflict", label: "尸缠鲸背" },
+  { a: "rachel", b: "ishmael", kind: "bond", label: "救起" },
+];
+
+const parts = [
+  { title: "出海前", sub: "第 1–22 章" },
+  { title: "出海与誓约", sub: "第 23–40 章" },
+  { title: "捕鲸百科与第一次猎杀", sub: "第 41–80 章" },
+  { title: "一路遇船", sub: "第 81–105 章" },
+  { title: "棺材、风暴与皮普", sub: "第 106–132 章" },
+  { title: "三日追逐与尾声", sub: "第 133 章 – 尾声" },
+];
+const events = [
+  { id: "e1", part: 0, ch: "第 1 章", text: "以实玛利心绪阴郁，决定去当捕鲸水手" },
+  { id: "e2", part: 0, ch: "第 3–4 章", text: "在喷水客栈与“食人生番”魁魁格同床" },
+  { id: "e3", part: 0, ch: "第 9 章", text: "梅普尔神父讲约拿违命被鲸吞的布道" },
+  { id: "e4", part: 0, ch: "第 10 章", text: "以实玛利与魁魁格结为知心朋友" },
+  { id: "e5", part: 0, ch: "第 16 章", text: "签约裴廓德号，听说船长只有一条腿" },
+  { id: "e6", part: 0, ch: "第 19 章", text: "疤脸以利亚在码头拦住二人，说出凶兆" },
+  { id: "e7", part: 1, ch: "第 22 章", text: "圣诞节起航，亚哈始终没露面" },
+  { id: "e8", part: 1, ch: "第 28 章", text: "亚哈第一次登上后甲板，鲸骨假腿" },
+  { id: "e9", part: 1, ch: "第 36 章", text: "亚哈钉金币于主桅，全船立誓追杀白鲸" },
+  { id: "e10", part: 1, ch: "第 41 章", text: "交代莫比·迪克的传说与亚哈的断腿" },
+  { id: "e11", part: 2, ch: "第 54 章", text: "“城镇号”的故事：白鲸咬死大副拉德尼" },
+  { id: "e12", part: 2, ch: "第 61 章", text: "斯塔布猎得第一头抹香鲸" },
+  { id: "e13", part: 3, ch: "第 71 章", text: "耶罗波安号的加百列警告亚哈" },
+  { id: "e14", part: 3, ch: "第 93 章", text: "皮普第二次跳船被弃，救起后发疯" },
+  { id: "e15", part: 3, ch: "第 100 章", text: "独臂的布默船长劝亚哈别惹白鲸" },
+  { id: "e16", part: 4, ch: "第 110 章", text: "魁魁格病重，让木匠造了一口棺材" },
+  { id: "e17", part: 4, ch: "第 117 章", text: "费达拉预言：两个棺架，只有麻绳能杀死你" },
+  { id: "e18", part: 4, ch: "第 119 章", text: "雷电风暴，桅尖燃起“圣艾尔摩之火”" },
+  { id: "e19", part: 4, ch: "第 126 章", text: "救生浮桶沉没，棺材改成救生浮标" },
+  { id: "e20", part: 4, ch: "第 129 章", text: "亚哈收容发疯的皮普，舱房就是他的家" },
+  { id: "e21", part: 4, ch: "第 132 章", text: "亚哈向斯达巴克诉说四十年孤独" },
+  { id: "e22", part: 5, ch: "第 133 章", text: "第一天：亚哈先看见白鲸，赢得金币" },
+  { id: "e23", part: 5, ch: "第 134 章", text: "第二天：费达拉失踪，假腿被咬断" },
+  { id: "e24", part: 5, ch: "第 135 章", text: "第三天：费达拉尸缠鲸背；船沉，亚哈被绳索拖入海" },
+  { id: "e25", part: 5, ch: "尾声", text: "以实玛利抱着棺材浮标漂流，被拉结号救起" },
+];
+const links = [
+  { from: "e5", to: "e8", kind: "cause", label: "只有一条腿" },
+  { from: "e6", to: "e24", kind: "fate", label: "凶兆应验" },
+  { from: "e9", to: "e22", kind: "cause", label: "金币归亚哈" },
+  { from: "e10", to: "e9", kind: "cause", label: "复仇的起因" },
+  { from: "e13", to: "e24", kind: "fate", label: "警告应验" },
+  { from: "e14", to: "e20", kind: "cause", label: "疯子护疯子" },
+  { from: "e16", to: "e19", kind: "cause", label: "棺材改浮标" },
+  { from: "e19", to: "e25", kind: "cause", label: "靠棺材获救" },
+  { from: "e17", to: "e24", kind: "fate", label: "预言字面应验" },
+  { from: "e3", to: "e25", kind: "fate", label: "约拿与幸存" },
+];
+
+// —— 绘图 ——
+const NS = "http://www.w3.org/2000/svg";
+const el = (name, attrs, parent, text) => {
+  const n = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (text != null) n.textContent = text;
+  if (parent) parent.append(n);
+  return n;
+};
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const COLORS = { conflict: "--conflict", bond: "--bond", rank: "--rank", fate: "--fate", cause: "--cause" };
+/** 估算文字宽度：中文一个字约等于字号，西文约 0.56 个字号 */
+const textWidth = (s, size) => [...s].reduce((w, c) => w + (/[⺀-￿]/.test(c) ? size : size * 0.56), 0);
+
+function drawRelations(svg) {
+  const W = 820, H = 800, cx = W / 2, cy = H / 2 + 10;
+  const center = "ahab";
+  const order = Object.keys(GROUPS);
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const PRIORITY = { bond: 0, conflict: 1, fate: 2, rank: 3 };
+  const rel = (x, y) => relations.find((r) => (r.a === x && r.b === y) || (r.a === y && r.b === x));
+  const neighbors = (id) => relations.filter((r) => r.a === id || r.b === id).map((r) => (r.a === id ? r.b : r.a));
+  // 内圈：和中心直接相连的人；外圈每个人挂到关系最近的那个内圈人物下面（友谊 > 冲突 > 预言 > 上下级）
+  const inner = neighbors(center).sort((a, b) => order.indexOf(byId.get(a).group) - order.indexOf(byId.get(b).group));
+  const parent = new Map();
+  for (const p of people) {
+    if (p.id === center || inner.includes(p.id)) continue;
+    const ns = neighbors(p.id).filter((n) => inner.includes(n));
+    ns.sort((x, y) => PRIORITY[rel(p.id, x).kind] - PRIORITY[rel(p.id, y).kind] || neighbors(y).length - neighbors(x).length);
+    parent.set(p.id, ns[0] ?? inner[0]);
+  }
+  const kids = (id) => [...parent.entries()].filter(([, v]) => v === id).map(([k]) => k);
+  // 每个内圈人物分到的角度和他挂的外圈人数成正比
+  const weight = (id) => 1 + kids(id).length * 0.9;
+  const total = inner.reduce((s, id) => s + weight(id), 0);
+  const R1 = 205, R2 = 345;
+  const pos = new Map([[center, { x: cx, y: cy }]]);
+  // 挂人最多的放在正下方，下方空间最宽
+  const heavy = inner.reduce((m, id) => (weight(id) > weight(m) ? id : m), inner[0]);
+  let start = Math.PI / 2;
+  for (const id of inner) {
+    if (id === heavy) break;
+    start -= (weight(id) / total) * 2 * Math.PI;
+  }
+  start -= (weight(heavy) / total) * Math.PI;
+  let ang = start;
+  for (const id of inner) {
+    const span = (weight(id) / total) * 2 * Math.PI;
+    const a = ang + span / 2;
+    pos.set(id, { x: cx + R1 * Math.cos(a), y: cy + R1 * Math.sin(a) });
+    const ks = kids(id);
+    ks.forEach((k, i) => {
+      const b = ang + (span * (i + 1)) / (ks.length + 1);
+      pos.set(k, { x: cx + R2 * Math.cos(b), y: cy + R2 * Math.sin(b) });
+    });
+    ang += span;
+  }
+
+  const gLines = el("g", {}, svg);
+  const gLabels = el("g", {}, svg);
+  for (const r of relations) {
+    const p = pos.get(r.a), q = pos.get(r.b);
+    const fromCenter = r.a === center || r.b === center;
+    const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+    const dx = q.x - p.x, dy = q.y - p.y, len = Math.hypot(dx, dy) || 1;
+    const bend = fromCenter ? 0 : 22;
+    const qx = mx - (dy / len) * bend, qy = my + (dx / len) * bend;
+    const color = css(COLORS[r.kind]);
+    el("path", { d: `M${p.x},${p.y} Q${qx},${qy} ${q.x},${q.y}`, fill: "none", stroke: color, "stroke-width": r.kind === "rank" ? 1.4 : 2.2, "stroke-dasharray": r.kind === "fate" ? "6 4" : "", opacity: 0.9 }, gLines);
+    // 从中心出发的线，标签放在靠外的地方，免得挤在主角周围
+    const t = fromCenter ? (r.a === center ? 0.6 : 0.4) : 0.5;
+    const lx = (1 - t) ** 2 * p.x + 2 * (1 - t) * t * qx + t * t * q.x;
+    const ly = (1 - t) ** 2 * p.y + 2 * (1 - t) * t * qy + t * t * q.y;
+    el("text", { x: lx, y: ly + 4, "text-anchor": "middle", "font-size": 11.5, class: "halo", style: `fill:${color}` }, gLabels, r.label);
+  }
+  const gNodes = el("g", {}, svg);
+  for (const p of people) {
+    const { x, y } = pos.get(p.id);
+    const main = p.id === center;
+    const fs = main ? 18 : 14;
+    const w = Math.max(textWidth(p.zh, fs), textWidth(p.en, 10.5)) + 22;
+    const h = main ? 50 : 40;
+    el("rect", { x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 10, fill: css(GROUPS[p.group].fill), stroke: main ? css("--conflict") : css("--line"), "stroke-width": main ? 2 : 1 }, gNodes);
+    el("text", { x, y: y - (main ? 3 : 2), "text-anchor": "middle", "font-size": fs, "font-weight": 700 }, gNodes, p.zh);
+    el("text", { x, y: y + (main ? 15 : 13), "text-anchor": "middle", "font-size": 10.5, style: `fill:${css("--sub")}` }, gNodes, p.en);
+  }
+  let lx = 16;
+  for (const g of Object.values(GROUPS)) {
+    el("rect", { x: lx, y: 10, width: 14, height: 14, rx: 3, fill: css(g.fill), stroke: css("--line") }, svg);
+    el("text", { x: lx + 19, y: 22, "font-size": 12, style: `fill:${css("--sub")}` }, svg, g.label);
+    lx += 26 + textWidth(g.label, 12) + 10;
+  }
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+function drawPlot(svg) {
+  const W = 800;
+  const BAND_W = 116, SPINE = 150, TEXT_X = 166, TEXT_W = 380, ARC_X = 560;
+  const FS = 13.5, LINE_H = 19, ROW_PAD = 12, TOP = 18;
+  // 每个事件按文字长度折行
+  const wrap = (s) => {
+    const lines = [];
+    let cur = "";
+    for (const c of s) {
+      if (textWidth(cur + c, FS) > TEXT_W - 64) { lines.push(cur); cur = ""; }
+      cur += c;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
+  let y = TOP;
+  const rows = events.map((e) => {
+    const lines = wrap(e.text);
+    const h = Math.max(1, lines.length) * LINE_H + ROW_PAD;
+    const row = { ...e, lines, y, cy: y + LINE_H / 2 + 2, h };
+    y += h;
+    return row;
+  });
+  let H = y + 16;
+  const byId = new Map(rows.map((r) => [r.id, r]));
+
+  // 各部分的色带
+  parts.forEach((p, i) => {
+    const rs = rows.filter((r) => r.part === i);
+    if (!rs.length) return;
+    const y0 = rs[0].y - 4, y1 = rs[rs.length - 1].y + rs[rs.length - 1].h - 4;
+    el("rect", { x: 0, y: y0, width: W, height: y1 - y0, fill: i % 2 ? "transparent" : css("--bg"), rx: 6 }, svg);
+    el("text", { x: 10, y: y0 + 20, "font-size": 13, "font-weight": 700 }, svg, p.title.length > 7 ? p.title.slice(0, 7) : p.title);
+    if (p.title.length > 7) el("text", { x: 10, y: y0 + 37, "font-size": 13, "font-weight": 700 }, svg, p.title.slice(7));
+    el("text", { x: 10, y: y0 + (p.title.length > 7 ? 54 : 37), "font-size": 11, style: `fill:${css("--sub")}` }, svg, p.sub);
+  });
+  // 主线
+  el("line", { x1: SPINE, y1: rows[0].cy, x2: SPINE, y2: rows[rows.length - 1].cy, stroke: css("--text"), "stroke-width": 2.5 }, svg);
+  const linked = new Set(links.flatMap((l) => [l.from, l.to]));
+  for (const r of rows) {
+    const climax = r.part === parts.length - 1;
+    el("circle", { cx: SPINE, cy: r.cy, r: climax ? 7 : 5.5, fill: climax ? css("--conflict") : css("--paper"), stroke: css("--text"), "stroke-width": 2 }, svg);
+    el("text", { x: TEXT_X, y: r.cy + 4.5, "font-size": 11, style: `fill:${css("--sub")}` }, svg, r.ch);
+    r.lines.forEach((ln, i) => el("text", { x: TEXT_X + 64, y: r.cy + 4.5 + i * LINE_H, "font-size": FS }, svg, ln));
+    if (linked.has(r.id)) {
+      const endX = TEXT_X + 64 + Math.max(...r.lines.map((l) => textWidth(l, FS))) + 6;
+      el("line", { x1: endX, y1: r.cy, x2: ARC_X, y2: r.cy, stroke: css("--line"), "stroke-width": 1, "stroke-dasharray": "2 3" }, svg);
+      el("circle", { cx: ARC_X, cy: r.cy, r: 3, fill: css("--text") }, svg);
+    }
+  }
+  // 弧线：区间重叠的放到更外层，不互相压住
+  const sorted = links.map((l) => ({ ...l, y1: byId.get(l.from).cy, y2: byId.get(l.to).cy })).map((l) => ({ ...l, top: Math.min(l.y1, l.y2), bot: Math.max(l.y1, l.y2) }));
+  sorted.sort((a, b) => a.bot - a.top - (b.bot - b.top));
+  const placed = [];
+  for (const l of sorted) {
+    let level = 0;
+    while (placed.some((p) => p.level === level && !(p.bot < l.top - 6 || p.top > l.bot + 6))) level++;
+    l.level = level;
+    placed.push(l);
+  }
+  const maxLevel = Math.max(0, ...placed.map((p) => p.level));
+  const step = Math.min(30, (W - ARC_X - 40) / (maxLevel + 1));
+  // 编号按起点先后排：图上弧线顶点放编号，说明列在图下面
+  const numbered = [...placed].sort((a, b) => a.top - b.top || a.bot - b.bot);
+  numbered.forEach((l, i) => (l.n = i + 1));
+  for (const l of placed) {
+    const w = 18 + l.level * step;
+    const color = css(COLORS[l.kind]);
+    el("path", { d: `M${ARC_X},${l.y1} C${ARC_X + w * 1.3},${l.y1} ${ARC_X + w * 1.3},${l.y2} ${ARC_X},${l.y2}`, fill: "none", stroke: color, "stroke-width": 1.8, "stroke-dasharray": l.kind === "fate" ? "5 4" : "", "marker-end": `url(#arrow-${l.kind})` }, svg);
+    const bx = ARC_X + w * 0.975, by = (l.y1 + l.y2) / 2;
+    el("circle", { cx: bx, cy: by, r: 8.5, fill: css("--paper"), stroke: color, "stroke-width": 1.5 }, svg);
+    el("text", { x: bx, y: by + 4, "text-anchor": "middle", "font-size": 10.5, "font-weight": 700, style: `fill:${color}` }, svg, String(l.n));
+  }
+  // 图下的说明：两列
+  let ly = H - 4;
+  const colW = (W - 20) / 2;
+  numbered.forEach((l, i) => {
+    const x = 10 + (i % 2) * colW, yy = ly + Math.floor(i / 2) * 24 + 18;
+    const color = css(COLORS[l.kind]);
+    el("circle", { cx: x + 9, cy: yy - 4, r: 8.5, fill: css("--paper"), stroke: color, "stroke-width": 1.5 }, svg);
+    el("text", { x: x + 9, y: yy, "text-anchor": "middle", "font-size": 10.5, "font-weight": 700, style: `fill:${color}` }, svg, String(l.n));
+    const a = byId.get(l.from), b = byId.get(l.to);
+    el("text", { x: x + 24, y: yy, "font-size": 12.5 }, svg, `${l.label}：${a.ch} → ${b.ch}`);
+  });
+  H += Math.ceil(numbered.length / 2) * 24 + 16;
+  const defs = el("defs", {}, svg);
+  for (const k of ["fate", "cause"]) {
+    const m = el("marker", { id: `arrow-${k}`, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0,0 L10,5 L0,10 z", fill: css(COLORS[k]) }, m);
+  }
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+
+// —— 组织 / 等级树 ——
+const tree = {
+  name: "法勒、比勒达", role: "船东", children: [
+    { name: "亚哈", role: "船长", accent: true, children: [
+      { name: "斯达巴克", role: "大副", children: [{ name: "魁魁格", role: "鱼叉手", children: [{ name: "以实玛利", role: "桨手（叙述者）" }] }] },
+      { name: "斯塔布", role: "二副", children: [{ name: "塔什特戈", role: "鱼叉手", children: [{ name: "皮普", role: "替补桨手" }] }] },
+      { name: "弗拉斯克", role: "三副", children: [{ name: "达古", role: "鱼叉手" }] },
+      { name: "费达拉", role: "亚哈私藏的艇队", secret: true, children: [{ name: "四名帕西人", role: "桨手" }] },
+      { name: "船上工匠", role: "", children: [{ name: "木匠", role: "造假腿、棺材" }, { name: "珀斯", role: "铁匠，打鱼叉" }] },
+    ] },
+  ],
+};
+
+function drawTree(svg) {
+  const W = 800, LEVEL = 78, NODE_H = 42;
+  // 叶子平均分宽度，父节点在孩子中间
+  const leaves = [];
+  const walk = (n, d) => { n.depth = d; (n.children ?? []).forEach((c) => walk(c, d + 1)); if (!n.children?.length) leaves.push(n); };
+  walk(tree, 0);
+  const slot = (W - 20) / leaves.length;
+  leaves.forEach((n, i) => (n.x = 10 + slot * (i + 0.5)));
+  const place = (n) => { if (n.children?.length) { n.children.forEach(place); n.x = (n.children[0].x + n.children[n.children.length - 1].x) / 2; } };
+  place(tree);
+  const all = [];
+  const collect = (n) => { all.push(n); (n.children ?? []).forEach(collect); };
+  collect(tree);
+  const depth = Math.max(...all.map((n) => n.depth));
+  const H = 20 + depth * LEVEL + NODE_H + 10;
+  const y = (n) => 20 + n.depth * LEVEL;
+  for (const n of all) for (const c of n.children ?? []) {
+    const y1 = y(n) + NODE_H, y2 = y(c), my = (y1 + y2) / 2;
+    el("path", { d: `M${n.x},${y1} V${my} H${c.x} V${y2}`, fill: "none", stroke: c.secret ? css("--fate") : css("--rank"), "stroke-width": 1.5, "stroke-dasharray": c.secret ? "5 4" : "" }, svg);
+  }
+  for (const n of all) {
+    const w = Math.min(slot * Math.max(1, (n.children?.length ?? 1)) - 8, Math.max(textWidth(n.name, 14), textWidth(n.role, 11)) + 20);
+    el("rect", { x: n.x - w / 2, y: y(n), width: w, height: NODE_H, rx: 9, fill: n.accent ? css("--g-captain") : n.secret ? css("--g-shore") : css("--paper"), stroke: n.accent ? css("--conflict") : n.secret ? css("--fate") : css("--line"), "stroke-width": n.accent ? 2 : 1, "stroke-dasharray": n.secret ? "5 4" : "" }, svg);
+    el("text", { x: n.x, y: y(n) + 18, "text-anchor": "middle", "font-size": 14, "font-weight": 700 }, svg, n.name);
+    if (n.role) el("text", { x: n.x, y: y(n) + 34, "text-anchor": "middle", "font-size": 11, style: `fill:${css("--sub")}` }, svg, n.role);
+  }
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+// —— 地点路线图（示意）——
+const route = [
+  { place: "南塔克特", ch: "第 22 章", what: "圣诞节起航，亚哈没露面" },
+  { place: "大西洋", ch: "第 36 章", what: "钉金币，全船立誓" },
+  { place: "好望角", ch: "第 51 章", what: "月夜里的“鬼喷”" },
+  { place: "印度洋", ch: "第 61 章", what: "斯塔布杀第一头鲸" },
+  { place: "巽他海峡", ch: "第 87 章", what: "撞进抹香鲸大舰队" },
+  { place: "日本外海", ch: "第 119 章", what: "台风、桅尖火" },
+  { place: "赤道太平洋", ch: "第 133–135 章", what: "三天追逐，船沉", end: true },
+];
+
+function drawRoute(svg) {
+  const W = 800, H = 330, n = route.length;
+  const xs = route.map((_, i) => 90 + (i * (W - 180)) / (n - 1));
+  const ys = route.map((_, i) => 150 + (i % 2 ? 40 : -20));
+  // 一条起伏的航迹
+  let d = `M${xs[0]},${ys[0]}`;
+  for (let i = 1; i < n; i++) {
+    const mx = (xs[i - 1] + xs[i]) / 2;
+    d += ` C${mx},${ys[i - 1]} ${mx},${ys[i]} ${xs[i]},${ys[i]}`;
+  }
+  // 海的底色和几道浪
+  el("rect", { x: 0, y: 40, width: W, height: 230, rx: 14, fill: css("--g-sea"), opacity: 0.6 }, svg);
+  for (let k = 0; k < 4; k++) el("path", { d: `M20,${70 + k * 55} q20,-8 40,0 t40,0 t40,0`, fill: "none", stroke: css("--line"), "stroke-width": 1.2 }, svg);
+  el("path", { d, fill: "none", stroke: css("--cause"), "stroke-width": 3, "stroke-dasharray": "10 6", "marker-end": "url(#arrow-cause)" }, svg);
+  route.forEach((r, i) => {
+    const above = i % 2 === 0;
+    el("circle", { cx: xs[i], cy: ys[i], r: r.end ? 9 : 7, fill: r.end ? css("--conflict") : css("--paper"), stroke: r.end ? css("--conflict") : css("--cause"), "stroke-width": 2.5 }, svg);
+    const ty = above ? ys[i] - 70 : ys[i] + 32;
+    el("text", { x: xs[i], y: ty, "text-anchor": "middle", "font-size": 14, "font-weight": 700 }, svg, r.place);
+    el("text", { x: xs[i], y: ty + 17, "text-anchor": "middle", "font-size": 11, style: `fill:${css("--sub")}` }, svg, r.ch);
+    el("text", { x: xs[i], y: ty + 34, "text-anchor": "middle", "font-size": 12 }, svg, r.what);
+  });
+  el("text", { x: W - 12, y: H - 8, "text-anchor": "end", "font-size": 11, style: `fill:${css("--sub")}` }, svg, "示意图，不按真实比例");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+// —— 全书节奏：每章的类型（来自实测）和紧张程度（1–5，正式版由 AI 在通读时给）——
+const KINDS = [["ETYMOLOG", "d"], ["EXTRACTS", "d"], ["1", "p"], ["2", "p"], ["3", "p"], ["4", "p"], ["5", "p"], ["6", "p"], ["7", "p"], ["8", "p"], ["9", "p"], ["10", "p"], ["11", "p"], ["12", "p"], ["13", "p"], ["14", "d"], ["15", "p"], ["16", "p"], ["17", "p"], ["18", "p"], ["19", "p"], ["20", "p"], ["21", "p"], ["22", "p"], ["23", "p"], ["24", "d"], ["25", "d"], ["26", "d"], ["27", "d"], ["28", "p"], ["29", "p"], ["30", "d"], ["31", "p"], ["32", "p"], ["33", "p"], ["34", "p"], ["35", "p"], ["36", "p"], ["37", "p"], ["38", "p"], ["39", "p"], ["40", "p"], ["41", "p"], ["42", "d"], ["43", "p"], ["44", "p"], ["45", "d"], ["46", "d"], ["47", "p"], ["48", "p"], ["49", "p"], ["50", "p"], ["51", "p"], ["52", "p"], ["53", "d"], ["54", "p"], ["55", "d"], ["56", "d"], ["57", "d"], ["58", "d"], ["59", "p"], ["60", "d"], ["61", "p"], ["62", "d"], ["63", "d"], ["64", "p"], ["65", "d"], ["66", "p"], ["67", "p"], ["68", "p"], ["69", "p"], ["70", "p"], ["71", "p"], ["72", "p"], ["73", "p"], ["74", "d"], ["75", "d"], ["76", "p"], ["77", "p"], ["78", "p"], ["79", "p"], ["80", "p"], ["81", "p"], ["82", "p"], ["83", "p"], ["84", "p"], ["85", "d"], ["86", "p"], ["87", "p"], ["88", "p"], ["89", "p"], ["90", "p"], ["91", "p"], ["92", "p"], ["93", "p"], ["94", "p"], ["95", "p"], ["96", "p"], ["97", "d"], ["98", "d"], ["99", "p"], ["100", "p"], ["101", "d"], ["102", "d"], ["103", "d"], ["104", "d"], ["105", "d"], ["106", "p"], ["107", "p"], ["108", "p"], ["109", "p"], ["110", "p"], ["111", "p"], ["112", "p"], ["113", "p"], ["114", "p"], ["115", "p"], ["116", "p"], ["117", "p"], ["118", "p"], ["119", "p"], ["120", "p"], ["121", "p"], ["122", "p"], ["123", "p"], ["124", "p"], ["125", "p"], ["126", "p"], ["127", "p"], ["128", "p"], ["129", "p"], ["130", "p"], ["131", "p"], ["132", "p"], ["133", "p"], ["134", "p"], ["135", "p"], ["EPILOGUE", "p"]];
+const PEAKS = { 3: 3, 9: 3, 16: 3, 19: 3, 28: 4, 36: 5, 37: 4, 38: 4, 41: 4, 47: 4, 48: 4, 54: 3, 61: 3, 69: 3, 72: 3, 81: 3, 87: 4, 93: 4, 100: 3, 109: 4, 110: 3, 113: 4, 118: 4, 119: 5, 123: 5, 124: 4, 126: 3, 128: 4, 130: 4, 131: 4, 132: 4, 133: 5, 134: 5, 135: 5 };
+const MARKS = [[36, "立誓"], [93, "皮普落海"], [119, "风暴"], [123, "斯达巴克举枪"], [134, "三日追逐"]];
+
+function drawRhythm(svg) {
+  const W = 800, H = 260, base = 200, top = 40, x0 = 20, n = KINDS.length;
+  const bw = (W - 2 * x0) / n;
+  const level = (k) => (k[1] === "d" ? 1 : PEAKS[+k[0]] ?? 2);
+  // 刻度线
+  for (let v = 1; v <= 5; v++) {
+    const yy = base - ((base - top) * v) / 5;
+    el("line", { x1: x0, x2: W - x0, y1: yy, y2: yy, stroke: css("--line"), "stroke-width": 1 }, svg);
+  }
+  KINDS.forEach((k, i) => {
+    const h = ((base - top) * level(k)) / 5;
+    el("rect", { x: x0 + i * bw + 0.5, y: base - h, width: Math.max(1, bw - 1), height: h, fill: k[1] === "d" ? css("--rank") : css("--cause"), opacity: k[1] === "d" ? 0.45 : 0.85 }, svg);
+  });
+  // 平滑的起伏线（前后各两章平均）
+  let d = "";
+  KINDS.forEach((_, i) => {
+    const win = KINDS.slice(Math.max(0, i - 2), i + 3).map(level);
+    const v = win.reduce((a, b) => a + b, 0) / win.length;
+    const px = x0 + (i + 0.5) * bw, py = base - ((base - top) * v) / 5;
+    d += (i ? " L" : "M") + px + "," + py;
+  });
+  el("path", { d, fill: "none", stroke: css("--conflict"), "stroke-width": 2 }, svg);
+  for (const [ch, label] of MARKS) {
+    const i = KINDS.findIndex((k) => +k[0] === ch);
+    if (i < 0) continue;
+    const px = x0 + (i + 0.5) * bw;
+    el("line", { x1: px, x2: px, y1: top - 6, y2: base, stroke: css("--conflict"), "stroke-width": 1, "stroke-dasharray": "2 3" }, svg);
+    el("text", { x: px, y: top - 12, "text-anchor": "middle", "font-size": 11.5, class: "halo", style: `fill:${css("--conflict")}` }, svg, label);
+  }
+  // 各部分
+  const bounds = [[1, "出海前"], [23, "出海与誓约"], [41, "捕鲸百科"], [81, "一路遇船"], [106, "棺材与风暴"], [133, "追逐"]];
+  bounds.forEach(([ch, label], j) => {
+    const i = ch === 1 ? 0 : KINDS.findIndex((k) => +k[0] === ch);
+    const next = bounds[j + 1] ? KINDS.findIndex((k) => +k[0] === bounds[j + 1][0]) : n;
+    const xa = x0 + i * bw, xb = x0 + next * bw;
+    el("line", { x1: xa, x2: xa, y1: base, y2: base + 30, stroke: css("--text"), "stroke-width": 1 }, svg);
+    el("text", { x: (xa + xb) / 2, y: base + 22, "text-anchor": "middle", "font-size": 12 }, svg, label);
+  });
+  el("text", { x: x0, y: H - 8, "font-size": 11, style: `fill:${css("--sub")}` }, svg, "最左两格是书前的「词源」「摘录」；红线是前后各两章的平均");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+// —— 对照图：九次海上相遇 ——
+const gams = [
+  { ship: "信天翁号", en: "Goney", ch: 52, saw: "?", tone: "omen", what: "喊话时号筒落海，话没问完" },
+  { ship: "城镇号", en: "Town-Ho", ch: 54, saw: "是", tone: "omen", what: "听来的故事：白鲸咬死欺压水手的大副" },
+  { ship: "耶罗波安号", en: "Jeroboam", ch: 71, saw: "是", tone: "omen", what: "疯子加百列诅咒亚哈；大副被白鲸撞死" },
+  { ship: "处女号", en: "Jungfrau", ch: 81, saw: "否", tone: "comic", what: "德国船来讨灯油，追鲸追得一塌糊涂" },
+  { ship: "玫瑰花蕾号", en: "Rose-Bud", ch: 91, saw: "否", tone: "comic", what: "斯塔布从病鲸肚里骗得龙涎香" },
+  { ship: "塞缪尔·恩德比号", en: "Samuel Enderby", ch: 100, saw: "是", tone: "warn", what: "布默被白鲸撕去手臂，劝亚哈放手" },
+  { ship: "单身汉号", en: "Bachelor", ch: 115, saw: "否", tone: "comic", what: "满载鲸油回家庆祝，不信有白鲸" },
+  { ship: "拉结号", en: "Rachel", ch: 128, saw: "是", tone: "omen", what: "船长的儿子随小艇失踪，亚哈拒绝帮找" },
+  { ship: "欢欣号", en: "Delight", ch: 131, saw: "是", tone: "omen", what: "刚被白鲸毁艇死五人：“你们在坟上航行”" },
+];
+const TONE = { omen: "--conflict", warn: "--fate", comic: "--bond" };
+
+function drawGams(svg) {
+  const W = 800, cols = 3, gap = 12, cw = (W - gap * (cols - 1)) / cols, ch = 138;
+  gams.forEach((g, i) => {
+    const x = (i % cols) * (cw + gap), y = Math.floor(i / cols) * (ch + gap);
+    const color = css(TONE[g.tone]);
+    el("rect", { x, y, width: cw, height: ch, rx: 10, fill: css("--paper"), stroke: css("--line") }, svg);
+    el("rect", { x, y, width: 6, height: ch, rx: 3, fill: color }, svg);
+    el("text", { x: x + 18, y: y + 26, "font-size": 11, style: `fill:${css("--sub")}` }, svg, `第 ${i + 1} 次 · 第 ${g.ch} 章`);
+    el("text", { x: x + 18, y: y + 48, "font-size": 15, "font-weight": 700 }, svg, g.ship);
+    el("text", { x: x + 18, y: y + 64, "font-size": 11, style: `fill:${css("--sub")}` }, svg, g.en);
+    // 见过白鲸吗
+    const badge = g.saw === "是" ? "见过白鲸" : g.saw === "否" ? "没见过" : "没问成";
+    const bwid = textWidth(badge, 11) + 14;
+    el("rect", { x: x + cw - bwid - 12, y: y + 14, width: bwid, height: 20, rx: 10, fill: g.saw === "是" ? css("--conflict") : css("--line"), opacity: g.saw === "是" ? 0.9 : 1 }, svg);
+    el("text", { x: x + cw - bwid / 2 - 12, y: y + 28, "text-anchor": "middle", "font-size": 11, style: `fill:${g.saw === "是" ? "#fff" : css("--sub")}` }, svg, badge);
+    // 说明折两行
+    const lines = [];
+    let cur = "";
+    for (const c of g.what) { if (textWidth(cur + c, 12.5) > cw - 32) { lines.push(cur); cur = ""; } cur += c; }
+    if (cur) lines.push(cur);
+    lines.slice(0, 3).forEach((ln, k) => el("text", { x: x + 18, y: y + 90 + k * 18, "font-size": 12.5 }, svg, ln));
+  });
+  svg.setAttribute("viewBox", `0 0 ${W} ${Math.ceil(gams.length / cols) * (ch + gap) - gap}`);
+}
+
+drawRelations(document.getElementById("rel"));
+drawPlot(document.getElementById("plot"));
+drawTree(document.getElementById("tree"));
+{
+  // 路线图要用箭头：复用故事图里定义的 marker
+  const svg = document.getElementById("route");
+  const defs = el("defs", {}, svg);
+  const m = el("marker", { id: "arrow-cause", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" }, defs);
+  el("path", { d: "M0,0 L10,5 L0,10 z", fill: css("--cause") }, m);
+  drawRoute(svg);
+}
+drawRhythm(document.getElementById("rhythm"));
+drawGams(document.getElementById("gams"));
+</script>
+</body>
+</html>

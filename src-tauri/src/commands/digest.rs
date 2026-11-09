@@ -1,5 +1,6 @@
 //! 精读本的命令：先看要做几步、估算花费（`book_digest_plan`），前端一步步调 `book_digest_step`（可以并发、停止），
-//! 都做完后 `book_digest` 拼出完整结果。每步存成文件：`digests/<书的哈希>-<模型>-v<版本>/read-<k>.json`、`synth-<k>.json`。
+//! 都做完后 `book_digest` 拼出完整结果。每步存成文件：`digests/<书的哈希>-<模型>-v<版本>/read-<k>.json`、
+//! `synth-<k>.json`、`scene-<k>.json`；公版判断存在 `rights.json`。
 //! 业务逻辑在 `crate::digest`。
 
 use std::path::PathBuf;
@@ -10,11 +11,13 @@ use tauri::State;
 use crate::app_state::AppState;
 use crate::commands::study::{deleted, effective, parts, scans, Scope};
 use crate::db::articles;
-use crate::digest::{self, ChapterRef, ChunkNotes, Digest, Synthesis};
+use crate::digest::{self, ChapterRef, ChunkNotes, Digest, Rights, Scene, Synthesis};
 use crate::error::{Error, Result};
 
-const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
-const MAX_TOKENS: u32 = 8000;
+const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
+/// 单次输出上限：DeepSeek flash 允许到 39 万，Claude Opus / Sonnet 都在 3.2 万以上。
+/// 逐章复述一段八章约一万字，8000 不够；仍被截断时会把这一段拆小再读
+const MAX_TOKENS: u32 = 32_000;
 
 /// 一本书的精读本要用的东西：书、哈希、分好的段（每章带 href）、模型
 struct Ctx {
@@ -68,13 +71,48 @@ async fn ctx(state: &AppState, id: i64) -> Result<Ctx> {
     })
 }
 
+/// 第几步存在哪个文件：先是各段通读，然后四次综合，最后几次名场面
 fn step_file(c: &Ctx, step: usize) -> PathBuf {
     let n = c.chunks.len();
     if step < n {
         c.dir.join(format!("read-{step}.json"))
-    } else {
+    } else if step < n + digest::SYNTH_STEPS {
         c.dir.join(format!("synth-{}.json", step - n))
+    } else {
+        c.dir.join(format!("scene-{}.json", step - n - digest::SYNTH_STEPS))
     }
+}
+
+fn total_steps(c: &Ctx) -> usize {
+    c.chunks.len() + digest::AFTER_READ_STEPS
+}
+
+/// 是不是公版书：查一次维基百科（作者卒年），结果存下；查不到（没有作者、联不上网）按非公版
+async fn rights(c: &Ctx) -> Rights {
+    let file = c.dir.join("rights.json");
+    if let Some(r) = std::fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<Rights>(&t).ok()) {
+        return r;
+    }
+    let died = match c.author.as_deref() {
+        Some(a) => crate::wiki::author_died(a).await,
+        None => Ok(None),
+    };
+    let year = digest::year_of_ms(crate::db::now_ms());
+    let r = Rights { author_died: died.as_ref().ok().copied().flatten(), public_domain: digest::is_public_domain(died.as_ref().ok().copied().flatten(), year) };
+    // 联网失败时不存，下次再查
+    if died.is_ok() {
+        let _ = std::fs::create_dir_all(&c.dir).and_then(|_| std::fs::write(&file, serde_json::to_string(&r).unwrap_or_default()));
+    }
+    r
+}
+
+/// 选出的名场面（非公版书只留开头），按编号
+fn scenes_of(chapters: &[digest::ChapterNote], rights: &Rights) -> Vec<Scene> {
+    let mut scenes = digest::select_scenes(chapters);
+    if !rights.public_domain {
+        scenes.iter_mut().for_each(digest::clip_scene);
+    }
+    scenes
 }
 
 #[derive(Debug, Serialize)]
@@ -84,7 +122,7 @@ pub struct DigestPlan {
     pub model: String,
     /// 有没有填 API Key
     pub has_key: bool,
-    /// 通读的段数；总步数 = 段数 + 4
+    /// 通读的段数；总步数 = 段数 + 4（综合）+ 4（名场面）
     pub chunks: usize,
     pub steps: usize,
     /// 已经做完（存了文件）的步
@@ -100,7 +138,7 @@ pub struct DigestPlan {
 #[tauri::command]
 pub async fn book_digest_plan(state: State<'_, AppState>, id: i64) -> Result<DigestPlan> {
     let c = ctx(&state, id).await?;
-    let steps = c.chunks.len() + digest::SYNTH_STEPS;
+    let steps = total_steps(&c);
     let done: Vec<usize> = (0..steps).filter(|&s| step_file(&c, s).exists()).collect();
     let (input, output) = digest::estimate_tokens(c.words, c.chapters);
     let cost = crate::ai::cost_usd(c.provider, &c.model, crate::ai::Usage { input, cached: 0, output }, crate::db::now_ms());
@@ -119,6 +157,10 @@ pub async fn book_digest_plan(state: State<'_, AppState>, id: i64) -> Result<Dig
     })
 }
 
+fn add(a: crate::ai::Usage, b: crate::ai::Usage) -> crate::ai::Usage {
+    crate::ai::Usage { input: a.input + b.input, cached: a.cached + b.cached, output: a.output + b.output }
+}
+
 fn read_notes(c: &Ctx) -> Result<Vec<ChunkNotes>> {
     (0..c.chunks.len())
         .map(|k| {
@@ -129,7 +171,7 @@ fn read_notes(c: &Ctx) -> Result<Vec<ChunkNotes>> {
         .collect()
 }
 
-/// 做第 `step` 步（已经存过就直接返回）：前面几步是逐段通读，最后四步是综合（要等通读全部做完）
+/// 做第 `step` 步（已经存过就直接返回）：前面几步是逐段通读，后面是综合和名场面（要等通读全部做完）
 #[tauri::command]
 pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) -> Result<()> {
     let c = ctx(&state, id).await?;
@@ -138,9 +180,24 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         return Ok(());
     }
     let n = c.chunks.len();
-    if step >= n + digest::SYNTH_STEPS {
+    if step >= total_steps(&c) {
         return Err(Error::Other(format!("step {step} out of range")));
     }
+    // 名场面：这一步分到的几段；一段都没有就不用调模型
+    let scene_part = if step >= n + digest::SYNTH_STEPS {
+        let k = step - n - digest::SYNTH_STEPS;
+        let (chapters, _, _) = digest::merge(read_notes(&c)?);
+        let r = rights(&c).await;
+        let part: Vec<Scene> = scenes_of(&chapters, &r).into_iter().skip(k * digest::SCENES_PER_STEP).take(digest::SCENES_PER_STEP).collect();
+        if part.is_empty() {
+            std::fs::create_dir_all(&c.dir)?;
+            std::fs::write(&file, r#"{"scenes":[]}"#)?;
+            return Ok(());
+        }
+        Some((part, chapters))
+    } else {
+        None
+    };
     let key = crate::online::credentials::read(c.provider.key_id())?.ok_or_else(|| {
         Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 例句）", "No {} API key yet (Settings › AI examples)", c.provider.name()))
     })?;
@@ -161,23 +218,67 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         })
         .await
         .map_err(|e| Error::Other(e.to_string()))??;
-        let user = digest::read_prompt(&c.title, author, &texts);
+        // 输出超过上限被截断时把这一段拆成两半再读；只剩一章还写不下，就要求它写短一点
+        let mut queue: std::collections::VecDeque<(Vec<(ChapterRef, String)>, bool)> = std::collections::VecDeque::from([(texts, false)]);
+        let mut parts: Vec<ChunkNotes> = Vec::new();
+        let mut usage = crate::ai::Usage::default();
+        while let Some((group, shorter)) = queue.pop_front() {
+            let mut user = digest::read_prompt(&c.title, author, &group);
+            if shorter {
+                user.push_str(digest::SHORTER);
+            }
+            let res = crate::ai::complete_json(
+                state.online.client(),
+                c.provider,
+                &key,
+                &c.model,
+                digest::READ_SYSTEM,
+                &user,
+                digest::read_schema(),
+                digest::READ_FORMAT,
+                MAX_TOKENS,
+                TIMEOUT,
+            )
+            .await;
+            match res {
+                Ok((text, u)) => {
+                    usage = add(usage, u);
+                    parts.push(digest::check_chunk(&digest::parse_read(&text)?, &group));
+                }
+                Err(e) if crate::ai::is_truncated(&e) && (group.len() > 1 || !shorter) => {
+                    tracing::info!(id, step, chapters = group.len(), "精读本：输出被截断，拆小再读");
+                    if group.len() > 1 {
+                        let mut a = group;
+                        let b = a.split_off(a.len() / 2);
+                        // 放回队首，保持章节顺序
+                        queue.push_front((b, false));
+                        queue.push_front((a, false));
+                    } else {
+                        queue.push_front((group, true));
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        let notes = digest::join_chunks(parts);
+        tracing::info!(id, step, quotes = notes.quotes.len(), dropped = notes.dropped, "精读本：通读一段");
+        (serde_json::to_string(&notes)?, usage)
+    } else if let Some((part, chapters)) = scene_part {
         let (text, usage) = crate::ai::complete_json(
             state.online.client(),
             c.provider,
             &key,
             &c.model,
-            digest::READ_SYSTEM,
-            &user,
-            digest::read_schema(),
-            digest::READ_FORMAT,
+            digest::SCENE_SYSTEM,
+            &digest::scene_prompt(&c.title, author, &part, &chapters),
+            digest::scene_schema(),
+            digest::SCENE_FORMAT,
             MAX_TOKENS,
             TIMEOUT,
         )
         .await?;
-        let notes = digest::check_chunk(&digest::parse_read(&text)?, &texts);
-        tracing::info!(id, step, quotes = notes.quotes.len(), dropped = notes.dropped, "精读本：通读一段");
-        (serde_json::to_string(&notes)?, usage)
+        digest::parse_scenes(&text)?;
+        (text, usage)
     } else {
         let s = step - n;
         let (chapters, quotes, _) = digest::merge(read_notes(&c)?);
@@ -212,15 +313,24 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
 #[tauri::command]
 pub async fn book_digest(state: State<'_, AppState>, id: i64) -> Result<Option<Digest>> {
     let c = ctx(&state, id).await?;
-    let steps = c.chunks.len() + digest::SYNTH_STEPS;
-    if !(0..steps).all(|s| step_file(&c, s).exists()) {
+    if !(0..total_steps(&c)).all(|s| step_file(&c, s).exists()) {
         return Ok(None);
     }
-    let (chapters, quotes, dropped) = digest::merge(read_notes(&c)?);
+    let (mut chapters, quotes, dropped) = digest::merge(read_notes(&c)?);
     let mut synthesis = Synthesis::default();
     for s in 0..digest::SYNTH_STEPS {
         digest::merge_synth(&mut synthesis, &std::fs::read_to_string(step_file(&c, c.chunks.len() + s))?)?;
     }
     digest::tidy(&mut synthesis, &quotes);
-    Ok(Some(Digest { model: c.model, chapters, quotes, synthesis, dropped }))
+    let titles: Vec<(i64, String)> = chapters.iter().map(|ch| (ch.idx, ch.title.clone())).collect();
+    digest::resolve_synthesis(&mut synthesis, &titles);
+    let r = rights(&c).await;
+    let mut scenes = scenes_of(&chapters, &r);
+    for k in 0..digest::SCENE_STEPS {
+        let t = std::fs::read_to_string(step_file(&c, c.chunks.len() + digest::SYNTH_STEPS + k))?;
+        digest::apply_scene_notes(&mut scenes, &digest::parse_scenes(&t)?);
+    }
+    // 章节里的候选名场面只是中间结果，不发给前端
+    chapters.iter_mut().for_each(|ch| ch.scene = None);
+    Ok(Some(Digest { model: c.model, chapters, quotes, scenes, synthesis, author_died: r.author_died, public_domain: r.public_domain, dropped }))
 }

@@ -34,7 +34,26 @@ export interface DigestChapter {
   kind: "plot" | "digression" | "other";
   events: string[];
   characters: string[];
+  /** 阅读建议：值得读原文 / 正常 / 可略读 / 可跳过，和理由 */
+  advice: "read" | "normal" | "skim" | "skip";
+  adviceWhy: string;
+  /** 紧张程度 1–5（全书节奏图用） */
+  tension: number;
   quotes: number[];
+}
+
+export interface DigestScene {
+  id: number;
+  chapter: number;
+  title: string;
+  /** 书里的原文（按开头句、结尾句取出的整段）；非公版书只有开头几句 */
+  text: string;
+  why: string;
+  importance: number;
+  zh: string;
+  /** 前因后果 */
+  context: string;
+  clipped: boolean;
 }
 
 export interface Synthesis {
@@ -59,13 +78,50 @@ export interface Synthesis {
   further: Array<{ title: string; author: string; why: string }>;
   faq: Array<{ q: string; a: string; chapters: number[] }>;
   quiz: Array<{ q: string; a: string; chapter: number }>;
+  diagrams: Diagrams;
+}
+
+/** 图里的一条连线；a → b（伏笔、因果的方向） */
+export interface DiagramLink {
+  a: string;
+  b: string;
+  kind: string;
+  label: string;
+}
+
+export interface DiagramTree {
+  nodes: Array<{ id: string; parent: string; name: string; role: string; special: boolean }>;
+}
+
+export interface DiagramGraph {
+  nodes: Array<{ id: string; text: string; kind: string }>;
+  links: DiagramLink[];
+}
+
+/** AI 挑的图示（chosen 按顺序排版）和各自的数据；没选的留空 */
+export interface Diagrams {
+  chosen: Array<{ kind: string; why: string }>;
+  relations: { center: string; groups: Array<{ id: string; label: string }>; people: Array<{ id: string; name: string; en: string; group: string }>; links: DiagramLink[] };
+  plot: { events: Array<{ id: string; chapter: number; text: string }>; links: DiagramLink[] };
+  tree: DiagramTree;
+  family: DiagramTree;
+  route: { stops: Array<{ place: string; chapter: number; what: string }> };
+  rhythm: { marks: Array<{ chapter: number; label: string }> };
+  compare: { title: string; items: Array<{ name: string; en: string; chapter: number; badge: string; tone: string; text: string }> };
+  causal: DiagramGraph;
+  concepts: DiagramGraph;
 }
 
 export interface Digest {
   model: string;
   chapters: DigestChapter[];
   quotes: DigestQuote[];
+  /** 名场面（最多十六段，按章节先后） */
+  scenes: DigestScene[];
   synthesis: Synthesis;
+  /** 作者卒年（维基百科）；去世超过 70 年算公版书，名场面放整段原文 */
+  authorDied: number | null;
+  publicDomain: boolean;
   /** 模型给了、但在书里找不到而丢掉的原文条数 */
   dropped: number;
 }

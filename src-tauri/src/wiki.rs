@@ -368,6 +368,21 @@ pub async fn book_guide(title: &str, author: Option<&str>, want_zh: bool, spoile
 }
 
 /// 作者条目的开头一段：先确认英文条目是个作家，再按需要换成中文
+/// 作者卒年：英文维基作者条目开头括号里的生卒年（精读本判断是不是公版书用）。找不到条目、认不出、还在世都返回 None
+pub async fn author_died(author: &str) -> Result<Option<i32>> {
+    let client = client()?;
+    let name = author.split([';', '&']).next().unwrap_or(author).trim();
+    if name.is_empty() {
+        return Ok(None);
+    }
+    let Some((_, _, text, _)) = fetch_article(&client, "en", name, true).await? else { return Ok(None) };
+    let l = text.to_lowercase();
+    if !["writer", "novelist", "author", "poet", "playwright", "essayist", "journalist", "philosopher"].iter().any(|w| l.contains(w)) {
+        return Ok(None);
+    }
+    Ok(crate::digest::death_year(&text))
+}
+
 async fn author_article(client: &reqwest::Client, author: &str, want_zh: bool) -> Result<Option<Article>> {
     let name = author.split([';', '&']).next().unwrap_or(author).trim();
     let Some((en_title, en_url, en_text, zh_title)) = fetch_article(client, "en", name, true).await? else { return Ok(None) };

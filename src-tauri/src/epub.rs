@@ -214,7 +214,8 @@ pub fn plain_of_html(html: &str) -> String {
     strip_tags(html, false)
 }
 
-/// 同上，但段落、标题、列表项、换行之间换行：生词扫描按段落断句，标题不会和下一段的第一句连在一起
+/// 同上，但段落、标题、列表项、换行之间换行：生词扫描按段落断句，标题不会和下一段的第一句连在一起。
+/// 脚注标号（上标里的链接，如企鹅版的 `<sup><a href="…">i1</a></sup>`）不算正文，去掉
 pub fn text_of_html(html: &str) -> String {
     strip_tags(html, true)
 }
@@ -241,6 +242,29 @@ fn strip_tags(html: &str, lines: bool) -> String {
                 None => return out,
             }
             continue;
+        }
+        // 链接里只有一个上标（<a href><sup>e1</sup></a>）：也是脚注标号
+        if lines && name == "a" && !tail[..gt].ends_with('/') {
+            if let Some(i) = find_ci(tail, "</a") {
+                let inner = tail[gt + 1..i].trim();
+                if inner.len() < 80 && find_ci(inner, "<sup") == Some(0) && inner.to_ascii_lowercase().ends_with("</sup>") {
+                    if let Some(j) = tail[i..].find('>') {
+                        rest = &tail[i + j + 1..];
+                        continue;
+                    }
+                }
+            }
+        }
+        // 上标里是链接：脚注标号，连内容一起跳过
+        if lines && name == "sup" && !tail[..gt].ends_with('/') {
+            if let Some(i) = find_ci(tail, "</sup") {
+                if find_ci(&tail[..i], "<a ").is_some() {
+                    if let Some(j) = tail[i..].find('>') {
+                        rest = &tail[i + j + 1..];
+                        continue;
+                    }
+                }
+            }
         }
         let tag: String = tail[1..].trim_start_matches('/').chars().take_while(|c| c.is_ascii_alphanumeric()).collect::<String>().to_ascii_lowercase();
         out.push(if lines && is_block(&tag) { '\n' } else { ' ' });
@@ -482,6 +506,16 @@ pub mod tests {
         assert_eq!(book.toc.len(), 2, "指向不存在文件的目录项丢掉");
         assert_eq!(book.toc[1], TocItem { title: "Rain".into(), level: 1, chapter: 0, anchor: Some("rain".into()) });
         Ok(())
+    }
+
+    #[test]
+    fn footnote_markers_are_not_text() {
+        let html = r#"<p>Such a face!<sup><a id="ki1"/><a href="bm15.html#k_i1">i1</a></sup> It was dark. E = mc<sup>2</sup>.</p>"#;
+        let t = text_of_html(html);
+        assert!(!t.contains("i1"), "{t}");
+        let t2 = text_of_html(r#"<p>shearing;<span class="x"><a href="bm14.html#e1"><sup>e1</sup></a></span> aye, <a href="x.html">a link</a>.</p>"#);
+        assert!(!t2.contains("e1") && t2.contains("a link"), "{t2}");
+        assert!(t.contains("mc 2") || t.contains("mc2"), "普通上标保留：{t}");
     }
 
     #[test]

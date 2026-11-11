@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lens 手机版 · 卡片翻页原型</title>
+<style>
+  :root {
+    --bg: #f5f4f0; --panel: #fff; --text: #1a1b1e; --muted: #6b6f76; --line: #e3e1da;
+    --accent: #2f5fd0; --dot: #c9c6bd;
+    --font: "Source Serif 4", Georgia, "Noto Serif SC", "Songti SC", serif;
+    --ui: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17181b; --panel: #222327; --text: #e8e6e1; --muted: #9a9ea6; --line: #33353a; --accent: #8aa8f0; --dot: #4a4c52; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+  header { flex: none; padding: 10px 16px 8px; display: flex; align-items: baseline; gap: 10px; }
+  header h1 { margin: 0; font: 700 26px/1.2 var(--font); }
+  header span { color: var(--muted); font-size: 13px; }
+
+  /* 横向翻页：原生滚动 + scroll-snap，由合成线程驱动，高刷屏上照样跟手 */
+  .pager {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; scroll-behavior: smooth;
+    overscroll-behavior-x: contain; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pager::-webkit-scrollbar { display: none; }
+  .page {
+    flex: none; width: 100%; height: 100%;
+    scroll-snap-align: start; scroll-snap-stop: always;
+    overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none;
+    padding: 4px 12px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    touch-action: pan-x pan-y;
+  }
+  .page::-webkit-scrollbar { display: none; }
+
+  .card { flex: none; width: 100%; min-width: 0; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 14px; }
+  .card h2 { margin: 0 0 6px; font: 600 14px/1.3 var(--ui); color: var(--muted); }
+  .hw { font: 700 21px/1.3 var(--font); }
+  .ph { color: var(--muted); font: 14px var(--ui); margin-left: 6px; }
+  .def { font: 17px/1.6 var(--font); margin: 6px 0 0; }
+  .def b { color: var(--accent); font-family: var(--ui); font-size: 13px; margin-right: 6px; }
+  .ex { color: var(--muted); font-style: italic; margin: 2px 0 0 18px; font: italic 15px/1.55 var(--font); }
+  .freq { font: 15px var(--font); }
+  .freq .r { color: #c0392b; font-weight: 700; font-size: 19px; }
+
+  .dots { flex: none; display: flex; justify-content: center; gap: 7px; padding: 8px 0 calc(10px + env(safe-area-inset-bottom)); }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); transition: width .2s, background .2s; }
+  .dots i.on { width: 18px; border-radius: 4px; background: var(--accent); }
+
+  .hud { position: fixed; top: 8px; right: 10px; font: 12px var(--ui); color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 7px; }
+  /* 打包前先把所有卡片放在一个隐藏的量尺容器里量高度 */
+  .measure { position: absolute; visibility: hidden; left: 0; top: 0; width: 100%; padding: 0 12px; }
+</style>
+</head>
+<body>
+<header><h1 id="word">resolve</h1><span id="hits"></span></header>
+<div class="pager" id="pager"></div>
+<nav class="dots" id="dots" aria-label="第几屏"></nav>
+<div class="hud" id="hud">— Hz</div>
+<div class="measure" id="measure"></div>
+
+<script>
+// 示例卡片（自拟内容，长短不一，用来看分屏效果）
+const CARDS = [
+  { dict: "COCA Frequency 60000", html: `<div class="freq"><span class="hw">resolve</span> <i>v.</i> RANK <span class="r">2140</span>, FREQ 21533</div>` },
+  { dict: "简明英汉", html: `<div><span class="hw">resolve</span><span class="ph">/rɪˈzɒlv/</span></div><p class="def"><b>v.</b>解决；决心；分解</p><p class="def"><b>n.</b>决心，坚定</p>` },
+  { dict: "词根词缀", html: `<p class="def">re- 加强 + solve 松开 → 把结彻底解开 → 解决；下定决心</p>` },
+  { dict: "朗文当代双解", html: long("resolve", 7) },
+  { dict: "WordNet", html: `<p class="def"><b>v.</b>reach a conclusion after a discussion or deliberation</p><p class="def"><b>v.</b>bring to an end; settle conclusively</p><p class="def"><b>n.</b>the trait of being resolute</p>` },
+  { dict: "韦氏高阶", html: long("resolve", 12) },
+  { dict: "牛津搭配", html: `<p class="def"><b>adj.</b>firm, grim, steely, strong</p><p class="def"><b>verb +</b>show, strengthen, weaken</p>` },
+  { dict: "同义词辨析", html: `<p class="def">resolve / solve / settle：resolve 多指经过考虑后化解分歧或疑问；solve 侧重找出答案；settle 指了结争端。</p>` },
+];
+
+function long(w, n) {
+  const senses = [
+    ["to find a satisfactory way of dealing with a problem or difficulty", "The two sides were unable to resolve their differences."],
+    ["to make a formal decision, especially after a vote", "The committee resolved to accept the proposal."],
+    ["to make a definite decision to do something", "She resolved never to speak to him again."],
+    ["to separate something into its different parts", "The light was resolved into a spectrum."],
+    ["if an image resolves, its details become clear", "The blur slowly resolved into a face."],
+    ["(music) to move from a discord to a concord", "The chord resolves on the final beat."],
+  ];
+  let h = `<div><span class="hw">${w}</span><span class="ph">/rɪˈzɒlv/</span></div>`;
+  for (let i = 0; i < n; i++) {
+    const [d, e] = senses[i % senses.length];
+    h += `<p class="def"><b>${i + 1}</b>${d}</p><p class="ex">${e}</p>`;
+  }
+  return h;
+}
+
+const pager = document.getElementById("pager");
+const dots = document.getElementById("dots");
+const measure = document.getElementById("measure");
+document.getElementById("hits").textContent = `${CARDS.length} 部词典`;
+
+const cardEl = (c) => {
+  const el = document.createElement("article");
+  el.className = "card";
+  el.innerHTML = `<h2>${c.dict}</h2>${c.html}`;
+  return el;
+};
+
+// 分屏：按顺序往一屏里装，装得下（允许超出一点点）就继续；单张超过一屏的自己占一屏、屏内上下滚
+const GAP = 10, PAD = 16, OVERFLOW_OK = 0.08;
+function pack() {
+  const avail = pager.clientHeight - PAD;
+  measure.innerHTML = "";
+  const hs = CARDS.map((c) => { const el = cardEl(c); measure.append(el); return el.getBoundingClientRect().height; });
+  measure.innerHTML = "";
+  const pages = [];
+  let cur = [], used = 0;
+  hs.forEach((h, i) => {
+    const need = cur.length ? used + GAP + h : h;
+    if (cur.length && need > avail * (1 + OVERFLOW_OK)) { pages.push(cur); cur = []; used = 0; }
+    cur.push(i);
+    used = cur.length === 1 ? h : used + GAP + h;
+  });
+  if (cur.length) pages.push(cur);
+  return pages;
+}
+
+function render() {
+  const keep = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
+  const pages = pack();
+  pager.innerHTML = "";
+  dots.innerHTML = "";
+  pages.forEach((idxs) => {
+    const p = document.createElement("section");
+    p.className = "page";
+    idxs.forEach((i) => p.append(cardEl(CARDS[i])));
+    pager.append(p);
+    dots.append(document.createElement("i"));
+  });
+  pager.scrollTo({ left: Math.min(keep, pages.length - 1) * pager.clientWidth, behavior: "instant" });
+  markDot();
+}
+
+function markDot() {
+  const i = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
+  [...dots.children].forEach((d, k) => d.classList.toggle("on", k === i));
+}
+pager.addEventListener("scroll", () => requestAnimationFrame(markDot), { passive: true });
+dots.addEventListener("click", (e) => {
+  const k = [...dots.children].indexOf(e.target);
+  if (k >= 0) pager.scrollTo({ left: k * pager.clientWidth, behavior: "smooth" });
+});
+addEventListener("resize", () => { clearTimeout(render.t); render.t = setTimeout(render, 120); });
+render();
+
+// 右上角显示实际帧率：滑动时看是不是接近 120
+(() => {
+  const hud = document.getElementById("hud");
+  let n = 0, t0 = performance.now();
+  const tick = (t) => {
+    n++;
+    if (t - t0 >= 500) { hud.textContent = `${Math.round((n * 1000) / (t - t0))} Hz`; n = 0; t0 = t; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

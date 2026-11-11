@@ -3,85 +3,156 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lens 手机版 · 卡片翻页原型</title>
+<title>Lens 手机版 · 卡片浏览原型</title>
 <style>
   :root {
     --bg: #f5f4f0; --panel: #fff; --text: #1a1b1e; --muted: #6b6f76; --line: #e3e1da;
-    --accent: #2f5fd0; --dot: #c9c6bd;
+    --accent: #2f5fd0; --dot: #c9c6bd; --sheet: rgba(255,255,255,.96);
     --font: "Source Serif 4", Georgia, "Noto Serif SC", "Songti SC", serif;
     --ui: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #17181b; --panel: #222327; --text: #e8e6e1; --muted: #9a9ea6; --line: #33353a; --accent: #8aa8f0; --dot: #4a4c52; }
+    :root { --bg: #17181b; --panel: #222327; --text: #e8e6e1; --muted: #9a9ea6; --line: #33353a; --accent: #8aa8f0; --dot: #4a4c52; --sheet: rgba(34,35,39,.97); }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--ui); }
-  body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+  body { position: relative; height: 100dvh; overflow: hidden; }
 
-  header { flex: none; padding: 10px 16px 8px; display: flex; align-items: baseline; gap: 10px; }
+  /* ---------- 顶部栏：常显 / 往回滑时出现 / 隐藏 ---------- */
+  header {
+    position: absolute; z-index: 20; left: 0; right: 0; top: 0;
+    padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
+    display: flex; align-items: baseline; gap: 10px;
+    background: var(--bg);
+    transition: transform .22s ease;
+  }
   header h1 { margin: 0; font: 700 26px/1.2 var(--font); }
   header span { color: var(--muted); font-size: 13px; }
+  body[data-bar="hidden"] header, body.bar-off header { transform: translateY(-110%); }
+  /* 常显时内容让出顶部栏的位置；其余两种内容从屏幕最上沿开始 */
+  .stage { position: absolute; inset: 0; bottom: 0; }
+  body[data-bar="show"] .stage { top: var(--bar-h, 52px); }
+  body:not([data-bar="show"]) .stage { top: env(safe-area-inset-top); }
 
-  /* 横向翻页：原生滚动 + scroll-snap，由合成线程驱动，高刷屏上照样跟手 */
+  /* ---------- 左右翻页 ---------- */
   .pager {
-    flex: 1 1 auto; min-height: 0;
+    position: absolute; inset: 0 0 26px 0;
     display: flex; overflow-x: auto; overflow-y: hidden;
-    scroll-snap-type: x mandatory; scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
     overscroll-behavior-x: contain; scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    perspective: 1200px;
   }
   .pager::-webkit-scrollbar { display: none; }
   .page {
     flex: none; width: 100%; height: 100%;
     scroll-snap-align: start; scroll-snap-stop: always;
     overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none;
-    padding: 4px 12px 12px;
+    padding: 6px 12px 12px;
     display: flex; flex-direction: column; gap: 10px;
-    touch-action: pan-x pan-y;
+    background: var(--bg);
+    will-change: transform;
   }
   .page::-webkit-scrollbar { display: none; }
+  .dots { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; display: flex; justify-content: center; align-items: center; gap: 7px; padding-bottom: env(safe-area-inset-bottom); }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); transition: width .2s, background .2s; }
+  .dots i.on { width: 18px; border-radius: 4px; background: var(--accent); }
 
+  /* ---------- 上下滚动 ---------- */
+  .column {
+    position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none;
+    padding: 6px 12px calc(16px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .column::-webkit-scrollbar { display: none; }
+  /* 顶部栏隐藏时，词头放在第一张卡片上面，跟着内容一起滚走 */
+  .inline-hw { padding: 6px 4px 2px; font: 700 26px/1.2 var(--font); }
+  .inline-hw span { font: 13px var(--ui); color: var(--muted); margin-left: 8px; }
+  body[data-bar="show"] .inline-hw { display: none; }
+
+  /* ---------- 卡片 ---------- */
   .card { flex: none; width: 100%; min-width: 0; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 14px; }
   .card h2 { margin: 0 0 6px; font: 600 14px/1.3 var(--ui); color: var(--muted); }
   .hw { font: 700 21px/1.3 var(--font); }
   .ph { color: var(--muted); font: 14px var(--ui); margin-left: 6px; }
   .def { font: 17px/1.6 var(--font); margin: 6px 0 0; }
   .def b { color: var(--accent); font-family: var(--ui); font-size: 13px; margin-right: 6px; }
-  .ex { color: var(--muted); font-style: italic; margin: 2px 0 0 18px; font: italic 15px/1.55 var(--font); }
+  .ex { margin: 2px 0 0 18px; font: italic 15px/1.55 var(--font); color: var(--muted); }
   .freq { font: 15px var(--font); }
   .freq .r { color: #c0392b; font-weight: 700; font-size: 19px; }
 
-  .dots { flex: none; display: flex; justify-content: center; gap: 7px; padding: 8px 0 calc(10px + env(safe-area-inset-bottom)); }
-  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); transition: width .2s, background .2s; }
-  .dots i.on { width: 18px; border-radius: 4px; background: var(--accent); }
+  /* ---------- 翻页动画：滚动驱动（animation-timeline），在合成线程上跑，跟手、高刷 ---------- */
+  @supports (animation-timeline: view()) {
+    .pager[data-anim] .page { animation-timeline: view(inline); animation-fill-mode: both; animation-timing-function: linear; }
+    /* 层叠：后一页盖上来，前一页原地缩小变暗 */
+    .pager[data-anim="stack"] .page { animation-name: stack-out; animation-range: exit 0% exit 100%; }
+    @keyframes stack-out { from { transform: translateX(0) scale(1); filter: brightness(1); } to { transform: translateX(100%) scale(.88); filter: brightness(.7); } }
+    /* 纵深：进出都缩小一点、半透明 */
+    .pager[data-anim="depth"] .page { animation-name: depth; animation-range: cover 0% cover 100%; }
+    @keyframes depth { 0% { transform: scale(.86); opacity: .4; } 50% { transform: scale(1); opacity: 1; } 100% { transform: scale(.86); opacity: .4; } }
+    /* 淡入淡出：页面不动，交叉淡化 */
+    .pager[data-anim="fade"] .page { animation-name: fade; animation-range: cover 0% cover 100%; }
+    @keyframes fade { 0% { transform: translateX(-100%); opacity: 0; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(100%); opacity: 0; } }
+    /* 立方体：像转一个盒子 */
+    .pager[data-anim="cube"] .page { animation-name: cube; animation-range: cover 0% cover 100%; backface-visibility: hidden; }
+    @keyframes cube { 0% { transform-origin: 0% 50%; transform: rotateY(60deg); } 50% { transform-origin: 50% 50%; transform: rotateY(0); } 100% { transform-origin: 100% 50%; transform: rotateY(-60deg); } }
+    /* 翻书：前一页沿左边翻过去 */
+    .pager[data-anim="book"] .page { animation-name: book; animation-range: exit 0% exit 100%; transform-origin: 0% 50%; }
+    .pager[data-anim="book"] .page { box-shadow: 8px 0 24px rgba(0,0,0,.18); backface-visibility: hidden; }
+    @keyframes book { from { transform: translateX(0) rotateY(0); filter: brightness(1); } to { transform: translateX(100%) rotateY(-95deg); filter: brightness(.75); } }
+  }
 
-  .hud { position: fixed; top: 8px; right: 10px; font: 12px var(--ui); color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 7px; }
-  /* 打包前先把所有卡片放在一个隐藏的量尺容器里量高度 */
+  /* ---------- 设置面板 ---------- */
+  .gear { position: absolute; z-index: 30; right: 12px; bottom: calc(34px + env(safe-area-inset-bottom)); width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--sheet); color: var(--muted); font-size: 19px; opacity: .75; }
+  .sheet { position: absolute; z-index: 40; left: 0; right: 0; bottom: 0; background: var(--sheet); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -8px 30px rgba(0,0,0,.12); }
+  .sheet.open { transform: none; }
+  .sheet h3 { margin: 4px 0 8px; font: 600 13px var(--ui); color: var(--muted); }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .seg button { font: 14px var(--ui); padding: 7px 12px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .note { font-size: 12px; color: var(--muted); margin: -6px 0 10px; }
+  .hud { position: absolute; z-index: 25; top: calc(8px + env(safe-area-inset-top)); right: 10px; font: 12px var(--ui); color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 7px; opacity: .8; }
   .measure { position: absolute; visibility: hidden; left: 0; top: 0; width: 100%; padding: 0 12px; }
 </style>
 </head>
-<body>
-<header><h1 id="word">resolve</h1><span id="hits"></span></header>
-<div class="pager" id="pager"></div>
-<nav class="dots" id="dots" aria-label="第几屏"></nav>
+<body data-bar="hidden">
+<header id="bar"><h1>resolve</h1><span id="hits"></span></header>
+<div class="stage" id="stage"></div>
+<button class="gear" id="gear" aria-label="浏览设置">⚙</button>
 <div class="hud" id="hud">— Hz</div>
 <div class="measure" id="measure"></div>
 
+<section class="sheet" id="sheet" aria-label="浏览设置">
+  <h3>浏览方式</h3>
+  <div class="seg" data-key="mode">
+    <button data-v="pager">左右翻页</button><button data-v="column">上下滚动</button>
+  </div>
+  <h3>翻页动画（左右翻页时）</h3>
+  <div class="seg" data-key="anim">
+    <button data-v="">平移</button><button data-v="stack">层叠</button><button data-v="depth">纵深</button>
+    <button data-v="fade">淡入淡出</button><button data-v="cube">立方体</button><button data-v="book">翻书</button>
+  </div>
+  <p class="note" id="animNote"></p>
+  <h3>顶部栏</h3>
+  <div class="seg" data-key="bar">
+    <button data-v="hidden">隐藏</button><button data-v="peek">往回滑时出现</button><button data-v="show">常显</button>
+  </div>
+  <div class="seg"><button id="fs">进入全屏（隐藏系统状态栏）</button></div>
+</section>
+
 <script>
-// 示例卡片（自拟内容，长短不一，用来看分屏效果）
+// 示例卡片（自拟内容，长短不一）
 const CARDS = [
   { dict: "COCA Frequency 60000", html: `<div class="freq"><span class="hw">resolve</span> <i>v.</i> RANK <span class="r">2140</span>, FREQ 21533</div>` },
   { dict: "简明英汉", html: `<div><span class="hw">resolve</span><span class="ph">/rɪˈzɒlv/</span></div><p class="def"><b>v.</b>解决；决心；分解</p><p class="def"><b>n.</b>决心，坚定</p>` },
   { dict: "词根词缀", html: `<p class="def">re- 加强 + solve 松开 → 把结彻底解开 → 解决；下定决心</p>` },
-  { dict: "朗文当代双解", html: long("resolve", 7) },
+  { dict: "朗文当代双解", html: long(7) },
   { dict: "WordNet", html: `<p class="def"><b>v.</b>reach a conclusion after a discussion or deliberation</p><p class="def"><b>v.</b>bring to an end; settle conclusively</p><p class="def"><b>n.</b>the trait of being resolute</p>` },
-  { dict: "韦氏高阶", html: long("resolve", 12) },
+  { dict: "韦氏高阶", html: long(12) },
   { dict: "牛津搭配", html: `<p class="def"><b>adj.</b>firm, grim, steely, strong</p><p class="def"><b>verb +</b>show, strengthen, weaken</p>` },
   { dict: "同义词辨析", html: `<p class="def">resolve / solve / settle：resolve 多指经过考虑后化解分歧或疑问；solve 侧重找出答案；settle 指了结争端。</p>` },
 ];
-
-function long(w, n) {
-  const senses = [
+function long(n) {
+  const s = [
     ["to find a satisfactory way of dealing with a problem or difficulty", "The two sides were unable to resolve their differences."],
     ["to make a formal decision, especially after a vote", "The committee resolved to accept the proposal."],
     ["to make a definite decision to do something", "She resolved never to speak to him again."],
@@ -89,82 +160,112 @@ function long(w, n) {
     ["if an image resolves, its details become clear", "The blur slowly resolved into a face."],
     ["(music) to move from a discord to a concord", "The chord resolves on the final beat."],
   ];
-  let h = `<div><span class="hw">${w}</span><span class="ph">/rɪˈzɒlv/</span></div>`;
-  for (let i = 0; i < n; i++) {
-    const [d, e] = senses[i % senses.length];
-    h += `<p class="def"><b>${i + 1}</b>${d}</p><p class="ex">${e}</p>`;
-  }
+  let h = `<div><span class="hw">resolve</span><span class="ph">/rɪˈzɒlv/</span></div>`;
+  for (let i = 0; i < n; i++) { const [d, e] = s[i % s.length]; h += `<p class="def"><b>${i + 1}</b>${d}</p><p class="ex">${e}</p>`; }
   return h;
 }
 
-const pager = document.getElementById("pager");
-const dots = document.getElementById("dots");
+// ---------- 设置（记在本机浏览器里） ----------
+const DEFAULTS = { mode: "pager", anim: "", bar: "hidden" };
+let cfg = { ...DEFAULTS };
+try { cfg = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("lens-proto") || "{}") }; } catch {}
+const save = () => { try { localStorage.setItem("lens-proto", JSON.stringify(cfg)); } catch {} };
+
+const stage = document.getElementById("stage");
 const measure = document.getElementById("measure");
+const bar = document.getElementById("bar");
 document.getElementById("hits").textContent = `${CARDS.length} 部词典`;
+const cardEl = (c) => { const el = document.createElement("article"); el.className = "card"; el.innerHTML = `<h2>${c.dict}</h2>${c.html}`; return el; };
 
-const cardEl = (c) => {
-  const el = document.createElement("article");
-  el.className = "card";
-  el.innerHTML = `<h2>${c.dict}</h2>${c.html}`;
-  return el;
-};
-
-// 分屏：按顺序往一屏里装，装得下（允许超出一点点）就继续；单张超过一屏的自己占一屏、屏内上下滚
-const GAP = 10, PAD = 16, OVERFLOW_OK = 0.08;
-function pack() {
-  const avail = pager.clientHeight - PAD;
+// ---------- 左右翻页：按顺序装屏，装得下（可超出一点点）就继续，单张超过一屏的自己占一屏 ----------
+const GAP = 10, PAD = 18, OVERFLOW_OK = 0.08;
+function pack(avail) {
   measure.innerHTML = "";
   const hs = CARDS.map((c) => { const el = cardEl(c); measure.append(el); return el.getBoundingClientRect().height; });
   measure.innerHTML = "";
-  const pages = [];
-  let cur = [], used = 0;
+  const pages = []; let cur = [], used = 0;
   hs.forEach((h, i) => {
-    const need = cur.length ? used + GAP + h : h;
-    if (cur.length && need > avail * (1 + OVERFLOW_OK)) { pages.push(cur); cur = []; used = 0; }
-    cur.push(i);
-    used = cur.length === 1 ? h : used + GAP + h;
+    if (cur.length && used + GAP + h > avail * (1 + OVERFLOW_OK)) { pages.push(cur); cur = []; used = 0; }
+    used = cur.length ? used + GAP + h : h; cur.push(i);
   });
   if (cur.length) pages.push(cur);
   return pages;
 }
 
+let pager = null, dots = null, column = null;
 function render() {
-  const keep = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
-  const pages = pack();
-  pager.innerHTML = "";
-  dots.innerHTML = "";
-  pages.forEach((idxs) => {
-    const p = document.createElement("section");
-    p.className = "page";
-    idxs.forEach((i) => p.append(cardEl(CARDS[i])));
-    pager.append(p);
-    dots.append(document.createElement("i"));
-  });
-  pager.scrollTo({ left: Math.min(keep, pages.length - 1) * pager.clientWidth, behavior: "instant" });
-  markDot();
+  document.body.dataset.bar = cfg.bar;
+  document.body.classList.remove("bar-off");
+  document.documentElement.style.setProperty("--bar-h", `${bar.offsetHeight}px`);
+  stage.innerHTML = "";
+  pager = dots = column = null;
+  if (cfg.mode === "pager") {
+    pager = document.createElement("div"); pager.className = "pager";
+    if (cfg.anim) pager.dataset.anim = cfg.anim;
+    dots = document.createElement("nav"); dots.className = "dots";
+    stage.append(pager, dots);
+    const pages = pack(pager.clientHeight - PAD);
+    pages.forEach((idxs, k) => {
+      const p = document.createElement("section"); p.className = "page";
+      // 翻书：前一页盖在后一页上面才能「翻走」；其余效果后一页在上
+      p.style.zIndex = String(cfg.anim === "book" ? pages.length - k : k);
+      if (k === 0 && cfg.bar !== "show") { const h = document.createElement("div"); h.className = "inline-hw"; h.innerHTML = `resolve<span>${CARDS.length} 部词典</span>`; p.append(h); }
+      idxs.forEach((i) => p.append(cardEl(CARDS[i])));
+      pager.append(p); dots.append(document.createElement("i"));
+    });
+    // 层叠 / 翻书：前一页要盖在后一页上面才能「翻走」；其余效果后一页在上
+    pager.addEventListener("scroll", () => requestAnimationFrame(markDot), { passive: true });
+    dots.addEventListener("click", (e) => { const k = [...dots.children].indexOf(e.target); if (k >= 0) pager.scrollTo({ left: k * pager.clientWidth, behavior: "smooth" }); });
+    markDot();
+  } else {
+    column = document.createElement("div"); column.className = "column";
+    const h = document.createElement("div"); h.className = "inline-hw"; h.innerHTML = `resolve<span>${CARDS.length} 部词典</span>`;
+    column.append(h, ...CARDS.map(cardEl));
+    stage.append(column);
+    // 往回滑时出现：向下读时收起，往上回滑一点就露出来
+    let lastY = 0;
+    column.addEventListener("scroll", () => {
+      if (cfg.bar !== "peek") return;
+      const y = column.scrollTop;
+      if (Math.abs(y - lastY) < 6) return;
+      document.body.classList.toggle("bar-off", y > lastY && y > 40);
+      if (y <= 40) document.body.classList.remove("bar-off");
+      lastY = y;
+    }, { passive: true });
+  }
+  if (cfg.bar === "peek" && cfg.mode === "pager") document.body.classList.add("bar-off");
+  syncSheet();
 }
-
 function markDot() {
+  if (!pager) return;
   const i = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
   [...dots.children].forEach((d, k) => d.classList.toggle("on", k === i));
 }
-pager.addEventListener("scroll", () => requestAnimationFrame(markDot), { passive: true });
-dots.addEventListener("click", (e) => {
-  const k = [...dots.children].indexOf(e.target);
-  if (k >= 0) pager.scrollTo({ left: k * pager.clientWidth, behavior: "smooth" });
+
+// ---------- 设置面板 ----------
+const sheet = document.getElementById("sheet");
+document.getElementById("gear").addEventListener("click", () => sheet.classList.toggle("open"));
+stage.addEventListener("pointerdown", () => sheet.classList.remove("open"));
+sheet.querySelectorAll(".seg[data-key]").forEach((seg) => seg.addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  cfg[seg.dataset.key] = b.dataset.v; save(); render();
+}));
+function syncSheet() {
+  sheet.querySelectorAll(".seg[data-key]").forEach((seg) => seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(cfg[seg.dataset.key] === b.dataset.v))));
+  const ok = CSS.supports("animation-timeline: view()");
+  document.getElementById("animNote").textContent = ok ? "动画跟着手指走，在合成线程上跑，高刷屏上不掉帧。" : "这个浏览器不支持滚动驱动动画，只能看到平移效果（安卓 Chrome / 系统 WebView 支持）。";
+}
+document.getElementById("fs").addEventListener("click", () => {
+  const d = document.documentElement;
+  (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen?.({ navigationUI: "hide" }))?.catch?.(() => {});
 });
-addEventListener("resize", () => { clearTimeout(render.t); render.t = setTimeout(render, 120); });
+addEventListener("resize", () => { clearTimeout(render.t); render.t = setTimeout(render, 150); });
 render();
 
-// 右上角显示实际帧率：滑动时看是不是接近 120
+// 右上角：实际帧率
 (() => {
-  const hud = document.getElementById("hud");
-  let n = 0, t0 = performance.now();
-  const tick = (t) => {
-    n++;
-    if (t - t0 >= 500) { hud.textContent = `${Math.round((n * 1000) / (t - t0))} Hz`; n = 0; t0 = t; }
-    requestAnimationFrame(tick);
-  };
+  const hud = document.getElementById("hud"); let n = 0, t0 = performance.now();
+  const tick = (t) => { n++; if (t - t0 >= 500) { hud.textContent = `${Math.round((n * 1000) / (t - t0))} Hz`; n = 0; t0 = t; } requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 })();
 </script>

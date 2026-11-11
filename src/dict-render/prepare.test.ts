@@ -11,6 +11,22 @@ const dom = (content: string) => {
 };
 
 describe("prepareEntry", () => {
+  it("keeps a script copy for the sandboxed frame only when the entry has scripts", () => {
+    const plain = prepareEntry({ type: "html", content: "<p>a</p>" }, "d1");
+    expect(plain.frame).toBeUndefined();
+    const s = prepareEntry(
+      { type: "html", content: `<script src="x.js"></script><p onclick="t()">a</p><a href="javascript:t()">b</a><img src="i.png">` },
+      "d1",
+    );
+    // 清洗版不带脚本
+    expect(s.html).not.toMatch(/script|onclick|javascript:/);
+    // iframe 版保留脚本，资源改成 lens 地址
+    expect(s.frame).toMatch(/<script src="[^"]*res\/d1\/x\.js"><\/script>/);
+    expect(s.frame).toContain(`onclick="t()"`);
+    expect(s.frame).toContain(`href="javascript:t()"`);
+    expect(s.frame).toMatch(/src="[^"]*res\/d1\/i\.png"/);
+  });
+
   it("removes scripts, event handlers and javascript: urls", () => {
     const out = html(`<p onclick="x()">a<script>alert(1)</script><a href="javascript:alert(1)">b</a></p>`);
     expect(out).not.toMatch(/script|onclick|javascript/i);

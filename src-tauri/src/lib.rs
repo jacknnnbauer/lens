@@ -441,6 +441,7 @@ pub fn run() {
             commands::popup::write_clipboard,
             commands::popup::open_in_main,
             commands::popup::lookup_in_popup,
+            commands::popup::set_popup_pinned,
             commands::popup::save_in_app_context,
         ])
         .run(context);

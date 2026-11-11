@@ -415,14 +415,19 @@ pub fn show_in_app(app: &AppHandle, text: &str, paragraph: Option<&str>, sel16: 
     }
 }
 
+/// 查词小窗钉住了（前端 Ctrl+P / 按钮同步过来）：钉住且开着时，再查词不挪位置、不改大小
+pub static POPUP_PINNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 fn show_popup(app: &AppHandle, event: &CaptureEvent, anchor: Option<Anchor>) -> Result<()> {
     crate::ensure_popup(app);
     let win = app.get_webview_window(POPUP).ok_or_else(|| Error::Other("弹窗窗口不存在".into()))?;
+    // 钉住且还开着：留在用户挪到的地方
+    let keep = POPUP_PINNED.load(std::sync::atomic::Ordering::Relaxed) && win.is_visible().unwrap_or(false);
     #[cfg(windows)]
     let cursor = win::cursor_pos();
     #[cfg(not(windows))]
     let cursor: Option<(i32, i32)> = None;
-    let anchor = anchor.or_else(|| cursor.map(|(x, y)| Anchor { x: f64::from(x), y: f64::from(y), h: 16.0 }));
+    let anchor = if keep { None } else { anchor.or_else(|| cursor.map(|(x, y)| Anchor { x: f64::from(x), y: f64::from(y), h: 16.0 })) };
 
     if let Some(a) = anchor {
         let monitor = app.monitor_from_point(a.x, a.y).ok().flatten().or_else(|| app.primary_monitor().ok().flatten());

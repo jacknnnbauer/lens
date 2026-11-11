@@ -6,6 +6,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef } from "react";
 import { useSettings } from "../stores/settings";
+import { FRAME_LOOKUP_EVENT, type FrameLookupDetail } from "../dict-render/FrameBody";
 
 export type InAppTrigger = "dblclick" | "click" | "drag" | "off";
 
@@ -90,7 +91,11 @@ export function acceptable(text: string, phrase: boolean): boolean {
 type OnLookup = ((word: string, contextId: number | null) => void) | null;
 
 async function fire(range: Range, text: string, onLookup: OnLookup) {
-  const para = paragraphOf(range);
+  await fireWith(text, paragraphOf(range), onLookup);
+}
+
+/** para：词所在段落（沙盒 iframe 里的词典词条由 iframe 自己算好传出来） */
+async function fireWith(text: string, para: { paragraph: string; sel16: [number, number] } | null, onLookup: OnLookup) {
   const word = text.trim();
   if (onLookup) {
     // 主窗口：先存语境句，再在主窗口查（收藏时带上句子）
@@ -146,6 +151,17 @@ export function useInAppLookup(onLookup: OnLookup) {
     };
     const [type, fn] = trigger === "dblclick" ? (["dblclick", onDbl] as const) : trigger === "drag" ? (["mouseup", onUp] as const) : (["click", onClick] as const);
     document.addEventListener(type, fn);
-    return () => document.removeEventListener(type, fn);
+    // 沙盒 iframe 里的词典词条（FrameBody）：iframe 取好词转发过来
+    const onFrame = (e: Event) => {
+      const d = (e as CustomEvent<FrameLookupDetail>).detail;
+      if (!d || !acceptable(d.text, d.phrase)) return;
+      const para = d.paragraph !== null && d.sel16 ? { paragraph: d.paragraph, sel16: d.sel16 } : null;
+      void fireWith(d.text, para, onLookupRef.current);
+    };
+    window.addEventListener(FRAME_LOOKUP_EVENT, onFrame);
+    return () => {
+      document.removeEventListener(type, fn);
+      window.removeEventListener(FRAME_LOOKUP_EVENT, onFrame);
+    };
   }, [trigger, inPopup]);
 }

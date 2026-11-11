@@ -66,10 +66,16 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* 不显示滚动条（滚轮、触控板照常滚动），卡片左右留白一样宽 */
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 6px 4px 8px;
+}
+
+.body::-webkit-scrollbar {
+  display: none;
 }
 
 /* 词典卡片：与主窗口简洁单栏的卡片同样式 */

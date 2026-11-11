@@ -30,6 +30,12 @@ pub async fn open_in_main(app: AppHandle, query: String) -> Result<()> {
     Ok(())
 }
 
+/// 查词小窗钉住 / 取消钉住：钉住时再查词，小窗留在原处
+#[tauri::command]
+pub fn set_popup_pinned(pinned: bool) {
+    crate::capture::POPUP_PINNED.store(pinned, std::sync::atomic::Ordering::Relaxed);
+}
+
 #[tauri::command]
 pub async fn capture_status(service: State<'_, CaptureService>) -> Result<CaptureStatus> {
     Ok(service.status.lock().map_err(|_| Error::LockPoisoned)?.clone())

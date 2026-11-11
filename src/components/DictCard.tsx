@@ -93,7 +93,7 @@ export function DictCard({ card, onEntry, onToggleKeyDown, copyFormat, onCopy, o
         )}
         {card.entries.map((e, i) => (
           <div key={i} className={styles.entry}>
-            <DictBody html={e.html} onEntry={onEntry} dictId={card.id} />
+            <DictBody html={e.html} frame={e.frame} onEntry={onEntry} dictId={card.id} />
           </div>
         ))}
         {card.status === "hit" && card.entries[0] && isVocabularyCom(card.entries[0].html) && (

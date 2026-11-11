@@ -1,5 +1,5 @@
 // 在 Shadow DOM 里渲染已清洗的词典正文：词典 CSS 只作用于自己的卡片，不污染界面，也不被界面样式影响。
-// 链接点击在宿主侧统一处理（词典里的脚本不会执行）。
+// 链接点击在宿主侧统一处理。带脚本的词条改由 FrameBody 放进沙盒 iframe，脚本在那里执行。
 
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLayoutEffect, useRef } from "react";
@@ -7,6 +7,8 @@ import { useAppliedTheme } from "../theme/useApplyTheme";
 import { adjustContrast, parseColor, type RGB } from "./contrast";
 import { lensUrl } from "./lensUrl";
 import { scopeCss } from "./scopeCss";
+import { FrameBody } from "./FrameBody";
+import { useSettings } from "../stores/settings";
 import { tr } from "../i18n";
 
 // 主题变量穿透 Shadow 边界继承；词典自带 CSS 写在后面，可以覆盖这里的默认值
@@ -27,6 +29,8 @@ interface Props {
   onEntry: (word: string) => void;
   /** 标在宿主元素上（data-dict-body），复制 HTML 时据此找到已渲染的正文 */
   dictId?: string;
+  /** 词条带脚本时保留脚本的版本（prepareEntry 的 frame）：设置允许时放进沙盒 iframe 渲染 */
+  frame?: string;
 }
 
 /** 词典样式表最多等这么久，超时也照常显示 */
@@ -109,7 +113,15 @@ function play(url: string) {
   new Audio(url).play().catch((e) => console.warn(tr("发音播放失败"), url, e));
 }
 
-export function DictBody({ html, onEntry, dictId }: Props) {
+export function DictBody(props: Props) {
+  const scripts = useSettings((s) => s.settings?.appearance?.dictScripts) ?? true;
+  if (props.frame !== undefined && scripts) {
+    return <FrameBody html={props.frame} baseCss={BASE_CSS} onEntry={props.onEntry} dictId={props.dictId} />;
+  }
+  return <ShadowBody {...props} />;
+}
+
+function ShadowBody({ html, onEntry, dictId }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const onEntryRef = useRef(onEntry);
   onEntryRef.current = onEntry;

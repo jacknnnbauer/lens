@@ -3,6 +3,7 @@
 // （说明在设置 › 快捷键，小窗里不再显示提示栏）。
 // 失焦 300ms 后自动隐藏（钉住时除外）。
 
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ContextSenseCard, type SentenceCtx } from "../../components/ContextSenseCard";
 import { useInAppLookup } from "../../components/inAppLookup";
@@ -42,6 +43,10 @@ export function PopupWindow() {
   const [pinned, setPinned] = useState(false);
   const pinnedRef = useRef(false);
   pinnedRef.current = pinned;
+  // 告诉 Rust：钉住时再查词，小窗留在原处、不跟着光标走
+  useEffect(() => {
+    void invoke("set_popup_pinned", { pinned }).catch(() => undefined);
+  }, [pinned]);
   const input = useRef<HTMLInputElement>(null);
   // 收藏时带上本次划词的语境句；改词重查后就不再是那句的语境了
   const captureMatches = capture != null && handle != null && handle.query === capture.text;

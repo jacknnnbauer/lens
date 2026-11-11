@@ -24,6 +24,8 @@ pub struct Appearance {
     pub gloss_font: String,
     /// 界面语言：zh | en
     pub language: String,
+    /// 运行词典自带的脚本（放在隔离的沙盒里）
+    pub dict_scripts: bool,
 }
 
 impl Default for Appearance {
@@ -37,6 +39,7 @@ impl Default for Appearance {
             gloss_font_size: 17,
             gloss_font: "serif".into(),
             language: "zh".into(),
+            dict_scripts: true,
         }
     }
 }

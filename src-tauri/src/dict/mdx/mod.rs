@@ -142,6 +142,8 @@ pub struct Mdx {
     entries: EntryTable,
     index: Arc<DictIndex>,
     mdds: Vec<Part>,
+    /// mdx 旁同名的 .css / .js（MDict、GoldenDict 会自动套用），文件名
+    companions: Vec<String>,
 }
 
 impl Mdx {
@@ -178,7 +180,8 @@ impl Mdx {
             }
         }
         let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
-        Ok(Self { meta, dir, main, entries, index, mdds })
+        let companions = companion_files(path);
+        Ok(Self { meta, dir, main, entries, index, mdds, companions })
     }
 
     fn record_text(&self, start: u64, end: u64) -> Result<String> {
@@ -192,7 +195,7 @@ impl Mdx {
             EntryBody::Text(text)
         } else {
             let styled = header::apply_stylesheet(&text, &self.main.header.stylesheet);
-            EntryBody::Html(styled.trim_end().to_string())
+            EntryBody::Html(with_companions(styled.trim_end(), &self.companions))
         }
     }
 
@@ -216,6 +219,37 @@ impl Mdx {
         out.push(RawEntry { headword: e.headword.to_string(), body: self.body_of(text) });
         Ok(())
     }
+}
+
+/// mdx 旁与它同名的 .css、.js（如 朗文.mdx 旁的 朗文.css）
+fn companion_files(path: &Path) -> Vec<String> {
+    let (Some(dir), Some(stem)) = (path.parent(), path.file_stem().and_then(|s| s.to_str())) else {
+        return Vec::new();
+    };
+    ["css", "js"].iter().map(|ext| format!("{stem}.{ext}")).filter(|f| dir.join(f).is_file()).collect()
+}
+
+/// 词条前面补上同名 CSS / JS 的引用；词条自己已经引用了的不重复加
+fn with_companions(html: &str, companions: &[String]) -> String {
+    if companions.is_empty() {
+        return html.to_string();
+    }
+    let lower = html.to_lowercase();
+    // 词条自己带了脚本：作者已经接好了，同名 .js 多半是同一份的副本，再加一份会把点击处理绑两次（一点就开了又关）
+    let own_scripts = lower.contains("<script");
+    let mut head = String::new();
+    for f in companions {
+        if lower.contains(&f.to_lowercase()) || (own_scripts && f.to_lowercase().ends_with(".js")) {
+            continue;
+        }
+        let href = f.replace('&', "&amp;").replace('"', "&quot;");
+        if f.to_lowercase().ends_with(".css") {
+            head.push_str(&format!(r#"<link rel="stylesheet" type="text/css" href="{href}">"#));
+        } else {
+            head.push_str(&format!(r#"<script src="{href}"></script>"#));
+        }
+    }
+    head + html
 }
 
 impl DictSource for Mdx {
@@ -275,6 +309,22 @@ impl DictSource for Mdx {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn companions_are_linked_once() {
+        let c = vec!["LSC4.css".to_string(), "LSC4.js".to_string()];
+        assert_eq!(
+            with_companions("<p>x</p>", &c),
+            r#"<link rel="stylesheet" type="text/css" href="LSC4.css"><script src="LSC4.js"></script><p>x</p>"#
+        );
+        assert_eq!(with_companions(r#"<link href="lsc4.css"><p>x</p>"#, &c), r#"<script src="LSC4.js"></script><link href="lsc4.css"><p>x</p>"#);
+        assert_eq!(with_companions("<p>x</p>", &[]), "<p>x</p>");
+        // 词条自带脚本时不再补同名 .js（CSS 照补）
+        assert_eq!(
+            with_companions(r#"<p>x</p><script src="coca.js"></script>"#, &c),
+            r#"<link rel="stylesheet" type="text/css" href="LSC4.css"><p>x</p><script src="coca.js"></script>"#
+        );
+    }
 
     #[test]
     fn record_ends_follow_next_distinct_offset() {

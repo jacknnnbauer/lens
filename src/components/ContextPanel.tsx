@@ -30,7 +30,7 @@ function DictSection({ dictId, cards, onEntry }: { dictId: string; cards: Card[]
       {card.status === "hit" ? (
         <div className={styles.dict}>
           {card.entries.map((e, i) => (
-            <DictBody key={`${dictId}-${i}`} html={e.html} onEntry={onEntry} dictId={dictId} />
+            <DictBody key={`${dictId}-${i}`} html={e.html} frame={e.frame} onEntry={onEntry} dictId={dictId} />
           ))}
         </div>
       ) : (

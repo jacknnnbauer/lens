@@ -596,10 +596,13 @@ mod tests {
         assert_eq!(meta.name, "Basic（测试）");
         let id = &meta.id;
 
-        // StyleSheet 替换
+        // StyleSheet 替换；mdx 旁的同名 basic.css 自动引用（和 MDict 一样）
         assert_eq!(
             lookup_all(&reg, id, "ubiquitous")?,
-            [("ubiquitous".into(), html("<b>ubiquitous</b><i>adj. 无处不在的</i>"))]
+            [(
+                "ubiquitous".into(),
+                html(r#"<link rel="stylesheet" type="text/css" href="basic.css"><b>ubiquitous</b><i>adj. 无处不在的</i>"#)
+            )]
         );
         // @@@LINK 跟随，显示目标词头
         assert_eq!(lookup_all(&reg, id, "ubiquity")?[0].0, "ubiquitous");
@@ -616,7 +619,7 @@ mod tests {
         assert_eq!(lookup_all(&reg, id, "cafe\u{301}")?[0].0, "café");
         // 跨多个记录块的长词条
         let long = format!(
-            "<p>{}</p>",
+            r#"<link rel="stylesheet" type="text/css" href="basic.css"><p>{}</p>"#,
             (1..=8).map(|i| format!("义项 {i}：在很多场合都会出现的")).collect::<Vec<_>>().join("；")
         );
         assert_eq!(lookup_all(&reg, id, "omnipresent")?[0].1, html(&long));

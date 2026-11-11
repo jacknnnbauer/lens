@@ -17,6 +17,8 @@ export interface Appearance {
   glossFont: "serif" | "sans";
   /** 界面语言 */
   language: "zh" | "en";
+  /** 运行词典自带的脚本（沙盒里） */
+  dictScripts: boolean;
 }
 
 export type LayoutPreset = "compact" | "two-column" | "three-column";

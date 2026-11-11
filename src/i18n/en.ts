@@ -492,6 +492,9 @@ export const en: Record<string, string> = {
   "每种强调色在亮色、暗色主题下各有一套值，保证文字对比度。": "Each accent has separate light and dark values to keep text readable.",
   "释义字号": "Definition font size",
   "释义字体": "Definition font",
+  "运行词典自带的脚本": "Run dictionaries' own scripts",
+  "有的 mdx 词典靠脚本实现折叠展开、点喇叭发音等交互。脚本在隔离的沙盒里运行，碰不到 Lens 和你的文件":
+    "Some MDX dictionaries use scripts for folding sections, playing audio and other interactions. Scripts run in an isolated sandbox with no access to Lens or your files",
   "衬线 · Source Serif 4 + 思源宋体": "Serif · Source Serif 4 + Noto Serif SC",
   "无衬线 · IBM Plex Sans + 微软雅黑": "Sans · IBM Plex Sans + Microsoft YaHei",
   "界面语言": "界面语言",

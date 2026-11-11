@@ -29,11 +29,12 @@ interface Payload {
   html: string | null;
 }
 
-/** 已渲染的词条正文（DictBody 的 shadowRoot），按词条顺序。卡片折叠时为空。 */
-function renderedBodies(dictId: string): ShadowRoot[] {
-  return Array.from(document.querySelectorAll<HTMLElement>(`[data-dict-body="${CSS.escape(dictId)}"]`))
-    .map((h) => h.shadowRoot)
-    .filter((r): r is ShadowRoot => r !== null);
+/**
+ * 已渲染的词条正文（DictBody 的 shadowRoot），按词条顺序。卡片折叠时为空。
+ * 放在沙盒 iframe 里的词条读不到正文，对应位置为 null（改用原始词条），保持和词条一一对应。
+ */
+function renderedBodies(dictId: string): (ShadowRoot | null)[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(`[data-dict-body="${CSS.escape(dictId)}"]`)).map((h) => h.shadowRoot);
 }
 
 function cardPayload(card: Card, format: CopyFormat, cfg: Copy, heading: boolean): Payload {

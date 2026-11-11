@@ -659,6 +659,12 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               </select>
             </label>
           </div>
+          <Toggle
+            label="运行词典自带的脚本"
+            hint="有的 mdx 词典靠脚本实现折叠展开、点喇叭发音等交互。脚本在隔离的沙盒里运行，碰不到 Lens 和你的文件"
+            checked={a.dictScripts ?? true}
+            onChange={(v) => setA({ dictScripts: v })}
+          />
         </section>
 
         <section id="set-layout" className={styles.section} aria-labelledby="h-layout">

@@ -248,8 +248,61 @@ fn sentence_of(text: &str, w: &Raw) -> (Option<String>, usize, usize) {
     }
 }
 
+/// 用户导入的「认识的词」词表 → 原形（与扫描用同一套还原，标了才对得上），去重、保持顺序。
+///
+/// 最常见的是每行一个词（`abandon`、`abandon  v. 放弃`、`12. abandon`、`abandon,放弃`）：取每个字段（逗号、分号、Tab 分开）的第一个英文词；
+/// 一行里只有英文词、空格隔开（`apple banana cherry`）时整行都算。词频表和 WordNet 都不认识的（v、adj、拼写错误）丢掉。
+/// 词表里常见的词性、标注缩写（adj. vt. sb. sth.）：不是用户认识的词
+const POS_ABBR: &[&str] = &["adj", "adv", "vt", "vi", "prep", "conj", "pron", "interj", "abbr", "aux", "art", "num", "sb", "sth", "pl", "esp", "etc"];
+
+pub fn known_list(text: &str, lx: &Lexicon) -> Vec<String> {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+    let word_char = |c: char| c.is_ascii_alphabetic() || c == '\'' || c == '-';
+    let is_token = |t: &str| !t.is_empty() && t.chars().all(word_char);
+    for line in text.lines() {
+        let line = line.trim().trim_start_matches('\u{feff}');
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let candidates: Vec<&str> = if line.split_whitespace().all(is_token) {
+            line.split_whitespace().collect()
+        } else {
+            line.split([',', ';', '\t', '，', '；'])
+                .filter_map(|f| f.split(|c: char| !word_char(c)).find(|t| t.chars().any(|c| c.is_ascii_alphabetic())))
+                .collect()
+        };
+        for c in candidates {
+            let lower = c.trim_matches(|ch| ch == '\'' || ch == '-').to_ascii_lowercase();
+            if (lower.len() < 2 && lower != "a" && lower != "i") || POS_ABBR.contains(&lower.as_str()) {
+                continue;
+            }
+            let lem = lemma(&lower, lx);
+            if (lx.rank)(&lem).is_none() && !(lx.is_word)(&lem) {
+                continue;
+            }
+            if seen.insert(lem.clone()) {
+                out.push(lem);
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn known_list_reads_common_word_list_shapes() {
+        let ranks = lexicon_ranks();
+        let rank = |w: &str| ranks.get(w).copied();
+        // 内置词频表里真有 adj、sth 这样的词：词性缩写要单独挡掉
+        let is_word = |w: &str| ranks.contains_key(w) || w == "adj" || w == "sth";
+        let irregular = |w: &str| (w == "went").then(|| "go".to_string());
+        let lx = Lexicon { rank: &rank, is_word: &is_word, irregular: &irregular };
+        let text = "\u{feff}# my words\ntackle  v. 处理\n12. problem\twait,等待\nwent\nthe government say\nv\nadj.\nsth\nzzzq\ntackled\n";
+        assert_eq!(known_list(text, &lx), vec!["tackle", "problem", "wait", "go", "the", "government", "say"]);
+    }
+
     use super::*;
 
     fn lexicon_ranks() -> HashMap<&'static str, u32> {

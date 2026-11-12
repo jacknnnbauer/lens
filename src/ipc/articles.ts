@@ -112,3 +112,26 @@ export function deleteArticle(id: number): Promise<boolean> {
 export function saveReadingContext(text: string, paragraph: string, sel16: [number, number], title: string): Promise<number | null> {
   return invoke<number | null>("save_in_app_context", { text, paragraph, sel16, title });
 }
+
+export interface Bookmark {
+  id: number;
+  /** 第几章；普通文章为 0 */
+  chapter: number;
+  /** 这一章（或整篇）里的位置 0–1 */
+  pos: number;
+  /** 书签处的一小段原文 */
+  label: string;
+  createdAt: number;
+}
+
+export function listBookmarks(id: number): Promise<Bookmark[]> {
+  return invoke("bookmark_list", { id });
+}
+
+export function addBookmark(id: number, chapter: number, pos: number, label: string): Promise<number> {
+  return invoke("bookmark_add", { id, chapter, pos, label });
+}
+
+export function deleteBookmark(bookmark: number): Promise<void> {
+  return invoke("bookmark_delete", { bookmark });
+}

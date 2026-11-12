@@ -18,7 +18,8 @@ export type KeyAction =
   | "toggleContext"
   | "cardWall"
   | "settings"
-  | "popupPin";
+  | "popupPin"
+  | "bookmark";
 
 /** 可自定义的动作：id、默认组合键、说明（中文，界面上再翻译） */
 export const KEY_ACTIONS: ReadonlyArray<{ id: KeyAction; def: string; label: string }> = [
@@ -36,6 +37,7 @@ export const KEY_ACTIONS: ReadonlyArray<{ id: KeyAction; def: string; label: str
   { id: "cardWall", def: "Ctrl+Shift+W", label: "卡片墙 开 / 关" },
   { id: "settings", def: "Ctrl+Comma", label: "设置" },
   { id: "popupPin", def: "Ctrl+P", label: "查词小窗：钉住（失焦不自动关闭）" },
+  { id: "bookmark", def: "Ctrl+D", label: "阅读：在当前位置加书签" },
 ];
 
 const DEFAULTS = Object.fromEntries(KEY_ACTIONS.map((a) => [a.id, a.def])) as Record<KeyAction, string>;

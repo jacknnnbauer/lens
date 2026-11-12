@@ -202,3 +202,23 @@ pub async fn book_progress(state: State<'_, AppState>, id: i64, chapter: i64, po
     }
     state.db.with_conn(|c| articles::set_book_progress(c, id, chapter, pos))
 }
+
+/// 这篇文章 / 这本书的书签
+#[tauri::command]
+pub async fn bookmark_list(state: State<'_, AppState>, id: i64) -> Result<Vec<articles::Bookmark>> {
+    state.db.with_conn(|c| articles::bookmarks(c, id))
+}
+
+/// 在当前位置加书签：chapter = 第几章（普通文章 0），pos = 位置 0–1，label = 书签处的原文
+#[tauri::command]
+pub async fn bookmark_add(state: State<'_, AppState>, id: i64, chapter: i64, pos: f64, label: String) -> Result<i64> {
+    if !pos.is_finite() {
+        return Err(Error::Other("bookmark".into()));
+    }
+    state.db.with_conn(|c| articles::add_bookmark(c, id, chapter, pos, &label))
+}
+
+#[tauri::command]
+pub async fn bookmark_delete(state: State<'_, AppState>, bookmark: i64) -> Result<()> {
+    state.db.with_conn(|c| articles::delete_bookmark(c, bookmark))
+}

@@ -49,3 +49,26 @@ export interface ScanSave {
 export function saveScannedWords(items: ScanSave[], title?: string, tags?: string[]): Promise<number> {
   return invoke<number>("save_scanned_words", { items, title: title || null, tags: tags ?? null });
 }
+
+export interface KnownImport {
+  /** 词表里认出来的词（原形、去重） */
+  found: number;
+  /** 其中原来不在「认识」里的 */
+  added: number;
+  /** 导入后「认识」一共多少词 */
+  total: number;
+}
+
+/** 导入用户认识的词表（txt / csv）：都标成「认识」 */
+export function importKnownWords(path: string): Promise<KnownImport> {
+  return invoke("import_known_words", { path });
+}
+
+export function knownWordsCount(): Promise<number> {
+  return invoke("known_words_count");
+}
+
+/** 清空「认识」 */
+export function clearKnownWords(): Promise<void> {
+  return invoke("clear_known_words");
+}

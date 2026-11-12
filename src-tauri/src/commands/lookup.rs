@@ -150,10 +150,15 @@ pub async fn word_glosses(state: State<'_, AppState>, words: Vec<String>) -> Res
                     .or_else(|| crate::gloss::pos_by_suffix(&word).map(str::to_string));
                 let gloss_of = |w: &str| {
                     dicts.iter().find_map(|d| {
-                        d.source.lookup(w).ok()?.iter().find_map(|e| {
-                            let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
-                            crate::gloss::chinese_gloss(t)
-                        })
+                        d.source
+                            .lookup(w)
+                            .ok()?
+                            .iter()
+                            .find_map(|e| {
+                                let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
+                                crate::gloss::chinese_gloss(t)
+                            })
+                            .map(|g| (g, d.source.meta().name.clone()))
                     })
                 };
                 // 词典没收这个变形（corroded、tarnished）：用原形（corrode、tarnish）的释义；候选原形要在 WordNet 里
@@ -163,7 +168,8 @@ pub async fn word_glosses(state: State<'_, AppState>, words: Vec<String>) -> Res
                         .filter(|c| c != &word && wordnet.as_ref().is_none_or(|wn| wn.has(c)))
                         .find_map(|c| gloss_of(&c))
                 });
-                crate::gloss::WordGloss { word, pos, gloss }
+                let (gloss, dict) = gloss.unzip();
+                crate::gloss::WordGloss { word, pos, gloss, dict }
             })
             .collect()
     })

@@ -358,10 +358,71 @@ pub fn decode_file(bytes: &[u8]) -> String {
     }
 }
 
+// ── 书签 ──
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Bookmark {
+    pub id: i64,
+    /// 第几章；普通文章为 0
+    pub chapter: i64,
+    /// 这一章（或整篇）里的位置 0–1
+    pub pos: f64,
+    /// 书签处的一小段原文
+    pub label: String,
+    pub created_at: i64,
+}
+
+/// 一篇文章 / 一本书的书签，按在书里的先后排
+pub fn bookmarks(conn: &Connection, article_id: i64) -> Result<Vec<Bookmark>> {
+    let mut st = conn.prepare("SELECT id, chapter, pos, label, created_at FROM bookmark WHERE article_id = ?1 ORDER BY chapter, pos, id")?;
+    let rows = st.query_map(params![article_id], |r| {
+        Ok(Bookmark { id: r.get(0)?, chapter: r.get(1)?, pos: r.get(2)?, label: r.get(3)?, created_at: r.get(4)? })
+    })?;
+    Ok(rows.collect::<std::result::Result<_, _>>()?)
+}
+
+const LABEL_CHARS: usize = 80;
+
+pub fn add_bookmark(conn: &Connection, article_id: i64, chapter: i64, pos: f64, label: &str) -> Result<i64> {
+    let label: String = label.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(LABEL_CHARS).collect();
+    conn.execute(
+        "INSERT INTO bookmark (article_id, chapter, pos, label, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![article_id, chapter.max(0), pos.clamp(0.0, 1.0), label, now_ms()],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn delete_bookmark(conn: &Connection, id: i64) -> Result<()> {
+    conn.execute("DELETE FROM bookmark WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::db::Db;
+
+    #[test]
+    fn bookmarks_sort_by_position_and_go_with_the_article() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        db.with_conn(|c| {
+            let a = create(c, None, MD, None)?;
+            let late = add_bookmark(c, a, 3, 0.5, "  Call me\n  Ishmael.  ")?;
+            let early = add_bookmark(c, a, 1, 0.9, "x")?;
+            add_bookmark(c, a, 3, 2.0, "end")?;
+            let got = bookmarks(c, a)?;
+            assert_eq!(got.iter().map(|b| b.id).collect::<Vec<_>>()[..2], [early, late]);
+            assert_eq!(got[1].label, "Call me Ishmael.");
+            assert!((got[2].pos - 1.0).abs() < 1e-9, "位置夹到 0–1");
+            delete_bookmark(c, early)?;
+            assert_eq!(bookmarks(c, a)?.len(), 2);
+            delete(c, a)?;
+            let left: i64 = c.query_row("SELECT COUNT(*) FROM bookmark", [], |r| r.get(0))?;
+            assert_eq!(left, 0, "删文章连书签一起删");
+            Ok(())
+        })
+    }
 
     const MD: &str = "# The Rusty Bike\n\nAn **old** bike, [rusted](https://x.com) by rain. ![pic](a.png)\n\n```\ncode block\n```\n\n- It's still *ubiquitous*.\n";
 

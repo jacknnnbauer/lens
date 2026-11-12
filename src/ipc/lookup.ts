@@ -113,6 +113,8 @@ export interface WordGloss {
   word: string;
   pos: string | null;
   gloss: string | null;
+  /** 中文释义取自哪部词典 */
+  dict: string | null;
 }
 
 /** 词汇网络表格视图：每个词的词性和第一段中文释义 */

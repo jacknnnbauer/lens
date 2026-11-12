@@ -5,6 +5,7 @@
 // 「导出」把标注过的原文和词汇表导出成 PDF / HTML（ArticleExportDialog）。
 // 电子书一次显示一章：生词、导出都按当前这一章；点工具栏上的章节名打开目录，正文下面翻上一章 / 下一章。书不能编辑。
 
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,7 +14,7 @@ import { Hint, markHint } from "../../components/Hint";
 import { acceptable, paragraphOf } from "../../components/inAppLookup";
 import { bookChapter, openArticle, openBook, renameArticle, saveReadingContext, setArticleProgress, setBookProgress, updateArticleBody, type Article, type BookInfo, type TocItem } from "../../ipc/articles";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
-import { saveScannedWords, scanText, setKnownWords, type ScanResult, type ScanStatus, type ScanWord } from "../../ipc/scan";
+import { clearKnownWords, importKnownWords, saveScannedWords, scanText, setKnownWords, type ScanResult, type ScanStatus, type ScanWord } from "../../ipc/scan";
 import { saveWord, wordId } from "../../ipc/words";
 import { copyCard, DEFAULT_COPY, FORMAT_NAME } from "../../copy/copy";
 import type { CopyFormat } from "../../copy/convert";
@@ -26,6 +27,7 @@ import { toast } from "../../stores/toast";
 import { scrollRoot } from "../../windows/main/scroll";
 import { ArticleExportDialog } from "./ArticleExportDialog";
 import { BookStudyDialog } from "./BookStudyDialog";
+import { Bookmarks } from "./Bookmarks";
 import { WysiwygEditor, type WysiwygApi } from "./WysiwygEditor";
 import { renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
@@ -209,6 +211,20 @@ export function ArticleView({ id, onBack }: Props) {
       alive = false;
     };
   }, [articleId, book, at]);
+
+  // 跳到书签：同一章直接滚过去，别的章先换章再滚到位置
+  const jumpTo = (chapter: number, pos: number) => {
+    if (book && articleId !== undefined) {
+      const idx = Math.min(Math.max(0, chapter), book.chapters.length - 1);
+      if (idx !== at?.idx) {
+        void setBookProgress(articleId, idx, pos).catch(() => undefined);
+        setAt({ idx, pos });
+        return;
+      }
+    }
+    const root = scrollRoot();
+    root.scrollTo({ top: pos * Math.max(0, root.scrollHeight - root.clientHeight) });
+  };
 
   const goChapter = (idx: number, anchor?: string | null) => {
     setTocOpen(false);
@@ -619,6 +635,15 @@ export function ArticleView({ id, onBack }: Props) {
           </>
         ) : (
           <>
+            {article && (
+              <Bookmarks
+                articleId={article.id}
+                chapter={at?.idx ?? 0}
+                chapterTitles={book ? book.chapters.map((c) => c.title) : null}
+                body={bodyRef}
+                onJump={jumpTo}
+              />
+            )}
             <button type="button" className={styles.ghost} onClick={() => setExporting(true)} disabled={!article || !scan} title={tr("导出 PDF / HTML：标注过的原文 + 词汇表")}>
               {tr("导出")}
             </button>
@@ -966,6 +991,38 @@ function WordsPanel({
     }
   };
 
+  // 导入用户认识的词表：都标成「认识」，生词标得更准
+  const importKnown = async () => {
+    const path = await openDialog({
+      multiple: false,
+      title: tr("选择认识的词表"),
+      filters: [{ name: tr("词表"), extensions: ["txt", "csv", "tsv", "md"] }],
+    });
+    if (typeof path !== "string") return;
+    try {
+      const r = await importKnownWords(path);
+      toast(tr("认出 {found} 个词，新增 {added} 个「认识」（共 {total} 个）", { found: r.found, added: r.added, total: r.total }));
+      onChanged();
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+  const [confirmClear, setConfirmClear] = useState(false);
+  const clearKnown = async () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      return;
+    }
+    setConfirmClear(false);
+    try {
+      await clearKnownWords();
+      toast(tr("已清空「认识」的词"));
+      onChanged();
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+
   const savePicked = async (words: ScanWord[]) => {
     try {
       const n = await saveScannedWords(
@@ -1007,6 +1064,21 @@ function WordsPanel({
         <button type="button" className={styles.link} onClick={() => setSort(sort === "order" ? "rank" : "order")}>
           {sort === "order" ? tr("按出现顺序") : tr("难的在前")}
         </button>
+      </div>
+      <div className={styles.knownBar}>
+        <button
+          type="button"
+          className={styles.link}
+          onClick={() => void importKnown()}
+          title={tr("txt / csv，每行一个词（后面带释义、序号也行）；词表里的词都标成「认识」，不再算生词")}
+        >
+          {tr("导入认识的词表…")}
+        </button>
+        {group === "known" && counts.known > 0 && (
+          <button type="button" className={confirmClear ? styles.danger : styles.link} onClick={() => void clearKnown()} onBlur={() => setConfirmClear(false)}>
+            {confirmClear ? tr("确定清空全部「认识」？") : tr("清空「认识」")}
+          </button>
+        )}
       </div>
 
       {group === "new" && shown.length > 0 && (
@@ -1062,9 +1134,11 @@ function WordsPanel({
                     {g?.pos && <span className={styles.pos}>{g.pos}</span>}
                     {w.count > 1 && <span className={styles.faint}>×{w.count}</span>}
                   </div>
-                  <div className={styles.gloss}>{g ? (g.gloss ?? "—") : "…"}</div>
+                  <div className={styles.gloss} title={g?.dict ? tr("中文释义取自《{d}》", { d: g.dict }) : g ? tr("当前配置组的本地词典里没有中文释义") : undefined}>
+                    {g ? (g.gloss ?? "—") : "…"}
+                  </div>
                 </div>
-                <span className={styles.rank} title={tr("词频排名")}>
+                <span className={styles.rank} title={scan.source === "coca" ? tr("COCA 词频排名（数字越大越少见）") : tr("内置词频表排名（数字越大越少见；导入 COCA 后改用 COCA）")}>
                   {w.rank ? `#${w.rank}` : tr("罕见")}
                 </span>
                 <button type="button" className={styles.link} onClick={() => onLookup(w.lemma)}>

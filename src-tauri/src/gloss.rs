@@ -11,6 +11,8 @@ pub struct WordGloss {
     pub pos: Option<String>,
     /// 第一段中文释义；本地词典里没有中文时为 None
     pub gloss: Option<String>,
+    /// 中文释义取自哪部词典（词典名）
+    pub dict: Option<String>,
 }
 
 /// 一段中文最长这么多字：再长多半是例句译文

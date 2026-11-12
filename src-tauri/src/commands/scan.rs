@@ -87,3 +87,50 @@ pub async fn save_scanned_words(state: State<'_, AppState>, items: Vec<ScanSave>
         Ok(n)
     })
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnownImport {
+    /// 词表里认出来的词（原形、去重）
+    pub found: usize,
+    /// 其中原来不在「认识」里的
+    pub added: usize,
+    /// 导入后「认识」一共多少词
+    pub total: usize,
+}
+
+/// 导入用户认识的词表（txt / csv，每行一个词最常见）：都标成「认识」，以后扫描不再当生词
+#[tauri::command]
+pub async fn import_known_words(state: State<'_, AppState>, path: std::path::PathBuf) -> Result<KnownImport> {
+    let bytes = std::fs::read(&path)?;
+    if bytes.len() > 20 * 1024 * 1024 {
+        return Err(Error::Other(crate::i18n::t("词表太大（超过 20 MB）", "The word list is too large (over 20 MB)").into()));
+    }
+    let text = crate::db::articles::decode_file(&bytes);
+    let (coca, wordnet) = (state.coca(), state.wordnet());
+    let lemmas = tauri::async_runtime::spawn_blocking(move || crate::scan::with_lexicon(coca.as_deref(), wordnet.as_deref(), |lx| crate::scan::known_list(&text, lx)))
+        .await
+        .map_err(|e| Error::Other(e.to_string()))?;
+    if lemmas.is_empty() {
+        return Err(Error::Other(crate::i18n::t("这个文件里没有认出英文单词", "No English words were found in this file").into()));
+    }
+    let before: HashSet<String> = state.db.with_conn(words::known_lemmas)?.into_iter().collect();
+    state.db.with_conn(|c| words::set_known(c, &lemmas, true))?;
+    let added = lemmas.iter().filter(|l| !before.contains(*l)).count();
+    Ok(KnownImport { found: lemmas.len(), added, total: before.len() + added })
+}
+
+/// 「认识」一共多少词
+#[tauri::command]
+pub async fn known_words_count(state: State<'_, AppState>) -> Result<usize> {
+    Ok(state.db.with_conn(words::known_lemmas)?.len())
+}
+
+/// 清空「认识」（导错了词表时用）
+#[tauri::command]
+pub async fn clear_known_words(state: State<'_, AppState>) -> Result<()> {
+    state.db.with_conn(|c| {
+        c.execute("DELETE FROM known_word", [])?;
+        Ok(())
+    })
+}

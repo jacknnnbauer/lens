@@ -33,7 +33,11 @@ export function frameRuntime(kitFn: typeof contrastKit, o: FrameOpts): void {
     const b = document.body;
     if (!b) return;
     const cs = getComputedStyle(b);
-    const h = Math.ceil(b.getBoundingClientRect().height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0));
+    let h = Math.ceil(b.getBoundingClientRect().height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0));
+    // 词典里浮动、绝对定位的内容可能伸出 body（vocabulary.com 的例句翻页）：
+    // 文档比 iframe 高就按文档高度来，不然卡片里会多出一条滚动条
+    const de = document.documentElement;
+    if (de.scrollHeight > de.clientHeight + 1) h = Math.max(h, de.scrollHeight);
     if (h !== last) {
       last = h;
       post({ type: "height", height: h });

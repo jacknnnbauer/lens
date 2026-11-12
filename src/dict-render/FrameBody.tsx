@@ -90,7 +90,7 @@ export function buildFrameDoc(html: string, baseCss: string, vars: string, opts:
   return (
     `<!doctype html><html><head><meta charset="utf-8">` +
     `<style id="lens-hide">html{visibility:hidden}</style>` +
-    `<style>:root{${vars}color-scheme:${opts.dark ? "dark" : "light"}}html,body{margin:0;padding:0;background:transparent}${base}</style>` +
+    `<style>:root{${vars}color-scheme:${opts.dark ? "dark" : "light"}}html,body{margin:0;padding:0;background:transparent}html{overflow:hidden}body{display:flow-root}${base}</style>` +
     `<script>${runtime.replace(/<\/script/gi, "<\\/script")}</script>` +
     `</head><body>${html}</body></html>`
   );

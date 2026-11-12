@@ -17,6 +17,7 @@ import { ThemeThumb } from "../../components/ThemeThumb";
 import { ACCENTS, allThemes, findTheme, type CustomTheme } from "../../theme/themes";
 import { useAppliedTheme } from "../../theme/useApplyTheme";
 import { formatHotkey } from "./hotkey";
+import { AppKeys } from "./AppKeys";
 import { scrollRoot } from "../../windows/main/scroll";
 import styles from "./SettingsPage.module.css";
 import { tr } from "../../i18n";
@@ -44,27 +45,14 @@ const PRESETS: Array<{ id: LayoutPreset; name: string; hint: string; regions: Pa
   { id: "three-column", name: "三栏", hint: "导航 + 结果 + 上下文", regions: { showNav: true, showContext: true, showStatusBar: true } },
 ];
 
-/** 应用内快捷键（SPEC 9.4），只读说明 */
+/** 固定的应用内快捷键（SPEC 9.4），只读说明；可改的见 src/keys.ts 与 AppKeys */
 const SHORTCUTS: Array<[string, string]> = [
-  ["Ctrl+K", "聚焦搜索框"],
   ["↑ ↓", "候选 / 义项移动"],
   ["Tab / Shift+Tab", "下一本 / 上一本词典"],
-  ["Ctrl+S", "收藏（带语境句）"],
-  ["Ctrl+Shift+C", "复制当前词典（默认格式）"],
-  ["Ctrl+Shift+A", "合并复制所有词典"],
-  ["Ctrl+E", "导出当前词"],
   ["Ctrl+1 / 2 / 3", "切换场景配置组"],
-  ["Ctrl+B / Ctrl+H / Ctrl+L", "生词本 / 历史 / 词典库"],
-  ["Ctrl+Shift+F", "反查与全文搜索"],
   ["F11 / Esc", "进入 / 退出沉浸模式"],
-  ["Ctrl+\\", "显示 / 隐藏左侧导航"],
-  ["Ctrl+Shift+W", "卡片墙 开 / 关"],
-  ["Ctrl+,", "设置"],
   ["鼠标侧键 · Alt+← / Alt+→", "主窗口：后退 / 前进（回到刚才查的词或页面）"],
   ["Enter", "查词小窗：展开到主窗口（改过词时先在小窗里查）"],
-  ["Ctrl+S", "查词小窗：收藏（带语境句）"],
-  ["Ctrl+Shift+C", "查词小窗：复制当前词典"],
-  ["Ctrl+P", "查词小窗：钉住（失焦不自动关闭）"],
   ["Tab / Shift+Tab", "查词小窗：下一本 / 上一本词典"],
   ["Alt+← / Alt+→", "查词小窗：语境句向前 / 向后多带一句"],
   ["Esc", "查词小窗：关闭"],
@@ -971,6 +959,9 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             </span>
             <HotkeyField value={cap.hotkey} onSave={(v) => void updateNow({ capture: { hotkey: v } })} />
           </div>
+          <p className={styles.hint}>{tr("下面这些只在 Lens 窗口里有效。和别的软件习惯冲突时，点击组合键后按下新的即可更换。")}</p>
+          <AppKeys />
+          <h3 className={styles.sub}>{tr("固定快捷键")}</h3>
           <table className={styles.keys}>
             <caption className="sr-only">{tr("应用内快捷键")}</caption>
             <tbody>
@@ -1008,7 +999,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               label={tr("划词时加入生词本")}
               value={cap.autoSave ? "auto" : "manual"}
               options={[
-                ["manual", "手动（点收藏或 Ctrl+S）"],
+                ["manual", "手动（点收藏或快捷键）"],
                 ["auto", "自动（划词查到就收藏）"],
               ]}
               onChange={(v) => update({ capture: { autoSave: v === "auto" } })}
@@ -1017,13 +1008,19 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               label={tr("主窗口查词时加入生词本")}
               value={settings.wordbook?.autoSaveLookup ? "auto" : "manual"}
               options={[
-                ["manual", "手动（点 ☆ 或 Ctrl+S）"],
+                ["manual", "手动（点 ☆ 或快捷键）"],
                 ["auto", "自动（按 Enter 查到就收藏）"],
               ]}
               onChange={(v) => update({ wordbook: { autoSaveLookup: v === "auto" } })}
             />
           </div>
           <p className={styles.hint}>{tr("自动：查到释义后收进生词本（划词时连同当时的语境句）；已在生词本里的词只追加语境。主窗口里只有确定的查询才算（按 Enter、点候选、点链接、窗口内划词），打字过程中的联想不算。")}</p>
+          <Toggle
+            label={tr("查不到的词也能收藏")}
+            hint={tr("词典里没有的词组（如 first year）也能收进生词本，连同语境句；释义留空，到生词本里自己写")}
+            checked={settings.wordbook?.saveUnmatched ?? true}
+            onChange={(v) => update({ wordbook: { saveUnmatched: v } })}
+          />
           <div className={styles.grid2}>
             <Select
               label={tr("窗口内查词")}

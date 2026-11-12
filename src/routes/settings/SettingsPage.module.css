@@ -668,3 +668,21 @@ kbd {
   accent-color: var(--accent);
   cursor: pointer;
 }
+
+.appKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.appKey .recorder {
+  min-width: 150px;
+  padding: 4px 10px;
+}
+
+.sub {
+  margin: 18px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sub);
+}

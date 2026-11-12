@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Card } from "./lookup";
-import { briefOf } from "./save";
+import { briefOf, canSave } from "./save";
 
 const card = (summary: string, status: Card["status"] = "hit", name = "D"): Card => ({
   id: "d",
@@ -31,5 +31,15 @@ describe("briefOf", () => {
   });
   it("returns null without hits", () => {
     expect(briefOf([card("x", "miss")], "w")).toBeNull();
+  });
+});
+
+describe("canSave", () => {
+  it("allows saving a word no dictionary has once the lookup is done, if the setting allows", () => {
+    expect(canSave([card("a"), card("", "miss")], false)).toBe(true);
+    expect(canSave([card("", "miss")], false)).toBe(false);
+    expect(canSave([card("", "miss")], true)).toBe(true);
+    // 还在查：等查完再说，免得先收了一个没有简释的
+    expect(canSave([card("", "miss"), card("", "pending")], true)).toBe(false);
   });
 });

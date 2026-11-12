@@ -5,6 +5,7 @@ import { saveWord, wordId } from "../ipc/words";
 import type { Card } from "./lookup";
 import { toast } from "./toast";
 import { tr } from "../i18n";
+import { useSettings } from "./settings";
 
 const BRIEF_CHARS = 80;
 
@@ -37,9 +38,20 @@ export function briefOf(cards: Card[], word: string): string | null {
   return s.length > BRIEF_CHARS ? `${s.slice(0, BRIEF_CHARS)}…` : s || null;
 }
 
+/**
+ * 能不能收藏：有词典查到；或者设置里允许「查不到也收藏」（自由词组 first year 之类）且已查完，
+ * 这时没有简释，用户在生词本里自己写。
+ */
+export function canSave(cards: Card[], saveUnmatched: boolean): boolean {
+  if (cards.some((c) => c.status === "hit")) return true;
+  return saveUnmatched && !cards.some((c) => c.status === "pending");
+}
+
 /** 当前查询词的收藏状态与收藏动作。 */
 export function useSaveWord(query: string | undefined, cards: Card[], contextId: number | null = null) {
   const [savedId, setSavedId] = useState<number | null>(null);
+  const saveUnmatched = useSettings((s) => s.settings?.wordbook?.saveUnmatched) ?? true;
+  const enabled = !!query && canSave(cards, saveUnmatched);
 
   useEffect(() => {
     setSavedId(null);
@@ -52,7 +64,7 @@ export function useSaveWord(query: string | undefined, cards: Card[], contextId:
   }, [query]);
 
   const save = async () => {
-    if (!query || !cards.some((c) => c.status === "hit")) return;
+    if (!query || !enabled) return;
     try {
       const id = await saveWord(query, { brief: briefOf(cards, query), contextId });
       const already = savedId !== null;
@@ -63,5 +75,5 @@ export function useSaveWord(query: string | undefined, cards: Card[], contextId:
     }
   };
 
-  return { saved: savedId !== null, save };
+  return { saved: savedId !== null, save, enabled };
 }

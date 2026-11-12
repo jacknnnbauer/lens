@@ -92,6 +92,8 @@ export interface WordbookPrefs {
   cardDict: string;
   /** 主窗口查词有结果就自动收藏 */
   autoSaveLookup: boolean;
+  /** 词典里查不到也允许收藏（释义自己在生词本里写） */
+  saveUnmatched: boolean;
 }
 
 /** 常规：整个应用的行为 */
@@ -172,6 +174,8 @@ export interface Settings {
   study: StudyPrefs;
   customThemes: CustomTheme[];
   activeProfile: string;
+  /** 应用内快捷键：只存改过的（动作 id → 组合键），见 src/keys.ts */
+  keys: Record<string, string>;
   [section: string]: unknown;
 }
 

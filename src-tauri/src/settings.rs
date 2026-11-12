@@ -116,13 +116,21 @@ impl Default for Layout {
 }
 
 /// 生词本。
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Wordbook {
     /// 语境卡 / 复习卡背面用哪本词典的释义（词典 id）；空 = 自动（跳过搭配、词频类词典）
     pub card_dict: String,
     /// 主窗口查词（确定的查询）有结果就自动收进生词本
     pub auto_save_lookup: bool,
+    /// 词典里查不到（如自由词组 first year）也允许收藏，释义留给用户在生词本里自己写
+    pub save_unmatched: bool,
+}
+
+impl Default for Wordbook {
+    fn default() -> Self {
+        Self { card_dict: String::new(), auto_save_lookup: false, save_unmatched: true }
+    }
 }
 
 /// 全书预习包
@@ -383,6 +391,8 @@ pub struct Settings {
     /// 自定义主题（主题库里「复制并编辑」或导入的）
     pub custom_themes: Vec<crate::themes::CustomTheme>,
     pub active_profile: String,
+    /// 应用内快捷键：只存改过的（动作 id → 组合键，如 save → Ctrl+Shift+S），没改的用前端默认值
+    pub keys: std::collections::BTreeMap<String, String>,
     #[serde(flatten)]
     pub rest: Map<String, Value>,
 }
@@ -404,6 +414,7 @@ impl Default for Settings {
             study: Study::default(),
             custom_themes: Vec::new(),
             active_profile: "reading".into(),
+            keys: Default::default(),
             rest: Map::new(),
         }
     }

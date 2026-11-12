@@ -14,7 +14,7 @@ const MODIFIER_CODES = /^(Control|Alt|Shift|Meta|OS)(Left|Right)?$/;
 /** 系统或输入法占用、注册了也收不到的组合 */
 const RESERVED = new Set(["Alt+Space", "Ctrl+Space", "Ctrl+Shift+Space", "Alt+Tab", "Alt+F4", "Ctrl+Alt+Delete"]);
 
-function keyName(code: string): string | null {
+export function keyName(code: string): string | null {
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit\d$/.test(code)) return code.slice(5);
   if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) return code;

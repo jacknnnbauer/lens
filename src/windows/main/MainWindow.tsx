@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { comboOf, pressed, type KeyAction } from "../../keys";
 import { checkUpdate, mainReady } from "../../ipc/settings";
 import { toast } from "../../stores/toast";
 import { TrayHint } from "../../components/TrayHint";
@@ -191,57 +192,40 @@ export function MainWindow() {
     useSettings.getState().updateLayout({ showContext: !cur });
   }, []);
 
-  // Ctrl+1…9 切换配置组，Ctrl+L 词典库，Ctrl+H 历史，Ctrl+B 生词本，Ctrl+, 设置，Ctrl+K 回到查词（SPEC 9.4）
+  // 应用级快捷键（SPEC 9.4）：卡片墙、全文、侧栏、设置、词典库、历史、生词本、回到查词（可在设置里改，见 src/keys.ts）；Ctrl+1…9 切换配置组
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "KeyW") {
+      // 阅读里的所见即所得编辑器自己用 Ctrl+B（加粗）等：编辑区里不抢 Ctrl+字母
+      const inEditor = !!(e.target as HTMLElement | null)?.closest?.('[contenteditable="true"]');
+      const letter = /^Ctrl\+[A-Z]$/.test(comboOf(e) ?? "");
+      const act = (id: KeyAction, fn: () => void) => {
+        if (!pressed(e, id) || (inEditor && letter)) return false;
         e.preventDefault();
-        toggleWall();
+        fn();
+        return true;
+      };
+      if (
+        act("cardWall", toggleWall) ||
+        act("fulltext", () => go("search")) ||
+        act("toggleContext", toggleContext) ||
+        act("toggleNav", toggleNav) ||
+        act("settings", () => {
+          go("settings");
+          scrollRoot().scrollTo(0, 0);
+        }) ||
+        act("library", () => setLibraryOpen(true)) ||
+        act("history", () => go("history")) ||
+        act("wordbook", () => go("wordbook"))
+      )
         return;
-      }
-      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "KeyF") {
-        // Ctrl+Shift+F 反查与全文
-        e.preventDefault();
-        go("search");
-        return;
-      }
-      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === "Backslash") {
-        // Ctrl+Shift+\ 显示 / 隐藏右侧上下文栏
-        e.preventDefault();
-        toggleContext();
-        return;
-      }
+      // 查词页自己处理聚焦搜索框（LookupPage）
+      if (useRoute.getState().page !== "lookup" && act("focusSearch", focusSearch)) return;
+      // Ctrl+1…9 切换配置组（固定）
       if (!e.ctrlKey || e.altKey || e.shiftKey) return;
-      // 阅读里的所见即所得编辑器自己用 Ctrl+B（加粗）等：编辑区里不抢这些字母快捷键
-      if (/^[bhkl]$/i.test(e.key) && (e.target as HTMLElement | null)?.closest?.('[contenteditable="true"]')) return;
-      if (e.key === ",") {
-        e.preventDefault();
-        go("settings");
-        scrollRoot().scrollTo(0, 0);
-        return;
-      }
-      if (e.key === "\\") {
-        // Ctrl+\ 显示 / 隐藏左侧导航
-        e.preventDefault();
-        toggleNav();
-        return;
-      }
       const n = Number(e.key);
       if (n >= 1 && n <= 9 && profiles[n - 1]) {
         e.preventDefault();
         void switchProfile(profiles[n - 1].id);
-      } else if (e.key.toLowerCase() === "l") {
-        e.preventDefault();
-        setLibraryOpen(true);
-      } else if (e.key.toLowerCase() === "h") {
-        e.preventDefault();
-        go("history");
-      } else if (e.key.toLowerCase() === "b") {
-        e.preventDefault();
-        go("wordbook");
-      } else if (e.key.toLowerCase() === "k" && useRoute.getState().page !== "lookup") {
-        e.preventDefault();
-        focusSearch();
       }
     };
     window.addEventListener("keydown", onKey);

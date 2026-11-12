@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ContextPanelIcon, MaximizeIcon, MinimizeIcon, SidebarIcon, WindowCloseIcon } from "./icons";
 import styles from "./TitleBar.module.css";
 import { tr } from "../i18n";
+import { useKeyLabel } from "../keys";
 
 interface Props {
   navShown: boolean;
@@ -32,6 +33,8 @@ export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext 
   }, []);
 
   const w = getCurrentWindow();
+  const kNav = useKeyLabel("toggleNav");
+  const kCtx = useKeyLabel("toggleContext");
   return (
     <header
       className={styles.bar}
@@ -48,7 +51,7 @@ export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext 
         data-hint="nav"
         aria-label={tr(navShown ? "隐藏左侧导航" : "显示左侧导航")}
         aria-pressed={navShown}
-        title={`${tr(navShown ? "隐藏左侧导航" : "显示左侧导航")}（Ctrl+\\）`}
+        title={`${tr(navShown ? "隐藏左侧导航" : "显示左侧导航")}（${kNav}）`}
         onClick={onToggleNav}
       >
         <SidebarIcon />
@@ -61,7 +64,7 @@ export function TitleBar({ navShown, onToggleNav, contextShown, onToggleContext 
         className={styles.navBtn}
         aria-label={tr(contextShown ? "隐藏右侧上下文栏" : "显示右侧上下文栏")}
         aria-pressed={contextShown}
-        title={`${tr(contextShown ? "隐藏右侧上下文栏" : "显示右侧上下文栏")}（Ctrl+Shift+\\）`}
+        title={`${tr(contextShown ? "隐藏右侧上下文栏" : "显示右侧上下文栏")}（${kCtx}）`}
         onClick={onToggleContext}
       >
         <ContextPanelIcon />

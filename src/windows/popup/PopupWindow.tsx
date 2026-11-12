@@ -18,6 +18,7 @@ import { SourceLink } from "../../components/SourceLink";
 import { extendContext } from "../../ipc/history";
 import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
 import { useSaveWord } from "../../stores/save";
+import { pressed, useKeyLabel } from "../../keys";
 import { useSettings } from "../../stores/settings";
 import { useApplyTheme } from "../../theme/useApplyTheme";
 import styles from "./PopupWindow.module.css";
@@ -51,7 +52,9 @@ export function PopupWindow() {
   // 收藏时带上本次划词的语境句；改词重查后就不再是那句的语境了
   const captureMatches = capture != null && handle != null && handle.query === capture.text;
   const copyCfg = useSettings((s) => s.settings?.copy) ?? DEFAULT_COPY;
-  const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards, captureMatches ? capture.contextId : null);
+  const saveKey = useKeyLabel("save");
+  const pinKey = useKeyLabel("popupPin");
+  const { saved, save, enabled: canSave } = useSaveWord(handle?.normalized || handle?.query, cards, captureMatches ? capture.contextId : null);
   const autoSave = useSettings((s) => s.settings?.capture.autoSave) ?? false;
   /** 已自动收藏过的那次划词（每次划词只自动收一次） */
   const autoSaved = useRef<number | null>(null);
@@ -141,13 +144,13 @@ export function PopupWindow() {
     } else if (e.key === "Tab") {
       e.preventDefault();
       cycleTab(e.shiftKey ? -1 : 1);
-    } else if (e.ctrlKey && e.key.toLowerCase() === "p") {
+    } else if (pressed(e, "popupPin")) {
       e.preventDefault();
       setPinned((p) => !p);
-    } else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "s") {
+    } else if (pressed(e, "save")) {
       e.preventDefault();
       void save();
-    } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c" && active) {
+    } else if (pressed(e, "copyCurrent") && active) {
       // 复制当前词典；Markdown 末尾附上语境句（SPEC 10）
       e.preventDefault();
       const ext = ctx && captureMatches ? extend(ctx, extra.before, extra.after) : null;
@@ -209,8 +212,9 @@ export function PopupWindow() {
           type="button"
           className={styles.pin}
           aria-pressed={saved}
-          aria-label={tr(saved ? "已收藏（Ctrl+S 追加语境）" : "收藏（Ctrl+S）")}
-          disabled={!hits.length}
+          aria-label={tr(saved ? "已收藏（{key} 追加语境）" : "收藏（{key}）", { key: saveKey })}
+          title={tr(saved ? "已收藏（{key} 追加语境）" : "收藏（{key}）", { key: saveKey })}
+          disabled={!canSave}
           onClick={() => void save()}
         >
           {tr(saved ? "已收藏" : "收藏")}
@@ -219,7 +223,7 @@ export function PopupWindow() {
           type="button"
           className={styles.pin}
           aria-pressed={pinned}
-          aria-label={tr(pinned ? "取消钉住（Ctrl+P）" : "钉住（Ctrl+P）")}
+          aria-label={tr(pinned ? "取消钉住（{key}）" : "钉住（{key}）", { key: pinKey })}
           title={tr("钉住后失焦不自动关闭")}
           onClick={() => setPinned((p) => !p)}
         >

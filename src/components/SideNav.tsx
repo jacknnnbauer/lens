@@ -6,6 +6,7 @@ import { useRoute } from "../stores/route";
 import { useSettings } from "../stores/settings";
 import styles from "./SideNav.module.css";
 import { tr } from "../i18n";
+import { useKeyLabel } from "../keys";
 
 interface Props {
   onFocusSearch: () => void;
@@ -25,33 +26,41 @@ export function SideNav({ onFocusSearch, onOpenHistory, onOpenWordbook, onOpenSe
   const profiles = useDicts((s) => s.profiles);
   const active = useSettings((s) => s.settings?.activeProfile);
   const recent = useLookup((s) => s.recent);
+  const keys = {
+    focusSearch: useKeyLabel("focusSearch"),
+    wordbook: useKeyLabel("wordbook"),
+    history: useKeyLabel("history"),
+    fulltext: useKeyLabel("fulltext"),
+    library: useKeyLabel("library"),
+    settings: useKeyLabel("settings"),
+  };
 
   return (
     <nav aria-label={tr("主导航")} className={styles.nav} data-ui="nav">
       <div className={styles.group}>
         <button type="button" className={styles.item} aria-current={page === "lookup" ? "page" : undefined} onClick={onFocusSearch}>
-          {tr("查词")}<kbd>Ctrl+K</kbd>
+          {tr("查词")}<kbd>{keys.focusSearch}</kbd>
         </button>
         <button type="button" className={styles.item} aria-current={page === "wordbook" ? "page" : undefined} onClick={onOpenWordbook}>
-          {tr("生词本")}<kbd>Ctrl+B</kbd>
+          {tr("生词本")}<kbd>{keys.wordbook}</kbd>
         </button>
         <button type="button" className={styles.item} aria-current={page === "history" ? "page" : undefined} onClick={onOpenHistory}>
-          {tr("历史")}<kbd>Ctrl+H</kbd>
+          {tr("历史")}<kbd>{keys.history}</kbd>
         </button>
         <button type="button" className={styles.item} aria-current={page === "search" ? "page" : undefined} onClick={onOpenSearch}>
-          {tr("反查与全文")}<kbd>Ctrl+Shift+F</kbd>
+          {tr("反查与全文")}<kbd>{keys.fulltext}</kbd>
         </button>
         <button type="button" className={styles.item} aria-current={page === "reader" ? "page" : undefined} onClick={onOpenReader}>
           {tr("阅读")}
         </button>
         <button type="button" className={styles.item} onClick={onOpenLibrary}>
-          {tr("词典库")}<kbd>Ctrl+L</kbd>
+          {tr("词典库")}<kbd>{keys.library}</kbd>
         </button>
         <button type="button" className={styles.item} onClick={onOpenBatch}>
           {tr("批量导出")}
         </button>
         <button type="button" className={styles.item} onClick={onOpenSettings}>
-          {tr("设置")}<kbd>Ctrl+,</kbd>
+          {tr("设置")}<kbd>{keys.settings}</kbd>
         </button>
       </div>
 

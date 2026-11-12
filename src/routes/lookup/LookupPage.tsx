@@ -19,6 +19,7 @@ import { useImmersive } from "../../stores/immersive";
 import { useLookup } from "../../stores/lookup";
 import { useRoute } from "../../stores/route";
 import { useSaveWord } from "../../stores/save";
+import { pressed, useKeyLabel } from "../../keys";
 import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
 import type { CopyFormat } from "../../copy/convert";
@@ -58,7 +59,9 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const dictCount = useDicts((s) => s.dicts.filter((d) => d.loaded).length);
   const dictsLoaded = useDicts((s) => s.loaded);
   const searchBox = useRef<SearchBoxHandle>(null);
-  const { saved, save } = useSaveWord(handle?.normalized || handle?.query, cards);
+  const { saved, save, enabled: canSave } = useSaveWord(handle?.normalized || handle?.query, cards);
+  const saveKey = useKeyLabel("save");
+  const exportKey = useKeyLabel("export");
   const saveRef = useRef(save);
   saveRef.current = save;
   // 设置 › 取词「主窗口查词时加入生词本：自动」：确定的查询有命中就收藏一次
@@ -178,37 +181,29 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     return () => window.removeEventListener("keydown", onType);
   }, []);
 
-  // Ctrl+K 聚焦搜索框，Ctrl+S 收藏（SPEC 9.4）
+  // 聚焦搜索框、收藏、导出、复制当前 / 全部词典（SPEC 9.4；组合键可在设置里改，见 src/keys.ts）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.shiftKey || e.altKey) return;
-      const k = e.key.toLowerCase();
-      if (k === "k") {
+      if (pressed(e, "focusSearch")) {
         e.preventDefault();
         searchBox.current?.focus();
-      } else if (k === "s") {
+      } else if (pressed(e, "save")) {
         e.preventDefault();
         void saveRef.current();
-      } else if (k === "e") {
-        // Ctrl+E 导出当前词（SPEC 9.4）
+      } else if (pressed(e, "export")) {
         e.preventDefault();
         if (canExportRef.current) setExportOpen(true);
+      } else if (pressed(e, "copyCurrent")) {
+        // 焦点所在卡片，否则第一部展开的
+        e.preventDefault();
+        copyKeyRef.current("c");
+      } else if (pressed(e, "copyAll")) {
+        e.preventDefault();
+        copyKeyRef.current("a");
       }
     };
-    // Ctrl+Shift+C 复制当前词典（焦点所在卡片，否则第一部展开的），Ctrl+Shift+A 合并复制所有展开的
-    const onCopyKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || !e.shiftKey || e.altKey) return;
-      const k = e.key.toLowerCase();
-      if (k !== "c" && k !== "a") return;
-      e.preventDefault();
-      copyKeyRef.current(k);
-    };
-    window.addEventListener("keydown", onCopyKey);
     window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keydown", onCopyKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   // 未收录的只在底部列名；本地已命中而没查的在线词典不显示
@@ -269,9 +264,9 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           className={styles.star}
           data-ui="tool"
           aria-pressed={saved}
-          aria-label={tr(saved ? "已收藏（Ctrl+S 追加语境）" : "收藏到生词本（Ctrl+S）")}
-          title={tr(saved ? "已收藏 · Ctrl+S 追加语境" : "收藏到生词本 · Ctrl+S")}
-          disabled={!anyHit}
+          aria-label={tr(saved ? "已收藏（{key} 追加语境）" : "收藏到生词本（{key}）", { key: saveKey })}
+          title={tr(saved ? "已收藏 · {key} 追加语境" : "收藏到生词本 · {key}", { key: saveKey })}
+          disabled={!canSave}
           onClick={() => void save()}
         >
           <StarIcon filled={saved} />
@@ -280,8 +275,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           type="button"
           className={styles.star}
           data-ui="tool"
-          aria-label={tr("导出 PDF 或 HTML（Ctrl+E）")}
-          title={tr("导出 PDF 或 HTML · Ctrl+E")}
+          aria-label={tr("导出 PDF 或 HTML（{key}）", { key: exportKey })}
+          title={tr("导出 PDF 或 HTML · {key}", { key: exportKey })}
           disabled={!anyHit}
           onClick={() => setExportOpen(true)}
         >

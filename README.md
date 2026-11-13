@@ -4,6 +4,8 @@
 
 *A local-first, keyboard-first dictionary app for Windows. Look up words across your own MDict / StarDict dictionaries, capture words with their sentences from any app, and send them to Anki.*
 
+**官网**：<https://jacknnnbauer.github.io/lens/>
+
 > Lens 不附带任何词典。词典内容的版权归各词典所有，请使用你自己合法获得的词典文件。
 
 ![中文反查](docs/screenshots/reverse-lookup.png)

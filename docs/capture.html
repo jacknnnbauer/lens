@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>划词取词 · 词镜 Lens</title>
+<meta name="description" content="词镜 Lens 的划词取词：任何程序里选中单词按快捷键，弹出查词小窗，自动抓取所在句子和来源。">
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="26" height="26"><span>词镜 Lens</span></a>
+    <nav class="site-nav" aria-label="网站导航">
+      <a href="lookup.html">查词</a>
+      <a href="capture.html" aria-current="page">划词</a>
+      <a href="reading.html">阅读</a>
+      <a href="wordbook.html">生词本</a>
+      <a href="personalize.html">外观与效率</a>
+      <a class="dl" href="index.html#download">下载</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap page-hero">
+    <p class="eyebrow">划词取词</p>
+    <h1>不离开正在读的东西，<br>就把词查了、把句子存了</h1>
+    <p>在浏览器、PDF、Word、邮件、聊天软件里选中一个词，按一下快捷键。查词小窗贴着你的阅读位置弹出；这个词所在的那句话、来自哪个程序和网页，一起记下来。</p>
+    <nav class="jump" aria-label="本页内容">
+      <a href="#trigger">两种触发方式</a><a href="#sentence">自动抓原句</a><a href="#popup">查词小窗</a><a href="#inapp">窗口内查词</a><a href="#auto">自动收藏</a>
+    </nav>
+  </div>
+
+  <section class="block" id="trigger">
+    <div class="wrap">
+      <div class="desk">
+        <div class="browser" aria-hidden="true">
+          <div class="bar"><i></i><i></i><i></i><span>gutenberg.org/ebooks/2701</span></div>
+          <div class="text">Whenever I find myself growing grim about the mouth; whenever it is a damp, <mark>drizzly</mark> November in my soul; … then, I account it high time to get to sea as soon as I can.</div>
+        </div>
+        <figure class="popup"><img src="assets/popup.webp" width="779" height="873" loading="lazy" alt="Lens 查词小窗：drizzly，当前语境「下毛毛雨的」，下方是自动抓到的原句"></figure>
+      </div>
+      <p class="cap">示意：在浏览器里选中 drizzly，按快捷键，旁边弹出的就是 Lens 的查词小窗（真实截图）。</p>
+      <h2 style="margin-top:40px">两种触发方式</h2>
+      <table class="table">
+        <tbody>
+          <tr><th>全局快捷键</th><td>默认 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd>，在设置里点一下再按新组合就能换；被别的程序占用时会提示。</td></tr>
+          <tr><th>连按两次 Ctrl+C</th><td>选中文字后快速连按两次 <kbd>Ctrl</kbd>+<kbd>C</kbd>。不用记新快捷键，复制的手势顺手就查了；不需要时可以关掉。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block" id="sentence">
+    <div class="wrap">
+      <h2>自动抓原句，记下出处</h2>
+      <p class="intro">Lens 用 Windows 的 UI Automation 读取你选中的位置和它周围的段落，切出包含这个词的那一句。以后在生词本里看到的，不是一个孤零零的单词，而是你当时读到的那句话。</p>
+      <ul class="points cols">
+        <li><b>切句准</b>：合并 PDF 复制常见的断行和连字符，不会在 Mr.、e.g.、U.S. 这类缩写后面误切。</li>
+        <li><b>记来源</b>：程序名、窗口标题；浏览器还会读出当前网址，以后点来源能回到原网页。</li>
+        <li><b>句子太短？</b>小窗里「+ 前句 / 后句 +」（<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd>）多带一句，扩展后的句子写回保存的语境。</li>
+        <li><b>读不到也能查</b>：有的程序不支持 UI Automation，就退回用剪贴板里的文字查词；超过等待时间先弹窗，不让你干等。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="popup">
+    <div class="wrap split">
+      <div>
+        <h2>查词小窗</h2>
+        <ul class="points">
+          <li>无边框、置顶、不占任务栏；后台预先建好，弹出几乎没有延迟。</li>
+          <li>上面是「当前语境」：这个词在这句话里是哪个意思；下面是各部词典的卡片和高亮了单词的原句。</li>
+          <li><b>钉住</b>（<kbd>Ctrl</kbd>+<kbd>P</kbd>）：失焦不自动关闭，再查词也留在原处，可以先挪到不挡视线的地方。</li>
+          <li>拖边缘调大小、拖顶部移动，松手记住。</li>
+          <li><kbd>Enter</kbd> 展开到主窗口、<kbd>Ctrl</kbd>+<kbd>S</kbd> 收藏、<kbd>Tab</kbd> 切词典、<kbd>Esc</kbd> 关闭。</li>
+        </ul>
+      </div>
+      <figure class="shot" style="max-width:420px;justify-self:center"><img src="assets/popup.webp" width="779" height="873" loading="lazy" alt="查词小窗"></figure>
+    </div>
+  </section>
+
+  <section class="block" id="inapp">
+    <div class="wrap">
+      <h2>在 Lens 里面也能随手查</h2>
+      <p class="intro">释义、例句、生词本的语境句里遇到不认识的词，直接查。三种方式任选：双击（默认）、单击（像 Kindle）、拖选后松开。查的时候同样记下所在句子，收藏时一起保存。</p>
+    </div>
+  </section>
+
+  <section class="block" id="auto">
+    <div class="wrap">
+      <h2>查过的词，自动进生词本</h2>
+      <ul class="points cols">
+        <li><b>划词时加入生词本</b>：查到释义后自动收进生词本，连同原句；已经收过的词只追加新句子。</li>
+        <li><b>主窗口查词时加入</b>：只算确定的查询（回车、点候选、点链接），打字过程中的联想不算。</li>
+        <li><b>查不到的也能收</b>：词典里没有的词组（如 first year）也能连同原句收藏，释义自己写。</li>
+        <li><b>按原形合并</b>：选中的是 convulsed，生词本里记的是 convulse，一个词可以有很多条语境。</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="wrap next">
+    <a href="lookup.html"><span>上一页</span>‹ 查词</a>
+    <a href="reading.html" style="text-align:right"><span>下一页</span>阅读 ›</a>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>词镜 Lens · 代码按 MIT 许可开源 · <a href="index.html#download">下载</a> · <a href="https://github.com/jacknnnbauer/lens">GitHub</a></span>
+    <span>截图中的词典内容版权归各词典所有</span>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

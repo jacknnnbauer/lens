@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>查词 · 词镜 Lens</title>
+<meta name="description" content="词镜 Lens 的查词：十几部词典同查、卡片墙、义项图谱、离线判断句中词义、词汇网络、中文反查、COCA 搭配、导出 PDF。">
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="26" height="26"><span>词镜 Lens</span></a>
+    <nav class="site-nav" aria-label="网站导航">
+      <a href="lookup.html" aria-current="page">查词</a>
+      <a href="capture.html">划词</a>
+      <a href="reading.html">阅读</a>
+      <a href="wordbook.html">生词本</a>
+      <a href="personalize.html">外观与效率</a>
+      <a class="dl" href="index.html#download">下载</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap page-hero">
+    <p class="eyebrow">查词</p>
+    <h1>一次查遍你所有的词典，<br>还告诉你句子里是哪个意思</h1>
+    <p>Lens 读你自己的 MDict、StarDict 词典，十几部同时查也即时出结果。在这之上，它帮你对齐义项、判断词义、找相关词、从中文反查英文。</p>
+    <nav class="jump" aria-label="本页内容">
+      <a href="#wall">多词典与卡片墙</a><a href="#atlas">义项图谱</a><a href="#context">当前语境</a><a href="#network">词汇网络</a>
+      <a href="#search">搜索框</a><a href="#reverse">中文反查</a><a href="#side">COCA 与例句</a><a href="#profiles">配置组</a><a href="#online">在线词典</a><a href="#export">复制与导出</a>
+    </nav>
+  </div>
+
+  <section class="block" id="wall">
+    <div class="wrap">
+      <h2>多词典同查，卡片墙一屏看完</h2>
+      <p class="intro">每部命中的词典是一张卡片，词典自己的排版、配色、字体、发音、脚本原样保留。按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> 切到卡片墙，卡片按内容长短铺满整个窗口。</p>
+      <figure class="shot wide"><img src="assets/card-wall.webp" srcset="assets/card-wall-1600.webp 1600w, assets/card-wall.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1392" loading="lazy" alt="卡片墙：查 lens，十几部词典的卡片铺满窗口"></figure>
+      <ul class="points cols" style="margin-top:32px">
+        <li><b>支持的格式</b>：MDict（.mdx + .mdd，含轻度加密和 @@@LINK 跳转）、StarDict（.ifo、.dict.dz、.syn）、Lens JSON 自制词典。</li>
+        <li><b>快</b>：导入时建一次索引，之后只做内存映射，不把整部词典读进内存；单部词典精确查询毫秒级，多部并行，先到先显示。</li>
+        <li><b>原样显示</b>：词典 CSS 自动适配，自带字体、图片、发音从 .mdd 读取；带脚本的词典在沙盒里运行，折叠、切换这些交互照常用。</li>
+        <li><b>拖动排序</b>：拖卡片标题换位置，顺序同步到词典库；也可以在词典库里拖，查词结果和导出都按这个顺序。</li>
+        <li><b>暗色主题自动提亮</b>：词典把字写成深灰时，暗色主题下会自动修正对比度。</li>
+        <li><b>词典挪了位置不用重建</b>：文件挪走或换盘符会提示，重新指定位置即可，Lens 会核对是不是同一部词典。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="atlas">
+    <div class="wrap">
+      <h2>义项图谱：几部词典的意思对齐了看</h2>
+      <ul class="points cols" style="margin-bottom:28px">
+        <li>把几部词典的义项按释义相似度归成组，标出<b>几部词典都收了</b>（共识）、哪些<b>只有一部有</b>。</li>
+        <li>每条义项后面是收录它的词典缩写，点一下跳到那部词典。</li>
+        <li>「综合 / 逐典 / 对比」三种看法；词性有分歧时会标出来。</li>
+        <li>查 lens：6 部词典聚合成 15 个义项，「眼球的晶状体」是 5 部词典的共识。</li>
+      </ul>
+      <figure class="shot wide"><img src="assets/atlas.webp" width="2501" height="385" loading="lazy" alt="义项图谱：lens 的义项，第一条「眼球的晶状体」共识 5/6，后面几条只有两部词典收录"></figure>
+    </div>
+  </section>
+
+  <section class="block" id="context">
+    <div class="wrap">
+      <h2>当前语境：这个词在这句话里是什么意思</h2>
+      <p class="intro">有原句时（划词、在 Lens 里点词，或者把整句粘进搜索框再点词），结果上方会出现一张卡片：句中最可能的意思、词性、判断依据和把握程度。展开「为什么不是其他意思？」能看到其他义项的得分。</p>
+      <figure class="shot wide"><img src="assets/context.webp" srcset="assets/context-1600.webp 1600w, assets/context.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1112" loading="lazy" alt="当前语境卡片：address 判断为「设法解决；处理」，有把握"></figure>
+      <ul class="points cols" style="margin-top:32px">
+        <li><b>完全离线</b>：不调用 AI，不花钱，也不把句子发出去。</li>
+        <li><b>判断词性</b>：按句子结构（to 后面是动词、冠词后面是名词、-ly 是副词……），只有一种词性的词直接用词典或 COCA 的。</li>
+        <li><b>给义项打分</b>：句子里的词出现在释义里、COCA 搭配词、近义词都会加分；多部词典都收录的义项略加分。</li>
+        <li><b>说清依据</b>：比如「to address 后面接 the，是动词不定式」「句中的 problem 正好出现在这个释义里」。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="network">
+    <div class="wrap">
+      <h2>词汇网络：一个词带出一串词</h2>
+      <p class="intro">当前词的相关词分四组，可以显示成放射图或表格（表格带词性和中文释义）。点任何一个词就查它。</p>
+      <table class="table">
+        <thead><tr><th>组</th><th>怎么找的</th><th>例：rusty</th></tr></thead>
+        <tbody>
+          <tr><th>派生词</th><td>内置 WordNet 的派生关系，加上同词干、后缀合理、并在词典正文里核对过的词</td><td>rust, rustily, rustiness, rustproof</td></tr>
+          <tr><th>同根词</th><td>去掉前缀得到词根，换别的前缀去找</td><td>convulse → revulsion, avulsion</td></tr>
+          <tr><th>易混词</th><td>70 多对常见易混词表，加上 COCA 里开头相同、拼写只差一点的词</td><td>affect / effect, adapt / adopt</td></tr>
+          <tr><th>近义词</th><td>COCA 近义词组；没有 COCA 时用 WordNet 同义词集</td><td>corroded, oxidized, tarnished</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block" id="search">
+    <div class="wrap">
+      <h2>搜索框：比你想的更懂你要查什么</h2>
+      <ul class="points cols">
+        <li><b>词形还原</b>：查 went 找到 go，查 convulsed 找到 convulse；词典不收 boutiques 时显示 boutique。</li>
+        <li><b>也可能是变形</b>：left、found 本身是词条，下面会提示「也可能是 leave 的变形」，点一下查它。</li>
+        <li><b>拼写纠错</b>：所有词典都没查到时，给出「你是不是要找」。</li>
+        <li><b>粘贴整句</b>：认出是一句话就不查整句，直接在句子上点词，用这句话判断词义；<kbd>Shift</kbd>+点选词组。</li>
+        <li><b>中文句子也能点</b>：粘贴一句中文自动分词，点哪个查哪个；「铬钼钢」这种术语查完还能点单个字。</li>
+        <li><b>键盘就够</b>：<kbd>Ctrl</kbd>+<kbd>K</kbd> 聚焦，↑↓ 选候选，<kbd>Esc</kbd> 清空，<kbd>Alt</kbd>+<kbd>←</kbd> 后退，<kbd>Tab</kbd> 切词典。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="reverse">
+    <div class="wrap split">
+      <div>
+        <h2>中文反查：想说的那个英文词，找出来</h2>
+        <ul class="points">
+          <li>给英汉双解词典建全文索引后，输入中文，列出<b>释义里有这段中文</b>的英文词。</li>
+          <li>按贴合度、收录词典数、是不是主要义项、常用度排序；可以按词性分组。</li>
+          <li>「放弃」→ abandon、yield、surrender、waive、relinquish、forgo……「固执」→ stubborn、obstinate、headstrong……</li>
+          <li><b>正文搜索</b>：在所有词条的释义和例句里搜一段话，比如 take for granted 出现在哪些词条里、「随处可见」在例句里怎么译。</li>
+          <li>建好索引后每次搜索 10–60 毫秒。<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> 打开。</li>
+        </ul>
+      </div>
+      <figure class="shot"><img src="assets/reverse.webp" srcset="assets/reverse-900.webp 900w, assets/reverse.webp 1260w" sizes="(max-width: 900px) 100vw, 600px" width="1260" height="1380" loading="lazy" alt="反查「放弃」：120 个词，来自 12 部词典，abandon、chuck、yield、surrender 排在前面"></figure>
+    </div>
+  </section>
+
+  <section class="block" id="side">
+    <div class="wrap">
+      <h2>右侧栏：词频、搭配、真实例句</h2>
+      <p class="intro">右侧栏（<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>\</kbd>）的内容和顺序可以自己定，还能把任意一部词典放进去。</p>
+      <ul class="points cols">
+        <li><b>COCA 词频与搭配</b>：导入 COCA 2 万词表后，显示排名、频次、语体分布（口语 / 小说 / 新闻 / 学术），按词性分组的搭配词和近义词，点搭配词直接查。</li>
+        <li><b>内置 WordNet 3.1</b>：约 15 万词。没有 COCA 也能提供词性、派生关系、近义词和不规则变形。</li>
+        <li><b>真实例句</b>：来自出版物的例句，按小说、新闻、科技等来源筛选。</li>
+        <li><b>AI 双语例句（可选）</b>：用 Claude 或 DeepSeek 按这个词的真实搭配生成中英例句；只发送单词、简释和搭配词，生成过的直接用缓存。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="profiles">
+    <div class="wrap">
+      <h2>场景配置组</h2>
+      <p class="intro">给不同场景准备不同的词典组合：读小说用牛津、朗文、韦氏；翻译用双解加汉英；编程用技术词典。左侧导航或 <kbd>Ctrl</kbd>+<kbd>1</kbd>～<kbd>9</kbd> 一键切换，切换后用同一个词重新查。每个场景勾哪些词典是一张勾选表，一目了然。</p>
+    </div>
+  </section>
+
+  <section class="block" id="online">
+    <div class="wrap">
+      <h2>在线词典</h2>
+      <ul class="points cols">
+        <li><b>API 模式</b>：Free Dictionary（免 Key）、Merriam-Webster、Oxford，结果可以参与复制和导出。</li>
+        <li><b>网页模式</b>：填一个网址模板，在独立的只读窗口里打开原网页。</li>
+        <li><b>查询时机</b>：每次都查 / 本地没结果时才查 / 手动，可以按词典单独设置。</li>
+        <li><b>离线缓存</b>：默认 30 天，断网时显示缓存并标明获取时间。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="export">
+    <div class="wrap">
+      <h2>复制、导出、批量导出</h2>
+      <ul class="points cols">
+        <li><b>复制为 Markdown</b>：义项变有序列表、例句变斜体，直接粘到 Obsidian 等笔记软件。</li>
+        <li><b>复制为 HTML</b>：可以内联词典样式，粘到 Word 保留颜色和粗斜体。<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> 合并复制所有词典。</li>
+        <li><b>单词导出 PDF / HTML</b>（<kbd>Ctrl</kbd>+<kbd>E</kbd>）：选词典和顺序，卡片式或文档式，纸本、跟随主题、黑白省墨，可带上你的语境句。</li>
+        <li><b>批量导出</b>：从历史、生词本或粘贴的词表，一次导出上千个词；每词一个文件或合并成一本（带目录书签）。</li>
+        <li><b>不怕中断</b>：随时暂停继续，程序关了下次启动接着做；单个词出错不中断，最后给失败清单可重试。</li>
+        <li><b>可预估</b>：导出前估算用时和文件大小，检查磁盘空间；导出期间阻止系统睡眠。</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="wrap next">
+    <a href="index.html"><span>返回</span>首页</a>
+    <a href="capture.html" style="text-align:right"><span>下一页</span>划词取词 ›</a>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>词镜 Lens · 代码按 MIT 许可开源 · <a href="index.html#download">下载</a> · <a href="https://github.com/jacknnnbauer/lens">GitHub</a></span>
+    <span>截图中的词典内容版权归各词典所有</span>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

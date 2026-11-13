@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>词镜 Lens</title>
+<meta name="description" content="词镜 Lens：Windows 上的本地查词软件。任何程序里划词，十几部词典一起查；查过的词带着原句进生词本；读英文原著、做全书预习包、导出 Anki。免费开源。">
+<meta property="og:title" content="词镜 Lens">
+<meta property="og:description" content="查过的词，带着原句留下来。Windows 本地查词软件，免费开源。">
+<meta property="og:image" content="https://jacknnnbauer.github.io/lens/assets/card-wall-1600.webp">
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="style.css">
+<style>
+/* 首屏：一页书 + 放大镜 + 查词卡 */
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 56px; align-items: center; padding-block: 56px 80px; }
+.hero h1 { font-size: clamp(34px, 4.6vw, 56px); line-height: 1.2; letter-spacing: -.01em; margin: 0 0 22px; }
+.hero h1 em { font-style: normal; background: linear-gradient(transparent 58%, var(--glow) 58%); padding: 0 2px; }
+.lede { color: var(--muted); font-size: 17px; margin: 0 0 30px; max-width: 30em; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.meta { margin-top: 18px; font-size: 13.5px; color: var(--muted); }
+.demo { position: relative; }
+.page { position: relative; background: var(--sheet); border-radius: 16px; box-shadow: var(--shadow); padding: 30px 32px 26px; font: 19px/1.85 var(--book); color: var(--ink); }
+.page .src { font: 12.5px/1 var(--sans); color: var(--muted); margin-bottom: 14px; letter-spacing: .04em; }
+.passage { margin: 0; }
+.s { border-radius: 6px; transition: background-color .25s; box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: 2px 0; }
+.s.hit { background: var(--glow); }
+.w { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline 2px var(--indigo); text-underline-offset: 5px; }
+.w.on { color: var(--indigo-ink); font-weight: 700; }
+.hint { font: 13px/1.5 var(--sans); color: var(--muted); margin-top: 14px; }
+.loupe { position: absolute; width: 168px; height: 168px; border-radius: 50%; overflow: hidden; pointer-events: none; border: 7px solid var(--ink); background: var(--sheet); box-shadow: var(--shadow); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; z-index: 3; }
+.loupe.show { opacity: 1; transform: scale(1); }
+.loupe .inner { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.loupe .inner .page { box-shadow: none; border-radius: 0; }
+@media (hover: none), (prefers-reduced-motion: reduce) { .loupe { display: none; } }
+.card { position: relative; margin: -18px 18px 0 auto; width: min(360px, 92%); z-index: 2; background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 20px 16px; font-size: 14.5px; }
+.card .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.card .word { font: 700 24px/1.2 var(--book); }
+.card .pos { font: italic 14px var(--book); color: var(--muted); }
+.card .lemma { font-size: 12.5px; color: var(--muted); }
+.card .gloss { margin: 6px 0 10px; font-size: 15.5px; }
+.card .ctx { border-top: 1px dashed var(--rule); padding-top: 10px; color: var(--muted); font-size: 13px; }
+.card .ctx q { display: block; font: 15px/1.6 var(--book); color: var(--ink); quotes: none; margin-top: 4px; }
+.card .saved { display: inline-flex; gap: 6px; align-items: center; color: var(--indigo-ink); font-weight: 600; font-size: 13px; }
+.card.empty .word { color: var(--muted); font: 600 15px var(--sans); }
+.book-list { margin: 14px 18px 0 auto; width: min(360px, 92%); font-size: 13px; color: var(--muted); min-height: 1.6em; }
+.book-list b { color: var(--ink); font-weight: 600; }
+.pack-pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.pack-pages img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 6px; box-shadow: var(--shadow); background: #fff; }
+.pack-pages figure { margin: 0; }
+.pack-pages figcaption { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 6px; }
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; gap: 40px; padding-block: 28px 56px; }
+  .pack-pages { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .page { padding: 22px 20px; font-size: 17.5px; }
+  .card, .book-list { margin-right: 8px; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="26" height="26"><span>词镜 Lens</span></a>
+    <nav class="site-nav" aria-label="网站导航">
+      <a href="lookup.html">查词</a>
+      <a href="capture.html">划词</a>
+      <a href="reading.html">阅读</a>
+      <a href="wordbook.html">生词本</a>
+      <a href="personalize.html">外观与效率</a>
+      <a class="dl" href="#download">下载</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <h1>查过的词，<br><em>带着原句</em>留下来</h1>
+      <p class="lede">词镜 Lens 是 Windows 上的本地查词软件。在任何程序里选中一个词，十几部词典的释义一起弹出来；这个词所在的句子、出自哪里，也一起记进生词本。</p>
+      <div class="actions">
+        <a class="btn primary" href="#download">免费下载</a>
+        <a class="btn" href="#features">看看能做什么</a>
+      </div>
+      <p class="meta"><span data-ver>0.38.1</span> · Windows 10 / 11 · 免费开源（MIT）</p>
+    </div>
+
+    <div class="demo" id="demo">
+      <div class="page" id="page">
+        <div class="src">THE HARBOUR · 示例文章</div>
+        <p class="passage" id="passage"><span class="s">The old <button class="w" data-k="harbour">harbour</button> was quieter than she remembered.</span> <span class="s">Gulls still <button class="w" data-k="wheeled">wheeled</button> above the <button class="w" data-k="breakwater">breakwater</button>, but the fishing boats had <button class="w" data-k="dwindled">dwindled</button> to a handful, their paint <button class="w" data-k="peeling">peeling</button> in the salt wind.</span> <span class="s">She had come back meaning to stay a week; standing on the <button class="w" data-k="worn">worn</button> stones, she began to <button class="w" data-k="suspect">suspect</button> it would be longer.</span></p>
+        <div class="hint">点一个带下划线的词试试。下划线是 Lens 按你的词汇量标出的生词。</div>
+      </div>
+      <div class="loupe" id="loupe" aria-hidden="true"><div class="inner" id="loupeInner"></div></div>
+      <div class="card empty" id="card" aria-live="polite"><div class="head"><span class="word">释义和原句会出现在这里</span></div></div>
+      <div class="book-list" id="bookList"></div>
+    </div>
+  </div>
+
+  <div id="features">
+
+    <!-- 亮点 1：划词 -->
+    <section class="feat">
+      <div class="wrap">
+        <div class="feat-head">
+          <p class="pain">查一个词，要复制、切窗口、粘贴，查完再切回来</p>
+          <h2>在哪里读，就在哪里查</h2>
+          <p class="lede">浏览器、PDF、Word、邮件里选中一个词，按快捷键或连按两次 <kbd>Ctrl</kbd>+<kbd>C</kbd>，查词小窗就在旁边弹出。Lens 同时把这个词所在的整句、来自哪个程序哪个网页一起抓下来。</p>
+          <a class="more" href="capture.html">了解划词取词</a>
+        </div>
+        <div class="desk">
+          <div class="browser" aria-hidden="true">
+            <div class="bar"><i></i><i></i><i></i><span>gutenberg.org/ebooks/2701</span></div>
+            <div class="text">Whenever I find myself growing grim about the mouth; whenever it is a damp, <mark>drizzly</mark> November in my soul; … then, I account it high time to get to sea as soon as I can.</div>
+          </div>
+          <figure class="popup"><img src="assets/popup.webp" width="779" height="873" loading="lazy" alt="Lens 查词小窗：drizzly，上方是当前语境「下毛毛雨的」，下方是自动抓到的原句"></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 亮点 2：卡片墙 + 义项图谱 -->
+    <section class="feat">
+      <div class="wrap">
+        <div class="feat-head">
+          <p class="pain">一本词典不够用，几本词典来回翻</p>
+          <h2>十几部词典，一屏看完</h2>
+          <p class="lede">导入你自己的 MDict、StarDict 词典，查一次全部出结果，原样保留每部词典的排版、配色和发音。卡片墙按内容长短铺满窗口；上方的义项图谱把几部词典的义项对齐，一眼看出哪个意思是共识。</p>
+          <a class="more" href="lookup.html#wall">了解多词典查词</a>
+        </div>
+        <figure class="shot wide"><img src="assets/card-wall.webp" srcset="assets/card-wall-1600.webp 1600w, assets/card-wall.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1392" loading="lazy" alt="Lens 卡片墙：查 lens，上方义项图谱列出 15 个义项及各词典收录情况，下面牛津高阶、韦氏、vocabulary.com、COCA2W、英汉大词典等卡片铺满窗口"></figure>
+      </div>
+    </section>
+
+    <!-- 亮点 3：当前语境 -->
+    <section class="feat">
+      <div class="wrap">
+        <div class="feat-head">
+          <p class="pain">词典里十几个义项，不知道句子里用的是哪一个</p>
+          <h2>把句子一起查，直接告诉你是哪个意思</h2>
+          <p class="lede">划词时带着原句，或者把整句粘进搜索框、在句子上点词。「当前语境」根据句子结构、搭配和几部词典的义项判断词义，列出依据和把握程度。完全在本机计算，不调用 AI，不花钱。</p>
+          <a class="more" href="lookup.html#context">了解当前语境</a>
+        </div>
+        <figure class="shot wide"><img src="assets/context.webp" srcset="assets/context-1600.webp 1600w, assets/context.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1112" loading="lazy" alt="当前语境：The government has promised to address the problem of rising prices. 判断 address 是「设法解决；处理」，有把握，依据是 to 后接动词、句中 problem 出现在释义里"></figure>
+      </div>
+    </section>
+
+    <!-- 亮点 4：阅读 -->
+    <section class="feat">
+      <div class="wrap">
+        <div class="feat-head">
+          <p class="pain">想读英文原著，又怕生词太多读不下去</p>
+          <h2>打开一本书，生词先替你标好</h2>
+          <p class="lede">把 epub 电子书、文章放进 Lens。按你的词汇量把生词标在正文上，右栏列出全章生词和中文释义；点一个词就在右栏查，查过的词自动带着原句收进生词本。还有书签，读到哪里自动记住。</p>
+          <a class="more" href="reading.html">了解阅读</a>
+        </div>
+        <figure class="shot wide"><img src="assets/reader-words.webp" srcset="assets/reader-words-1600.webp 1600w, assets/reader-words.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1392" loading="lazy" alt="Lens 阅读《白鲸》第一章：正文里的生词带下划线，右栏「生词 191」列出每个词的词性、中文释义和词频排名"></figure>
+      </div>
+    </section>
+
+    <!-- 亮点 5：全书预习包 + 精读本 -->
+    <section class="feat">
+      <div class="wrap">
+        <div class="feat-head">
+          <p class="pain">大部头读到一半就放下了</p>
+          <h2>读之前，先拿到一本「预习包」</h2>
+          <p class="lede">一键把整本书的生词连同书中原句做成 PDF：阅读路线表告诉你每章多长、多难；词表按章节排，边读边背。愿意用 AI 的话，还能生成精读本：一句话主旨、哪几章值得读原文、AI 自选的图解、逐章复述、名场面原文和译文、对话准备和自测题，读完能跟人聊这本书。</p>
+          <a class="more" href="reading.html#pack">了解全书预习包</a>
+        </div>
+        <div class="pack-pages">
+          <figure><img src="assets/pack-route.webp" width="1242" height="1754" loading="lazy" alt="预习包：阅读路线表，每章词数、预计用时、新生词数和生词密度"><figcaption>阅读路线表</figcaption></figure>
+          <figure><img src="assets/pack-words.webp" width="1242" height="1754" loading="lazy" alt="预习包：按章节排列的生词表，每个词带词性和各义项中文"><figcaption>按章节的生词表</figcaption></figure>
+          <figure><img src="assets/digest-people.webp" width="1242" height="1754" loading="lazy" alt="精读本：《白鲸》人物关系图"><figcaption>精读本 · 人物关系图</figcaption></figure>
+          <figure><img src="assets/digest-plot.webp" width="1242" height="1754" loading="lazy" alt="精读本：故事进展与伏笔时间线"><figcaption>精读本 · 情节与伏笔</figcaption></figure>
+        </div>
+        <p class="cap">《白鲸》实测：常用 1.2 万词以外的生词约 2000 个；精读本用 DeepSeek 生成约 2 元人民币、十几分钟。</p>
+      </div>
+    </section>
+
+    <!-- 亮点 6：生词本 -->
+    <section class="feat">
+      <div class="wrap">
+        <div class="feat-head">
+          <p class="pain">背单词背完就忘，也想不起是在哪儿见过</p>
+          <h2>生词本里的每个词，都带着你读到它的那句话</h2>
+          <p class="lede">语境卡正面是你当时读到的句子，翻面看释义。按 FSRS 间隔重复安排复习；也能一键导出 Anki 牌组，自带识记卡和挖空语境卡，发音取自你的词典。</p>
+          <a class="more" href="wordbook.html">了解生词本与复习</a>
+        </div>
+        <div class="split">
+          <figure class="shot"><img src="assets/wordbook.webp" srcset="assets/wordbook-900.webp 900w, assets/wordbook.webp 1320w" sizes="(max-width: 900px) 100vw, 600px" width="1320" height="1140" loading="lazy" alt="生词本语境卡：每张卡是读到的原句，生词高亮，下面注明来源"></figure>
+          <figure class="shot"><img src="assets/anki.webp" width="842" height="880" loading="lazy" alt="导出生词本对话框：Anki 牌组包、识记卡和语境卡、从本地词典取发音"></figure>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 次要亮点 -->
+  <section class="band">
+    <div class="wrap">
+      <p class="eyebrow">还有这些</p>
+      <h2>细节里的好用</h2>
+      <p class="intro">每一项都在对应的功能页里有详细说明。</p>
+      <div class="grid">
+        <div class="tile"><h3>输入中文，找英文词</h3><p>给双解词典建索引后，输入「放弃」，列出 abandon、yield、surrender、relinquish、waive……按贴合度和常用度排序。</p><a class="more" href="lookup.html#reverse">中文反查</a></div>
+        <div class="tile"><h3>词形自动还原</h3><p>查 went 找到 go，查 boutiques 显示 boutique；所有词典都查不到时，给出「你是不是要找」。</p><a class="more" href="lookup.html#search">搜索框</a></div>
+        <div class="tile"><h3>COCA 搭配与真实例句</h3><p>右栏显示词频、语体分布、按词性分组的搭配词；还有出版物里的真实例句，可选 AI 双语例句。</p><a class="more" href="lookup.html#side">右侧栏</a></div>
+        <div class="tile"><h3>场景配置组</h3><p>阅读、翻译、编程各用一套词典，<kbd>Ctrl</kbd>+<kbd>1</kbd>～<kbd>9</kbd> 一键切换，换完自动重查。</p><a class="more" href="lookup.html#profiles">配置组</a></div>
+        <div class="tile"><h3>导出 PDF、批量导出</h3><p>单词导出成排好版的 PDF / HTML；一次导出上千个词，可暂停、断点续传。</p><a class="more" href="lookup.html#export">导出</a></div>
+        <div class="tile"><h3>所有快捷键都能改</h3><p>和别的软件冲突了就换一个；改了会检查冲突，界面上的提示跟着变。</p><a class="more" href="personalize.html#keys">快捷键</a></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 主题 -->
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">15 套主题</p>
+      <h2>同一个词，换一种心情看</h2>
+      <p class="intro">亮色 10 套、暗色 5 套，其中三套连版式都会变；还可以自己调色、导入导出主题。下面是同一个词 lens 在不同主题下的样子。</p>
+      <div class="themes">
+        <figure><img src="assets/theme-paper.webp" width="850" height="531" loading="lazy" alt="纸本主题"><figcaption><b>纸本</b><span>暖米白底，适合长读</span></figcaption></figure>
+        <figure><img src="assets/theme-xuan.webp" width="850" height="531" loading="lazy" alt="宣纸主题"><figcaption><b>宣纸</b><span>米黄纸色配朱砂红</span></figcaption></figure>
+        <figure><img src="assets/theme-etching.webp" width="850" height="531" loading="lazy" alt="铜版主题"><figcaption><b>铜版</b><span>旧报纸版面</span></figcaption></figure>
+        <figure><img src="assets/theme-bauhaus.webp" width="850" height="531" loading="lazy" alt="构成主题"><figcaption><b>构成</b><span>包豪斯色块与硬投影</span></figcaption></figure>
+        <figure><img src="assets/theme-glass.webp" width="850" height="531" loading="lazy" alt="柔光主题"><figcaption><b>柔光</b><span>日落渐变上的磨砂玻璃</span></figcaption></figure>
+        <figure><img src="assets/theme-midnight.webp" width="850" height="531" loading="lazy" alt="午夜蓝主题"><figcaption><b>午夜蓝</b><span>深海军蓝配金色</span></figcaption></figure>
+        <figure><img src="assets/theme-moss.webp" width="850" height="531" loading="lazy" alt="苔原主题"><figcaption><b>苔原</b><span>深墨绿，柔和不刺眼</span></figcaption></figure>
+      </div>
+      <p style="margin-top:18px"><a class="more" href="personalize.html">了解外观与效率</a></p>
+    </div>
+  </section>
+
+  <!-- 全部功能索引 -->
+  <section class="band" id="all">
+    <div class="wrap">
+      <p class="eyebrow">全部功能</p>
+      <h2>Lens 能做的事</h2>
+      <p class="intro">按使用场景分成五页，点任一项直接看说明。</p>
+      <div class="index">
+        <div>
+          <h3><a href="lookup.html">查词</a></h3>
+          <ul>
+            <li><a href="lookup.html#wall">多词典同查与卡片墙</a></li>
+            <li><a href="lookup.html#atlas">义项图谱</a></li>
+            <li><a href="lookup.html#context">当前语境：判断句中词义</a></li>
+            <li><a href="lookup.html#network">词汇网络：派生、同根、易混、近义</a></li>
+            <li><a href="lookup.html#search">词形还原、拼写纠错、整句点词</a></li>
+            <li><a href="lookup.html#reverse">中文反查与正文搜索</a></li>
+            <li><a href="lookup.html#side">COCA 搭配、真实例句、AI 例句</a></li>
+            <li><a href="lookup.html#profiles">场景配置组</a></li>
+            <li><a href="lookup.html#online">在线词典</a></li>
+            <li><a href="lookup.html#export">复制、导出 PDF、批量导出</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3><a href="capture.html">划词取词</a></h3>
+          <ul>
+            <li><a href="capture.html#trigger">快捷键与 Ctrl+C+C</a></li>
+            <li><a href="capture.html#sentence">自动抓语境句和来源</a></li>
+            <li><a href="capture.html#popup">查词小窗与钉住</a></li>
+            <li><a href="capture.html#inapp">窗口内查词</a></li>
+            <li><a href="capture.html#auto">自动加入生词本</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3><a href="reading.html">阅读</a></h3>
+          <ul>
+            <li><a href="reading.html#library">文章库与 EPUB 电子书</a></li>
+            <li><a href="reading.html#mark">按词汇量标生词</a></li>
+            <li><a href="reading.html#words">生词页与导入认识的词表</a></li>
+            <li><a href="reading.html#click">点词查词、自动收藏</a></li>
+            <li><a href="reading.html#bookmark">书签与阅读进度</a></li>
+            <li><a href="reading.html#edit">所见即所得编辑</a></li>
+            <li><a href="reading.html#export">导出带生词表的 PDF</a></li>
+            <li><a href="reading.html#pack">全书预习包</a></li>
+            <li><a href="reading.html#digest">读前导读与精读本</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3><a href="wordbook.html">生词本</a></h3>
+          <ul>
+            <li><a href="wordbook.html#save">带原句收藏、按原形合并</a></li>
+            <li><a href="wordbook.html#cards">列表与语境卡</a></li>
+            <li><a href="wordbook.html#stats">筛选、统计、常查未收藏</a></li>
+            <li><a href="wordbook.html#review">FSRS 间隔复习</a></li>
+            <li><a href="wordbook.html#anki">导出 Anki 牌组、CSV</a></li>
+            <li><a href="wordbook.html#history">查词历史</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3><a href="personalize.html">外观与效率</a></h3>
+          <ul>
+            <li><a href="personalize.html#themes">15 套主题与主题库</a></li>
+            <li><a href="personalize.html#immersive">沉浸模式</a></li>
+            <li><a href="personalize.html#layout">布局与右侧栏</a></li>
+            <li><a href="personalize.html#keys">自定义快捷键</a></li>
+            <li><a href="personalize.html#portable">便携版</a></li>
+            <li><a href="personalize.html#privacy">数据与隐私</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 本地优先 -->
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">本地优先</p>
+      <h2>你的词典，留在你的电脑上</h2>
+      <p class="intro">Lens 不附带任何词典，你导入自己的词典文件。查词、生词本、阅读都在本机完成，不联网也能用。</p>
+      <div class="facts">
+        <div><h3>常见词典格式都能导入</h3><p class="formats">MDict .mdx / .mdd<br>StarDict .ifo / .dict.dz<br>Lens JSON</p></div>
+        <div><h3>十几部词典也是即时出结果</h3><p>索引按需读取，不把整部词典装进内存。词典自带的排版、字体、发音和脚本原样保留。</p></div>
+        <div><h3>联网的功能都可以关掉</h3><p>只有在线词典、网络例句、AI 功能和检查更新会联网。AI 用你自己的 API Key，不填也不影响其他功能。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 下载 -->
+  <section class="band" id="download">
+    <div class="wrap">
+      <p class="eyebrow">下载</p>
+      <h2>免费下载，选一个版本</h2>
+      <div class="dl-opts">
+        <div class="opt">
+          <h3>安装版</h3>
+          <div class="file">Lens_<span data-ver>0.38.1</span>_x64-setup.exe</div>
+          <p>装到当前用户目录，不需要管理员权限。支持右键文件「用 Lens 打开」。新版直接覆盖安装，数据保留。</p>
+          <a class="btn primary" data-dl="setup" href="https://github.com/jacknnnbauer/lens/releases/latest">下载安装版</a>
+        </div>
+        <div class="opt">
+          <h3>便携版</h3>
+          <div class="file">Lens_<span data-ver>0.38.1</span>_x64-portable.zip</div>
+          <p>解压后运行 Lens.exe，数据都在旁边的 data 文件夹里，可以放 U 盘带走。</p>
+          <a class="btn" data-dl="portable" href="https://github.com/jacknnnbauer/lens/releases/latest">下载便携版</a>
+        </div>
+      </div>
+      <div class="notes">
+        <p>需要 Windows 10 1809 以上或 Windows 11。</p>
+        <p>安装包没有代码签名，第一次运行时 Windows 可能提示「已保护你的电脑」，点「更多信息 › 仍要运行」。</p>
+        <p>软件里可以检查更新；所有版本见 <a href="https://github.com/jacknnnbauer/lens/releases">Releases</a>，源代码见 <a href="https://github.com/jacknnnbauer/lens">GitHub</a>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 常见问题 -->
+  <section id="faq">
+    <div class="wrap">
+      <p class="eyebrow">常见问题</p>
+      <h2>下载之前</h2>
+      <div class="faq">
+        <details><summary>真的免费吗？</summary><p>免费，代码按 MIT 许可开源。只有 AI 功能（AI 例句、AI 导读、精读本）要用你自己的 Claude 或 DeepSeek API Key，按服务商的用量计费；不用 AI 时其他功能都不受影响。</p></details>
+        <details><summary>Lens 自带词典吗？去哪里找词典？</summary><p>不带。词典有版权，Lens 只负责读。你可以导入自己合法获得的 MDict（.mdx/.mdd）或 StarDict 词典；没有词典时，内置的 WordNet 和词频表也能提供词性、近义词和生词判断。</p></details>
+        <details><summary>支持 Mac 或手机吗？</summary><p>目前只有 Windows 版。划词取词用到了 Windows 的 UI Automation，暂时没有其他平台的版本。</p></details>
+        <details><summary>为什么 Windows 提示「已保护你的电脑」？</summary><p>安装包没有购买代码签名证书，Windows 对没签名的新程序都会这样提示，不代表有问题。点「更多信息 › 仍要运行」即可。代码全部公开在 GitHub，可以自己检查或构建。</p></details>
+        <details><summary>我的数据存在哪里？会上传吗？</summary><p>安装版存在本机的 %APPDATA%\Lens，便携版存在程序旁的 data 文件夹。不会上传生词本和阅读内容；用 AI 功能时只发送生成所需的最少内容，详见<a href="personalize.html#privacy">数据与隐私</a>。</p></details>
+        <details><summary>和别的查词软件比有什么不同？</summary><p>Lens 的重点是「语境」：划词时自动抓原句、离线判断句中词义、生词本按原句复习、读原著前先做预习包。它也是本地软件，十几部词典同查不卡，数据都在自己电脑上。</p></details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>词镜 Lens · 代码按 MIT 许可开源 · 内置 WordNet 3.1 与 wordfreq 词频数据</span>
+    <span>截图中的词典内容版权归各词典所有，请使用你合法获得的词典文件</span>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script>
+(() => {
+  // 示例释义为本页自写的简短说明，不取自任何词典
+  const DICT = {
+    harbour:    { pos: "n.",   gloss: "港口，港湾", note: "英式拼写，美式作 harbor" },
+    wheeled:    { pos: "v.",   gloss: "（鸟）盘旋，回旋", lemma: "wheel" },
+    breakwater: { pos: "n.",   gloss: "防波堤" },
+    dwindled:   { pos: "v.",   gloss: "逐渐减少，缩小", lemma: "dwindle" },
+    peeling:    { pos: "v.",   gloss: "（油漆、皮）剥落", lemma: "peel" },
+    worn:       { pos: "adj.", gloss: "磨损的，用旧了的", lemma: "wear 的过去分词" },
+    suspect:    { pos: "v.",   gloss: "猜想，觉得（多半是）" },
+  };
+  const passage = document.getElementById("passage");
+  const card = document.getElementById("card");
+  const list = document.getElementById("bookList");
+  const saved = [];
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function pick(btn) {
+    const k = btn.dataset.k, d = DICT[k], sent = btn.closest(".s");
+    passage.querySelectorAll(".w.on").forEach((b) => b.classList.remove("on"));
+    passage.querySelectorAll(".s.hit").forEach((s) => s.classList.remove("hit"));
+    btn.classList.add("on");
+    sent.classList.add("hit");
+    const head = d.lemma && !d.lemma.includes(" ") ? d.lemma : k;
+    if (!saved.includes(head)) saved.push(head);
+    card.classList.remove("empty");
+    card.innerHTML =
+      `<div class="head"><span class="word">${esc(head)}</span><span class="pos">${d.pos}</span>` +
+      (d.lemma ? `<span class="lemma">${esc(k)} → ${esc(d.lemma)}</span>` : d.note ? `<span class="lemma">${esc(d.note)}</span>` : "") +
+      `</div><div class="gloss">${esc(d.gloss)}</div>` +
+      `<div class="ctx">语境 · 来自《The Harbour》<q>${esc(sent.textContent.trim())}</q></div>` +
+      `<div style="margin-top:10px"><span class="saved">✓ 已收进生词本</span></div>`;
+    list.innerHTML = `生词本：<b>${saved.length}</b> 个词，每个都带着原句 · ${saved.map(esc).join("、")}`;
+    syncLoupe();
+  }
+  passage.addEventListener("click", (e) => {
+    const b = e.target.closest(".w");
+    if (b) pick(b);
+  });
+
+  // 放大镜：鼠标在书页上移动时，镜片里显示放大的同一页
+  const demo = document.getElementById("demo");
+  const page = document.getElementById("page");
+  const loupe = document.getElementById("loupe");
+  const inner = document.getElementById("loupeInner");
+  const fine = matchMedia("(hover: hover) and (pointer: fine)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const Z = 1.7, R = 84;
+  let last = null;
+  function syncLoupe() {
+    if (!fine) return;
+    const clone = page.cloneNode(true);
+    clone.removeAttribute("id");
+    clone.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+    clone.querySelectorAll("button").forEach((b) => b.setAttribute("tabindex", "-1"));
+    clone.style.width = page.offsetWidth + "px";
+    inner.replaceChildren(clone);
+    if (last) place(last);
+  }
+  function place(p) {
+    const pr = page.getBoundingClientRect(), dr = demo.getBoundingClientRect();
+    const x = p.x - pr.left, y = p.y - pr.top;
+    loupe.style.left = (p.x - dr.left - R) + "px";
+    loupe.style.top = (p.y - dr.top - R) + "px";
+    inner.style.transform = `translate(${R - 7 - x * Z}px, ${R - 7 - y * Z}px) scale(${Z})`;
+  }
+  if (fine) {
+    syncLoupe();
+    page.addEventListener("pointermove", (e) => { last = { x: e.clientX, y: e.clientY }; place(last); loupe.classList.add("show"); });
+    page.addEventListener("pointerleave", () => { loupe.classList.remove("show"); last = null; });
+    addEventListener("resize", syncLoupe);
+  }
+})();
+</script>
+</body>
+</html>

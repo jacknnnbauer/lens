@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>生词本与复习 · 词镜 Lens</title>
+<meta name="description" content="词镜 Lens 的生词本：每个词带着读到它的原句，语境卡复习，FSRS 间隔重复，一键导出 Anki 牌组。">
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="26" height="26"><span>词镜 Lens</span></a>
+    <nav class="site-nav" aria-label="网站导航">
+      <a href="lookup.html">查词</a>
+      <a href="capture.html">划词</a>
+      <a href="reading.html">阅读</a>
+      <a href="wordbook.html" aria-current="page">生词本</a>
+      <a href="personalize.html">外观与效率</a>
+      <a class="dl" href="index.html#download">下载</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap page-hero">
+    <p class="eyebrow">生词本与复习</p>
+    <h1>记住一个词，<br>最好的线索是你遇见它的那句话</h1>
+    <p>Lens 的生词本不只存单词：每个词都带着你读到它的原句和出处，复习时先看句子再回忆意思。背腻了，一键导出到 Anki 接着背。</p>
+    <nav class="jump" aria-label="本页内容">
+      <a href="#save">收藏</a><a href="#cards">语境卡</a><a href="#stats">筛选与统计</a><a href="#review">FSRS 复习</a><a href="#anki">导出 Anki</a><a href="#history">历史</a>
+    </nav>
+  </div>
+
+  <section class="block" id="save">
+    <div class="wrap">
+      <h2>收藏：带着原句，按原形合并</h2>
+      <ul class="points cols">
+        <li>查词结果的 ☆ 或 <kbd>Ctrl</kbd>+<kbd>S</kbd>，连同语境句一起收藏；也可以开自动收藏。</li>
+        <li>同一个词再遇到一次，新的句子追加进去：「同一个词，N 个语境」。</li>
+        <li>按原形收藏：遇到的是 convulsed，记的是 convulse。</li>
+        <li>词典里查不到的词组（first year）也能收，释义自己写。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="cards">
+    <div class="wrap split">
+      <div>
+        <h2>语境卡：正面是句子，背面是意思</h2>
+        <ul class="points">
+          <li>卡片墙排列，正面是你读到的句子（单词高亮）和来源，点来源回到原文。</li>
+          <li>按 <kbd>Space</kbd> 或点击翻面，背面是释义；背面用哪部词典可以选。</li>
+          <li>也可以切到<b>列表</b>：词、简释、标签、熟悉度、查询次数、语境数、下次复习时间，简释和标签都能直接改。</li>
+        </ul>
+      </div>
+      <figure class="shot"><img src="assets/wordbook.webp" srcset="assets/wordbook-900.webp 900w, assets/wordbook.webp 1320w" sizes="(max-width: 900px) 100vw, 600px" width="1320" height="1140" loading="lazy" alt="生词本语境卡视图"></figure>
+    </div>
+  </section>
+
+  <section class="block" id="stats">
+    <div class="wrap">
+      <h2>筛选、统计，还会提醒你</h2>
+      <ul class="points cols">
+        <li>按状态、标签筛选，按词或释义搜索；按最近收藏、字母、熟悉度、下次复习排序。</li>
+        <li>顶部统计：已收藏、今日待复习、新词数。</li>
+        <li><b>本周在阅读中再遇</b>：收藏过的词又在阅读里碰到了几次。</li>
+        <li><b>常查未收藏</b>：查过三次以上却没收藏的词，提醒你该收了。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="review">
+    <div class="wrap">
+      <h2>FSRS 间隔复习</h2>
+      <p class="intro">「开始复习」按 FSRS 算法排程：看语境卡回忆意思，翻面后给熟悉度打分，算法决定下次什么时候再出现。快忘的时候正好复习，记牢的词不浪费时间。</p>
+    </div>
+  </section>
+
+  <section class="block" id="anki">
+    <div class="wrap split">
+      <div>
+        <h2>一键导出 Anki 牌组</h2>
+        <ul class="points">
+          <li><b>.apkg 牌组包</b>：在 Anki 里双击就能导入，笔记类型和卡片样式都打包好了。</li>
+          <li><b>两种卡片</b>：识记卡（正面单词和发音，背面释义和原句）、语境卡（正面挖掉单词的原句）。</li>
+          <li><b>发音</b>取自你的本地词典，可选美音或英音；牛津的 .spx 自动转成 Anki 能播的格式。</li>
+          <li>同一个词再导出一次，更新原来的笔记，不会重复。</li>
+          <li>也可以导出 Anki 文本或 CSV（Excel 直接打开不乱码）。</li>
+        </ul>
+      </div>
+      <figure class="shot" style="max-width:480px;justify-self:center"><img src="assets/anki.webp" width="842" height="880" loading="lazy" alt="导出生词本对话框"></figure>
+    </div>
+  </section>
+
+  <section class="block" id="history">
+    <div class="wrap">
+      <h2>查词历史</h2>
+      <p class="intro">按日期分组，显示每个词查了几次、当时的语境。可以搜索、删除，点一条直接重查；也能从历史里挑词批量导出。</p>
+    </div>
+  </section>
+
+  <div class="wrap next">
+    <a href="reading.html"><span>上一页</span>‹ 阅读</a>
+    <a href="personalize.html" style="text-align:right"><span>下一页</span>外观与效率 ›</a>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>词镜 Lens · 代码按 MIT 许可开源 · <a href="index.html#download">下载</a> · <a href="https://github.com/jacknnnbauer/lens">GitHub</a></span>
+    <span>截图中的词典内容版权归各词典所有</span>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

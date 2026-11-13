@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阅读 · 词镜 Lens</title>
+<meta name="description" content="词镜 Lens 的阅读：EPUB 电子书与文章，按词汇量标生词，点词查词自动收藏，书签，导出带生词表的 PDF，全书预习包与 AI 精读本。">
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="" width="26" height="26"><span>词镜 Lens</span></a>
+    <nav class="site-nav" aria-label="网站导航">
+      <a href="lookup.html">查词</a>
+      <a href="capture.html">划词</a>
+      <a href="reading.html" aria-current="page">阅读</a>
+      <a href="wordbook.html">生词本</a>
+      <a href="personalize.html">外观与效率</a>
+      <a class="dl" href="index.html#download">下载</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap page-hero">
+    <p class="eyebrow">阅读</p>
+    <h1>把英文原著读完，<br>这次有人陪你</h1>
+    <p>把电子书和文章放进 Lens 里读：生词先标好，点词就查，查过的词带着原句自动收藏。读大部头之前，还能先拿到一本按章节排好的预习包；想更省力，让 AI 先替你通读一遍。</p>
+    <nav class="jump" aria-label="本页内容">
+      <a href="#library">文章库与电子书</a><a href="#mark">标生词</a><a href="#words">生词页</a><a href="#click">点词查词</a><a href="#bookmark">书签</a>
+      <a href="#edit">编辑</a><a href="#export">导出 PDF</a><a href="#pack">全书预习包</a><a href="#digest">导读与精读本</a>
+    </nav>
+  </div>
+
+  <section class="block" id="library">
+    <div class="wrap">
+      <h2>文章库与 EPUB 电子书</h2>
+      <figure class="shot wide" style="margin-bottom:32px"><img src="assets/reader.webp" srcset="assets/reader-1600.webp 1600w, assets/reader.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1392" loading="lazy" alt="阅读《白鲸》第一章：点了 spleen，右栏显示牛津高阶等词典的释义，其中「（文学）怒气」正是书中的意思"></figure>
+      <ul class="points cols">
+        <li><b>放进来的方式</b>：粘贴文章、打开文件（.epub、.md、.txt）、拖进窗口，或在资源管理器里右击文件「用 Lens 打开」。</li>
+        <li><b>电子书</b>：一次一章，点章节名打开目录；图片、脚注、尾注照常显示；书复制一份存进 Lens，原文件删了也不影响。</li>
+        <li><b>编码自动识别</b>：UTF-8、UTF-16、GBK 的文本都能正确打开。</li>
+        <li><b>三栏</b>：左边导航、中间正文、右边查词，两侧都能关掉只留正文；往下读时工具栏自动收起。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="mark">
+    <div class="wrap">
+      <h2>按你的词汇量，把生词标在正文上</h2>
+      <p class="intro">选一个词汇量（最常用的 2000～20000 词），超过的词加下划线，已收藏的用虚线。改了立即重新标注；关掉后正文没有任何标记。词频用 COCA（导入过时），否则用内置的 wordfreq 词频表。</p>
+      <ul class="points cols">
+        <li>词形先还原再判断：eroded 按 erode 算，wages 按 wage 算。</li>
+        <li>句中大写开头的人名地名、全大写缩写不算生词。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="words">
+    <div class="wrap">
+      <h2>生词页：一章有哪些生词，一眼看完</h2>
+      <figure class="shot wide" style="margin-bottom:32px"><img src="assets/reader-words.webp" srcset="assets/reader-words-1600.webp 1600w, assets/reader-words.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1392" loading="lazy" alt="右栏生词页：2130 词、生词 191 个、认识 89%，每个词带词性、中文释义、词频排名"></figure>
+      <ul class="points cols">
+        <li><b>统计</b>：总词数、不同的词、生词数、认识的比例。</li>
+        <li><b>每个词</b>：词性、中文释义、出现次数、词频排名；按出现顺序或「难的在前」排。</li>
+        <li><b>批量处理</b>：勾选后一键加入生词本（各自带文中第一次出现的句子），或标为认识。</li>
+        <li><b>导入认识的词表</b>：选一个 txt / csv（四六级、考研词表都行），里面的词全部标为认识，生词标得更准；导错了可以清空。</li>
+        <li><b>释义从哪来</b>：中文取你本地双解词典的第一段中文，鼠标停在释义上显示取自哪部词典；词频排名注明用的是 COCA 还是内置词频表。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="click">
+    <div class="wrap">
+      <h2>点词就查，查过就收</h2>
+      <ul class="points cols">
+        <li>点一个词在右栏查，拖选可以查短语；词典和顺序跟当前配置组。</li>
+        <li>右栏顶部的词头可以直接改：点到 depleted，旁边有「查原形 deplete」。</li>
+        <li><b>自动收藏</b>（默认开）：查到的词连同所在句子收进生词本，来源记成书名。</li>
+        <li>上图里的 spleen：牛津高阶第二个义项「（文学）怒气」，正是《白鲸》开头这句的意思。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="bookmark">
+    <div class="wrap">
+      <h2>书签与阅读进度</h2>
+      <p class="intro">每篇文章、每本书都记住读到哪一章哪个位置，下次打开回到原处。读到想回头看的地方，按 <kbd>Ctrl</kbd>+<kbd>D</kbd> 加个书签：名字取屏幕上第一段原文，注明第几章、百分之几，点一下跳过去，换章也行。</p>
+    </div>
+  </section>
+
+  <section class="block" id="edit">
+    <div class="wrap">
+      <h2>文章可以直接改</h2>
+      <p class="intro">双击正文空白处进入编辑。默认所见即所得，像 Typora：输入「## 」变标题、「- 」变列表，<kbd>Ctrl</kbd>+<kbd>B</kbd> 加粗；也可以切到 Markdown 源码。保存后重新排版、重新统计生词，回到原来读到的位置。从文件导入的文章不会改动原文件。</p>
+    </div>
+  </section>
+
+  <section class="block" id="export">
+    <div class="wrap">
+      <h2>导出带生词表的 PDF</h2>
+      <p class="intro">前半是原文，标出的词在正文里编号；后半是词汇表，每个词带原形、词性、中文、文中原句，可选词典释义和音标。打印出来就是一份自己的精读讲义。</p>
+      <table class="table">
+        <tbody>
+          <tr><th>书页</th><td>下划线加上标编号，词汇表在文末另起一页</td></tr>
+          <tr><th>旁注</th><td>每段右边注出本段第一次出现的词（词性、中文），像课本的页边注</td></tr>
+          <tr><th>卡片</th><td>荧光笔式标注，词汇表排成卡片</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block" id="pack">
+    <div class="wrap">
+      <h2>全书预习包：读之前，先把整本书的生词过一遍</h2>
+      <p class="intro">打开一本电子书 → 导出 → 全书预习包。Lens 把整本书扫一遍（《白鲸》22 万词，两秒多），列出你词汇量以外各有多少生词，看着数量再选。生成的 PDF 带书签，可以在手机或平板上读。</p>
+      <div class="pages">
+        <figure><img src="assets/pack-route.webp" width="1242" height="1754" loading="lazy" alt="阅读路线表"><figcaption>阅读路线表：每章篇幅、用时、生词密度</figcaption></figure>
+        <figure><img src="assets/pack-words.webp" width="1242" height="1754" loading="lazy" alt="按章节的生词表"><figcaption>按章节排的生词表</figcaption></figure>
+      </div>
+      <ul class="points cols" style="margin-top:32px">
+        <li><b>只算正文</b>：自动跳过版权页、前言、注释、索引、书末附赠的书评，范围可以自己改。</li>
+        <li><b>挑最值得背的</b>：可以限定数量，超过时留下书里出现次数最多的词；只出现一次的生僻词可以不要；人名地名不算。</li>
+        <li><b>两份词表</b>：简明单词表（一行一个词，快速过一遍）和详细词表（带书中原句、词典释义、音标）。</li>
+        <li><b>按章节或按字母</b>：按章节时每章列出这一章首次出现的词，边预习边读。</li>
+        <li><b>阅读路线表</b>：每章词数、预计用时、新生词数、生词密度，一眼看出哪几章最难。</li>
+        <li><b>可同时收进生词本</b>：带书中原句、以书名为标签，之后复习、导出 Anki。</li>
+        <li><b>章节认得准</b>：Calibre 转出来的 epub 常把几章挤在一个文件里，Lens 会按书里的章号重新分章；OCR 把 10 认成「1O」这种错也能认出来。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="digest">
+    <div class="wrap">
+      <h2>精读本：让 AI 先替你通读一遍</h2>
+      <p class="intro">预习包最前面可以放一篇读前导读（取自维基百科，免费；也可以让 AI 写）。愿意多花一点，再勾上<b>精读本</b>：AI 把整本书读完，写成一份能代替原书的分析。读完它，你能跟人聊这本书，被问到细节也答得上。整体结构参照 Adler《如何阅读一本书》的分析阅读。</p>
+
+      <h3 class="sub">先看全貌，再决定读哪几章</h3>
+      <ul class="points cols">
+        <li><b>整体</b>：一句话主旨、一段话梗概、一份三分钟就能讲完的口语稿，以及全书分几大部分。</li>
+        <li><b>阅读建议</b>：每章标一档：值得读原文、正常读、可略读、可跳过，并标出这一章的紧张程度。时间不够时，读「值得读」的那几章就抓住了要害。</li>
+      </ul>
+
+      <h3 class="sub">图解：AI 看书选图</h3>
+      <p class="muted" style="max-width:44em">Lens 内置九种图：人物关系网、伏笔与情节线、等级树、家谱、地理路线、全书节奏、对照表、因果链、概念图。AI 根据书的类型挑三到六种，填好数据，Lens 排版成图印进 PDF。小说多半会选人物和情节，论述类的书会选因果和概念。</p>
+      <div class="pages two">
+        <figure><img src="assets/digest-rhythm.webp" width="1523" height="772" loading="lazy" alt="全书节奏：每章是情节章还是题外话，红线是紧张程度走势，标出圣诞出海、金币誓杀白鲸、首杀抹香鲸等高点"><figcaption>全书节奏：哪里是高潮，哪里是题外话</figcaption></figure>
+        <figure><img src="assets/digest-route.webp" width="1523" height="772" loading="lazy" alt="地点路线：从南塔克特出发，经好望角、印度洋、日本海域到太平洋赤道"><figcaption>地理路线：裴廓德号的航线</figcaption></figure>
+      </div>
+      <div class="pages">
+        <figure><img src="assets/digest-people.webp" width="1242" height="1754" loading="lazy" alt="人物关系图"><figcaption>人物关系网</figcaption></figure>
+        <figure><img src="assets/digest-plot.webp" width="1242" height="1754" loading="lazy" alt="故事进展与伏笔"><figcaption>伏笔与情节线</figcaption></figure>
+        <figure><img src="assets/digest-scene.webp" width="1242" height="1754" loading="lazy" alt="名场面：整段英文原文和中文译文"><figcaption>名场面：原文和译文对照</figcaption></figure>
+        <figure><img src="assets/digest-chapter.webp" width="1242" height="1754" loading="lazy" alt="逐章复述：每章的连贯叙述、要点和原文金句，第 3 章标「值得读原文」"><figcaption>逐章复述，标出值得读的章</figcaption></figure>
+      </div>
+
+      <h3 class="sub">内容</h3>
+      <ul class="points cols">
+        <li><b>人物与世界</b>：人物卡（身份、经历、关键场景、一段代表性原文）、人物关系、时代与地点背景、术语表。</li>
+        <li><b>情节时间线和逐章复述</b>：情节章每章三五百字的连贯叙述；每章在 PDF 里是一个书签，随时跳到想看的那一章。</li>
+        <li><b>名场面</b>：挑出全书最重要的段落，原文配中文译文和前因后果。作者去世超过 70 年的公版书给整段原文，仍有版权的书只引短段，由程序按作者卒年自动判断。</li>
+        <li><b>主题与写作</b>：主题、关键意象、写作手法，以及出版后的评价与争议。</li>
+        <li><b>对话准备</b>：最可能被问到的二十个问题、常见误解、可以展开的话题、能随口引用的金句。</li>
+        <li><b>细节自测</b>：三十道题，答案放在后面，测测自己是不是真的读懂了。</li>
+      </ul>
+
+      <h3 class="sub">放心用</h3>
+      <ul class="points cols">
+        <li><b>原文不会编造</b>：精读本里引用的每一段原文，都在原书里逐字核对过；对不上的直接丢掉，并注明丢了几段。</li>
+        <li><b>先看价钱再决定</b>：支持 DeepSeek 和 Claude，生成前先显示要发多少章、多少词和估计花费。用 DeepSeek 做整本《白鲸》大约 2 元人民币，十几分钟。</li>
+        <li><b>不怕中断</b>：每一步都存档，中途停了或者断网了，下次从停下的地方接着做，做过的部分不重复收费。</li>
+        <li><b>自动兜底</b>：输出太长被截断时自动拆小重做，网络出错自动重试。</li>
+        <li><b>完全可选</b>：要你自己填 API Key、自己勾选才会调用。不勾的话，只生成免费的预习包。</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="wrap next">
+    <a href="capture.html"><span>上一页</span>‹ 划词取词</a>
+    <a href="wordbook.html" style="text-align:right"><span>下一页</span>生词本与复习 ›</a>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>词镜 Lens · 代码按 MIT 许可开源 · <a href="index.html#download">下载</a> · <a href="https://github.com/jacknnnbauer/lens">GitHub</a></span>
+    <span>截图中的词典内容版权归各词典所有</span>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

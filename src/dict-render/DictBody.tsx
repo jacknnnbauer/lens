@@ -12,6 +12,7 @@ import { useSettings } from "../stores/settings";
 import { tr } from "../i18n";
 
 // 主题变量穿透 Shadow 边界继承；词典自带 CSS 写在后面，可以覆盖这里的默认值
+// 滚动条照抄界面的细滚动条（base.css）：全局样式进不了 Shadow DOM 和 iframe，词典里自带的滚动区域会显示系统的粗滚动条
 // :host 用 flow-root：有的词典把整个词条包在 float:left 的容器里（如美国传统词典的 #results），
 // 普通 block 会塌成 0 高，卡片底边距失效、内容压到边框上
 export const BASE_CSS = `
@@ -22,6 +23,11 @@ img { max-width: 100%; height: auto; }
 table { max-width: 100%; }
 a { color: var(--accent); }
 a[data-sound], a[data-entry] { cursor: pointer; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 10px; background: var(--scrollbar) padding-box; }
+::-webkit-scrollbar-thumb:hover { border-width: 2px; background: var(--scrollbar-hover) padding-box; }
+::-webkit-scrollbar-button { display: none; }
 `;
 
 interface Props {

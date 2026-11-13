@@ -11,7 +11,7 @@ import { frameRuntime, type FrameMessage, type FrameOpts } from "./frameRuntime"
 import { lensBase } from "./lensUrl";
 
 /** 释义区用到的主题变量，抄进 iframe（CSS 变量穿不过 iframe） */
-const VARS = ["--text", "--accent", "--font-gloss", "--gloss-size", "--panel", "--raised", "--muted", "--border"];
+const VARS = ["--text", "--accent", "--font-gloss", "--gloss-size", "--panel", "--raised", "--muted", "--border", "--scrollbar", "--scrollbar-hover"];
 
 /** 窗口内查词：iframe 里取到的词交给 useInAppLookup（见 inAppLookup.ts） */
 export const FRAME_LOOKUP_EVENT = "lens-frame-lookup";
@@ -90,7 +90,7 @@ export function buildFrameDoc(html: string, baseCss: string, vars: string, opts:
   return (
     `<!doctype html><html><head><meta charset="utf-8">` +
     `<style id="lens-hide">html{visibility:hidden}</style>` +
-    `<style>:root{${vars}color-scheme:${opts.dark ? "dark" : "light"}}html,body{margin:0;padding:0;background:transparent}html{overflow:hidden}body{display:flow-root}${base}</style>` +
+    `<style>:root{${vars}color-scheme:${opts.dark ? "dark" : "light"}}html,body{margin:0;padding:0;background:transparent}html{overflow:hidden!important}body{display:flow-root;overflow:visible!important}${base}</style>` +
     `<script>${runtime.replace(/<\/script/gi, "<\\/script")}</script>` +
     `</head><body>${html}</body></html>`
   );

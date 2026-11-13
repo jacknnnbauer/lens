@@ -33,11 +33,25 @@ export function frameRuntime(kitFn: typeof contrastKit, o: FrameOpts): void {
     const b = document.body;
     if (!b) return;
     const cs = getComputedStyle(b);
-    let h = Math.ceil(b.getBoundingClientRect().height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0));
-    // 词典里浮动、绝对定位的内容可能伸出 body（vocabulary.com 的例句翻页）：
-    // 文档比 iframe 高就按文档高度来，不然卡片里会多出一条滚动条
-    const de = document.documentElement;
-    if (de.scrollHeight > de.clientHeight + 1) h = Math.max(h, de.scrollHeight);
+    const br = b.getBoundingClientRect();
+    let h = Math.ceil(br.height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0));
+    // 词典里绝对定位等内容可能伸出 body：按看得见的元素最低处算。
+    // 不用 scrollHeight：清浮动用的隐形「.」（vocabulary.com 的 .buttons:after）也会撑大它，卡片底下多出空白
+    let bottom = br.bottom;
+    for (const e of Array.from(b.getElementsByTagName("*"))) {
+      const r = e.getBoundingClientRect();
+      if (r.height === 0 || r.bottom <= bottom + 0.5) continue;
+      if (getComputedStyle(e).visibility === "hidden") continue;
+      let clipped = false;
+      for (let p = e.parentElement; p && p !== b; p = p.parentElement) {
+        if (getComputedStyle(p).overflowY !== "visible") {
+          clipped = true;
+          break;
+        }
+      }
+      if (!clipped) bottom = r.bottom;
+    }
+    h = Math.max(h, Math.ceil(bottom - br.top + (parseFloat(cs.marginTop) || 0)));
     if (h !== last) {
       last = h;
       post({ type: "height", height: h });
@@ -65,6 +79,19 @@ export function frameRuntime(kitFn: typeof contrastKit, o: FrameOpts): void {
     if (observed) return;
     observed = true;
     new ResizeObserver(report).observe(document.body);
+    // 词典脚本改了内容、字体或图片加载完，body 尺寸不一定变（内容伸在 body 外），也要重新量
+    let queued = false;
+    const later = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        report();
+      });
+    };
+    new MutationObserver(later).observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+    addEventListener("load", later);
+    document.fonts?.addEventListener?.("loadingdone", later);
     report();
     void boot();
   });

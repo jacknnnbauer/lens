@@ -5,10 +5,10 @@ use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER, SAFEAR
 use windows::Win32::System::Ole::{SafeArrayAccessData, SafeArrayDestroy, SafeArrayGetLBound, SafeArrayGetUBound, SafeArrayUnaccessData};
 use windows::Win32::System::Variant::{VARIANT, VT_I4};
 use windows::Win32::UI::Accessibility::{
-    CUIAutomation, IUIAutomation, IUIAutomationCondition, IUIAutomationTextPattern, IUIAutomationTextRange,
+    CUIAutomation, IUIAutomation, IUIAutomationCondition, IUIAutomationElement, IUIAutomationTextPattern, IUIAutomationTextRange,
     IUIAutomationValuePattern, TextPatternRangeEndpoint_End, TextPatternRangeEndpoint_Start, TextUnit_Character,
     TextUnit_Line, TextUnit_Paragraph, TreeScope_Descendants, UIA_ControlTypePropertyId, UIA_EditControlTypeId,
-    UIA_TextPatternId, UIA_ValuePatternId,
+    UIA_TextPatternId, UIA_ValuePatternId, UIA_WindowControlTypeId,
 };
 
 use super::win;
@@ -18,6 +18,8 @@ use crate::error::{Error, Result};
 const MAX_PARAGRAPH: usize = 4000;
 const CONTEXT_CHARS: i32 = 300;
 const MAX_SELECTION: i32 = 2000;
+/// 找 TextPattern 时最多往上走几层（GitHub 是 5 层）
+const MAX_ANCESTORS: usize = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
@@ -108,7 +110,7 @@ impl Uia {
         // SAFETY: 全部是 COM 方法调用，失败都转为 None。
         unsafe {
             let el = self.uia.GetFocusedElement().ok()?;
-            let tp: IUIAutomationTextPattern = el.GetCurrentPatternAs(UIA_TextPatternId).ok()?;
+            let tp = self.text_pattern_from(el)?;
             let ranges = tp.GetSelection().ok()?;
             if ranges.Length().ok()? < 1 {
                 return None;
@@ -124,6 +126,27 @@ impl Uia {
             let (surrounding, sel16) = around.unwrap_or_else(|| (text.clone(), (0, text.encode_utf16().count())));
             Some(Selection { text, surrounding, sel16, rect })
         }
+    }
+
+    /// 焦点元素自己没有 TextPattern 时往上找：网页里点到带 tabindex 的容器（GitHub 的内容区 div）时，
+    /// 焦点落在这个容器上，选区要从上层的 Document 读。最多往上 MAX_ANCESTORS 层。
+    unsafe fn text_pattern_from(&self, el: IUIAutomationElement) -> Option<IUIAutomationTextPattern> {
+        if let Ok(tp) = el.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId) {
+            return Some(tp);
+        }
+        let walker = self.uia.RawViewWalker().ok()?;
+        let mut cur = el;
+        for _ in 0..MAX_ANCESTORS {
+            cur = walker.GetParentElement(&cur).ok()?;
+            if let Ok(tp) = cur.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId) {
+                return Some(tp);
+            }
+            // 到了窗口这一层还没有，就是不支持 TextPattern 的程序
+            if cur.CurrentControlType().ok() == Some(UIA_WindowControlTypeId) {
+                return None;
+            }
+        }
+        None
     }
 
     /// 段落 → 行 → 前后 300 字，依次尝试；返回周边文本和选区偏移（并校验偏移处确实是选中的文本）。

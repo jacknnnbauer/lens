@@ -197,6 +197,10 @@ pub struct Capture {
     /// 弹窗大小（逻辑像素）：拖动边缘调整后记住
     pub popup_width: u32,
     pub popup_height: u32,
+    /// 查词小窗用的词典：空 = 跟随当前配置组；"custom" = 用 popup_dicts；其余是场景配置组 id（组不存在时按跟随处理）
+    pub popup_profile: String,
+    /// popup_profile 为 "custom" 时小窗查的词典 id（顺序按词典库）
+    pub popup_dicts: Vec<String>,
 }
 
 impl Default for Capture {
@@ -210,6 +214,8 @@ impl Default for Capture {
             auto_save: false,
             popup_width: crate::capture::POPUP_W as u32,
             popup_height: crate::capture::POPUP_H as u32,
+            popup_profile: String::new(),
+            popup_dicts: Vec::new(),
         }
     }
 }

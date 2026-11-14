@@ -13,9 +13,39 @@ pub(crate) fn profile_sources(state: &AppState) -> Result<Vec<Source>> {
     sources_for_profile(state, &profile)
 }
 
+/// 发起查询的窗口用的词典：查词小窗可以在设置里指定配置组，其余窗口跟随当前配置组。
+fn sources_for_window(state: &AppState, label: &str) -> Result<Vec<Source>> {
+    let s = state.settings.get()?;
+    let popup = &s.capture.popup_profile;
+    if label == crate::capture::POPUP && popup == "custom" {
+        // 自选词典：顺序跟词典库一致（拖动排序会写进每个配置组，取当前组的顺序即可）
+        let order = state.db.with_conn(|c| dicts::profile_order(c, &s.active_profile))?;
+        let want = &s.capture.popup_dicts;
+        let mut ids: Vec<String> = order.into_iter().filter(|id| want.contains(id)).collect();
+        for id in want {
+            if !ids.contains(id) {
+                ids.push(id.clone());
+            }
+        }
+        return sources_of(state, ids);
+    }
+    if label == crate::capture::POPUP && !popup.is_empty() && *popup != s.active_profile {
+        let exists = state.db.with_conn(dicts::profiles)?.iter().any(|(id, _, _)| id == popup);
+        if exists {
+            return sources_for_profile(state, popup);
+        }
+    }
+    sources_for_profile(state, &s.active_profile)
+}
+
 /// 指定场景配置组里启用且已加载的词典（批量导出按开始时的配置组查）。
 pub fn sources_for_profile(state: &AppState, profile: &str) -> Result<Vec<Source>> {
     let ids = state.db.with_conn(|c| dicts::enabled_for_profile(c, profile))?;
+    sources_of(state, ids)
+}
+
+/// 词典 id → 已加载的本地 / 在线词典；没加载上的跳过。
+fn sources_of(state: &AppState, ids: Vec<String>) -> Result<Vec<Source>> {
     let mut out = Vec::with_capacity(ids.len());
     for id in ids {
         if let Some(d) = state.dicts.get(&id)? {
@@ -50,7 +80,7 @@ pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, 
         keys.push(base);
     }
     let request_id = uuid::Uuid::new_v4().to_string();
-    let sources = if keys.is_empty() { Vec::new() } else { profile_sources(&state)? };
+    let sources = if keys.is_empty() { Vec::new() } else { sources_for_window(&state, window.label())? };
 
     let handle = LookupHandle {
         request_id: request_id.clone(),

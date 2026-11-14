@@ -978,6 +978,9 @@ function WordsPanel({
     return sort === "rank" ? [...list].sort((a, b) => (b.rank ?? 1e9) - (a.rank ?? 1e9)) : list;
   }, [scan, group, sort]);
 
+  // hook 都要写在这个提前 return 之前：扫描中→扫描完多出一个 hook，React 报 #310「界面出错」
+  const [confirmClear, setConfirmClear] = useState(false);
+
   if (!scan) return <p className={styles.empty}>{tr("扫描中…")}</p>;
 
   const pickedNew = shown.filter((w) => picked.has(w.lemma));
@@ -1007,7 +1010,6 @@ function WordsPanel({
       onError(String(e));
     }
   };
-  const [confirmClear, setConfirmClear] = useState(false);
   const clearKnown = async () => {
     if (!confirmClear) {
       setConfirmClear(true);

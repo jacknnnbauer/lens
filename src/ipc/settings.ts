@@ -84,6 +84,10 @@ export interface Capture {
   /** 弹窗大小（逻辑像素），拖动边缘后由 Rust 记下 */
   popupWidth: number;
   popupHeight: number;
+  /** 查词小窗用的词典：空 = 跟随当前配置组；"custom" = popupDicts；其余是场景配置组 id */
+  popupProfile?: string;
+  /** popupProfile 为 "custom" 时小窗查的词典 id */
+  popupDicts?: string[];
 }
 
 /** 生词本 */

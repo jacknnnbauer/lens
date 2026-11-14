@@ -11,6 +11,7 @@ import { htmlToMarkdown, sourceLine } from "../../copy/convert";
 import { aiKeyStatus, aiSetKey, aiTest, aiUsage, aiUsageClear, cocaImport, cocaStatus, type CocaStatus, type ModelUsage, type UsageSummary } from "../../ipc/ai";
 import { appPaths, checkUpdate, type AiPrefs, type AppPaths, type UpdateInfo, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
+import { useDicts } from "../../stores/dicts";
 import { exportStyleChoices, PAPER_CHOICES } from "../../components/ExportStyleOptions";
 import type { ExportStyle, Paper } from "../../export-templates/template";
 import { ThemeThumb } from "../../components/ThemeThumb";
@@ -75,6 +76,48 @@ function Toggle({ label, hint, checked, disabled, onChange }: { label: ReactNode
   );
 }
 
+/** 查词小窗用哪组词典：跟随当前场景配置组，或固定某一组（小窗窄，常用来放少几部简明词典） */
+function PopupDicts() {
+  const value = useSettings((s) => s.settings?.capture?.popupProfile) ?? "";
+  const picked = useSettings((s) => s.settings?.capture?.popupDicts);
+  const active = useSettings((s) => s.settings?.activeProfile);
+  const update = useSettings((s) => s.update);
+  const profiles = useDicts((s) => s.profiles);
+  const dicts = useDicts((s) => s.dicts);
+  const loaded = useDicts((s) => s.loaded);
+  const refresh = useDicts((s) => s.refresh);
+  useEffect(() => {
+    if (!loaded) void refresh();
+  }, [loaded, refresh]);
+  // 选的组被删了：显示成跟随
+  const current = value === "custom" || profiles.some((p) => p.id === value) ? value : "";
+  const onChange = (v: string) => {
+    // 第一次切到自选：先按当前配置组勾好，再让用户增减
+    if (v === "custom" && !picked?.length && active) {
+      update({ capture: { popupProfile: v, popupDicts: dicts.filter((d) => d.profiles.includes(active)).map((d) => d.id) } });
+    } else update({ capture: { popupProfile: v } });
+  };
+  return (
+    <>
+      <div className={styles.grid2}>
+        <label className={styles.row}>
+          <span>{tr("查词小窗的词典")}</span>
+          <select value={current} onChange={(e) => onChange(e.target.value)}>
+            <option value="">{tr("跟随当前配置组")}</option>
+            <option value="custom">{tr("自选词典（在「场景配置组」表里勾选）")}</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {tr("配置组「{name}」· {n} 部", { name: p.name, n: p.dictCount })}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className={styles.hint}>{tr("只影响划词弹出的查词小窗，主窗口照旧按当前配置组查。选「自选词典」后，「场景配置组」表格最右边多出「查词小窗」一列，勾上小窗要查的词典即可（比如只留两三部简明词典）；顺序和词典库一致。")}</p>
+    </>
+  );
+}
+
 function Select<T extends string | number>({ label, value, options, onChange }: { label: string; value: T; options: Array<[T, string]>; onChange: (v: T) => void }) {
   return (
     <label className={styles.row}>
@@ -115,6 +158,8 @@ function AiSettings() {
     aiKeyStatus(provider).then(setHasKey, () => setHasKey(false));
   }, [provider]);
 
+  const [testing, setTesting] = useState(false);
+
   if (!ai) return null;
   const setAi = (p: Partial<AiPrefs>) => update({ ai: p });
 
@@ -130,7 +175,6 @@ function AiSettings() {
     }
   };
 
-  const [testing, setTesting] = useState(false);
   const testConnection = async () => {
     setTesting(true);
     setMessage({ text: tr("正在测试连接…") });
@@ -994,6 +1038,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
           </div>
           <p className={styles.hint}>{tr("取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。")}</p>
+          <PopupDicts />
           <div className={styles.grid2}>
             <Select
               label={tr("划词时加入生词本")}

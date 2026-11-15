@@ -106,12 +106,12 @@ export function PopupWindow() {
   const hits = cards.filter((c) => c.status === "hit");
   const pending = cards.some((c) => c.status === "pending");
 
-  // 设置为「自动加入生词本」：这次划词有命中就收藏一次（连同语境句）
+  // 设置为「自动加入生词本」：这次划词能收藏（有命中；或开了「查不到也收藏」且已查完）就收藏一次（连同语境句）
   useEffect(() => {
-    if (!autoSave || !capture || !captureMatches || hits.length === 0 || autoSaved.current === capture.id) return;
+    if (!autoSave || !capture || !captureMatches || !canSave || autoSaved.current === capture.id) return;
     autoSaved.current = capture.id;
     void save();
-  }, [autoSave, capture, captureMatches, hits.length, save]);
+  }, [autoSave, capture, captureMatches, canSave, save]);
 
   // 多带了前后句：写回已存的语境句，历史和生词本里看到的就是扩展后的句子
   useEffect(() => {

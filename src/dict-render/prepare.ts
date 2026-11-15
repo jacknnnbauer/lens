@@ -95,6 +95,21 @@ function rewrite(root: ParentNode, dictId: string, scripts = false): void {
   }
 }
 
+/**
+ * 词典专用的清洗器（单独实例，钩子不影响阅读器那边的 DOMPurify）。
+ * 很多词典用自造标签排版（现汉7 的 <entry> <hw> <def> <num> <ex>），CSS 也按这些标签写；
+ * DOMPurify 默认把不认识的标签剥掉只留文字，词典样式就全落空了。这类标签浏览器只当普通的未知元素，
+ * 不执行任何东西，所以放行；禁止名单（script、iframe……）在钩子之后检查，照样拦。
+ */
+const purifier = DOMPurify(window);
+const UNKNOWN_TAG = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+purifier.addHook("uponSanitizeElement", (node, data) => {
+  const tag = data.tagName;
+  if (data.allowedTags[tag] || !UNKNOWN_TAG.test(tag)) return;
+  // 只放行 HTML 里的未知元素（SVG / MathML 里的标签按 DOMPurify 原规则处理）
+  if (node instanceof HTMLUnknownElement || (tag.includes("-") && node instanceof HTMLElement)) data.allowedTags[tag] = true;
+});
+
 const SANITIZE: Parameters<typeof DOMPurify.sanitize>[1] = {
   FORCE_BODY: true,
   ADD_TAGS: ["link", "style"],
@@ -137,7 +152,7 @@ export function prepareEntry(body: EntryBody, dictId: string): PreparedEntry {
     frame = copy.innerHTML;
   }
   rewrite(holder, dictId);
-  const clean = DOMPurify.sanitize(holder.innerHTML, { ...SANITIZE, RETURN_DOM_FRAGMENT: true });
+  const clean = purifier.sanitize(holder.innerHTML, { ...SANITIZE, RETURN_DOM_FRAGMENT: true });
   // DOMPurify 会剥掉 <link> 的 rel；rewrite 已只留下样式表，这里只对指向 lens:// 的补回 rel
   for (const link of Array.from(clean.querySelectorAll("link"))) {
     const href = link.getAttribute("href") ?? "";

@@ -345,6 +345,7 @@ pub fn run() {
             commands::dicts::reorder_dicts,
             commands::dicts::list_profiles,
             commands::dicts::set_profile_dict,
+            commands::dicts::rename_dict,
             commands::lookup::lookup,
             commands::lookup::sense_atlas,
             commands::lookup::first_entry,

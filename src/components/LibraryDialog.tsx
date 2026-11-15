@@ -20,7 +20,9 @@ interface Props {
 export function LibraryDialog({ open, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const downOnBackdrop = useRef(false);
-  const { dicts, imports, error, importPaths, remove, relink, move, setOrder } = useDicts();
+  const { dicts, imports, error, importPaths, remove, relink, move, setOrder, rename } = useDicts();
+  // 正在改名的词典（双击名称进入）
+  const [renaming, setRenaming] = useState<string | null>(null);
   // 文件挪走了：选新位置，沿用原来的索引
   const relocate = async (id: string, kind: string) => {
     const ext = kind === "stardict" ? "ifo" : kind;
@@ -140,7 +142,33 @@ export function LibraryDialog({ open, onClose }: Props) {
                   <GripIcon />
                 </button>
                 <div className={styles.info}>
-                  <span className={styles.name}>{d.name}</span>
+                  {renaming === d.id ? (
+                    <input
+                      className={styles.nameInput}
+                      defaultValue={d.name}
+                      aria-label={tr("新的词典名称")}
+                      autoFocus
+                      onFocus={(e) => e.currentTarget.select()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        else if (e.key === "Escape") {
+                          e.preventDefault();
+                          e.currentTarget.value = d.name;
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const v = e.currentTarget.value.trim();
+                        setRenaming(null);
+                        if (v && v !== d.name) void rename(d.id, v);
+                      }}
+                    />
+                  ) : (
+                    <span className={styles.name} title={tr("双击改名")} onDoubleClick={() => setRenaming(d.id)}>
+                      {d.name}
+                    </span>
+                  )}
                   <span className={styles.meta}>
                     {tr(KIND_LABEL[d.kind] ?? d.kind)}
                     {d.kind === "online" && ` · ${onlineMeta(d)}`}
@@ -190,7 +218,7 @@ export function LibraryDialog({ open, onClose }: Props) {
           ))}
         </ul>
       )}
-      <p className={styles.note}>{tr("查词结果与导出按这里的顺序排列，拖动左侧把手或用 Alt+↑ / Alt+↓ 调整。移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。")}</p>
+      <p className={styles.note}>{tr("查词结果与导出按这里的顺序排列，拖动左侧把手或用 Alt+↑ / Alt+↓ 调整。双击词典名称可以改名。移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。")}</p>
     </dialog>
   );
 }

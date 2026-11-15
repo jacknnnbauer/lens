@@ -1,7 +1,7 @@
 // 词典库：列表、导入进度、删除。
 
 import { create } from "zustand";
-import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict, reorderDicts, setProfileDict, relinkDict } from "../ipc/dicts";
+import { importDicts, listDicts, listProfiles, onIndexProgress, removeDict, renameDict, reorderDicts, setProfileDict, relinkDict } from "../ipc/dicts";
 import { useLookup } from "./lookup";
 import type { DictInfo, IndexProgress, ProfileInfo } from "../ipc/types";
 
@@ -15,6 +15,8 @@ interface DictsState {
   refresh: () => Promise<void>;
   importPaths: (paths: string[]) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** 改显示名称；当前查询结果里的卡片标题一并换掉 */
+  rename: (id: string, name: string) => Promise<void>;
   /** 词典文件挪了位置：重新指定文件 */
   relink: (id: string, path: string) => Promise<void>;
   /** 上移（-1）/ 下移（+1） */
@@ -97,6 +99,20 @@ export const useDicts = create<DictsState>((set, get) => ({
       await setProfileDict(profile, dict, enabled);
       await get().refresh();
       if (active) await useLookup.getState().rerun();
+    } catch (e) {
+      set({ error: String(e) });
+      await get().refresh();
+    }
+  },
+
+  rename: async (id, name) => {
+    const n = name.trim();
+    if (!n) return;
+    set((s) => ({ dicts: s.dicts.map((d) => (d.id === id ? { ...d, name: n } : d)) }));
+    try {
+      await renameDict(id, n);
+      useLookup.setState((s) => ({ cards: s.cards.map((c) => (c.id === id ? { ...c, name: n } : c)) }));
+      await get().refresh();
     } catch (e) {
       set({ error: String(e) });
       await get().refresh();

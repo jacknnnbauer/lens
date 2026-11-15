@@ -59,6 +59,12 @@ impl DictRow {
             kind: DictKind::parse(&self.kind)?,
             category: self.category.clone(),
             entry_count: self.entry_count.unwrap_or(0).max(0) as u64,
+            file_stem: self
+                .path
+                .as_deref()
+                .and_then(|p| std::path::Path::new(p).file_stem())
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default(),
         })
     }
 

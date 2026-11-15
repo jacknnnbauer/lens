@@ -146,7 +146,7 @@ pub async fn word_family(state: State<'_, AppState>, query: String) -> Result<cr
         let wn_derived = wordnet.as_ref().map(|wn| wn.derived(&word)).unwrap_or_default();
         let search = |p: &str, limit: usize| query::prefix_suggestions(&dicts, p, limit).into_iter().map(|w| w.to_lowercase()).collect::<Vec<_>>();
         // 词条正文里的词：只看释义词典（同义词、搭配、词频类会列一堆不相干的词）
-        let defining: Vec<&LoadedDict> = dicts.iter().filter(|d| !is_reference_dict(&d.source.meta().name)).collect();
+        let defining: Vec<&LoadedDict> = dicts.iter().filter(|d| !is_reference(d.source.meta())).collect();
         let mentions = |w: &str| -> std::collections::BTreeSet<String> {
             let mut out = std::collections::BTreeSet::new();
             for d in &defining {
@@ -167,7 +167,7 @@ pub async fn word_family(state: State<'_, AppState>, query: String) -> Result<cr
 /// 词汇网络表格视图：每个词的词性（内置 WordNet）和第一段中文释义（当前配置组里的本地双解词典）。
 #[tauri::command]
 pub async fn word_glosses(state: State<'_, AppState>, words: Vec<String>) -> Result<Vec<crate::gloss::WordGloss>> {
-    let dicts: Vec<LoadedDict> = locals(profile_sources(&state)?).into_iter().filter(|d| !is_reference_dict(&d.source.meta().name)).collect();
+    let dicts: Vec<LoadedDict> = locals(profile_sources(&state)?).into_iter().filter(|d| !is_reference(d.source.meta())).collect();
     let wordnet = state.wordnet();
     tauri::async_runtime::spawn_blocking(move || {
         words
@@ -231,7 +231,7 @@ pub struct SenseGloss {
 /// 每部词典先查原形，再查书里的写法，再查按词尾还原的候选
 #[tauri::command]
 pub async fn sense_glosses(state: State<'_, AppState>, words: Vec<SenseQuery>, dict: Option<String>) -> Result<Vec<SenseGloss>> {
-    let mut dicts: Vec<LoadedDict> = locals(profile_sources(&state)?).into_iter().filter(|d| !is_reference_dict(&d.source.meta().name)).collect();
+    let mut dicts: Vec<LoadedDict> = locals(profile_sources(&state)?).into_iter().filter(|d| !is_reference(d.source.meta())).collect();
     if let Some(id) = dict.as_deref() {
         // 选的词典不在当前配置组里也照样先查
         if !dicts.iter().any(|d| d.source.meta().id == id) {
@@ -304,6 +304,11 @@ pub async fn sense_atlas(word: String, dicts: Vec<crate::senses::AtlasInput>) ->
 }
 
 /// 搭配、词频类词典（COCA 搭配之类）：背面要的是释义，自动选择时排到最后
+/// 参考类词典（词频、搭配、同义词）：看显示名称，也看文件名（用户可能改过显示名称）。
+pub(crate) fn is_reference(meta: &crate::dict::DictMeta) -> bool {
+    is_reference_dict(&meta.name) || is_reference_dict(&meta.file_stem)
+}
+
 pub(crate) fn is_reference_dict(name: &str) -> bool {
     let n = name.to_lowercase();
     ["coca", "colloc", "搭配", "词频", "frequen", "同义", "thesaurus", "词根"].iter().any(|k| n.contains(k))

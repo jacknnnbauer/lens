@@ -28,6 +28,11 @@ export function reorderDicts(ids: string[]): Promise<void> {
 }
 
 /** 在某个场景配置组里启用 / 停用一部词典 */
+/** 改词典的显示名称（词典库里双击名称） */
+export function renameDict(id: string, name: string): Promise<void> {
+  return invoke("rename_dict", { id, name });
+}
+
 export function setProfileDict(profile: string, dict: string, enabled: boolean): Promise<boolean> {
   return invoke<boolean>("set_profile_dict", { profile, dict, enabled });
 }

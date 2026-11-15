@@ -84,6 +84,22 @@ describe("prepareEntry", () => {
     expect(d.querySelector("a")?.getAttribute("href")).toBeNull();
   });
 
+  it("keeps dictionary-made tags so their CSS still applies", () => {
+    const { html } = prepareEntry(
+      { type: "html", content: '<entry id="1"><hw>人<pinyin>rén</pinyin></hw><def><num>❶</num> 高等动物：<ex>男～</ex></def><x-note>注</x-note></entry>' },
+      "d",
+    );
+    expect(html).toContain("<entry");
+    expect(html).toContain("<hw>人<pinyin>rén</pinyin></hw>");
+    expect(html).toContain("<num>❶</num>");
+    expect(html).toContain("<x-note>注</x-note>");
+  });
+
+  it("still removes forbidden tags even with unknown tags allowed", () => {
+    const { html } = prepareEntry({ type: "html", content: '<hw onclick="x()">a</hw><script>alert(1)</script><iframe src="https://a"></iframe>' }, "d");
+    expect(html).toBe("<hw>a</hw>");
+  });
+
   it("removes forms and iframes", () => {
     expect(html(`<form><input value=1></form><iframe src="x.html"></iframe><p>ok</p>`)).toBe("<p>ok</p>");
   });

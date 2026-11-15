@@ -377,7 +377,7 @@ mod tests {
 
     fn fake() -> Fake {
         Fake {
-            meta: DictMeta { id: "d1".into(), name: "双解".into(), kind: DictKind::Json, category: None, entry_count: 4 },
+            meta: DictMeta { id: "d1".into(), name: "双解".into(), kind: DictKind::Json, category: None, entry_count: 4, file_stem: String::new() },
             entries: vec![
                 ("ubiquitous", "<b>adj.</b> seeming to be everywhere <i>无所不在的；普遍存在的</i> Mobile phones are ubiquitous. 手机随处可见。"),
                 ("prevalent", "<b>adj.</b> that exists or is very common 流行的；普遍的"),

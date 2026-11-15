@@ -54,6 +54,9 @@ pub struct DictMeta {
     pub kind: DictKind,
     pub category: Option<String>,
     pub entry_count: u64,
+    /// 词典文件名（不含扩展名）：用户改了显示名称后，靠它仍能认出 COCA、搭配这类参考词典
+    #[serde(skip)]
+    pub file_stem: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -202,7 +202,7 @@ pub async fn export_anki_package(
             let meaning = if w.brief.as_deref().is_some_and(|b| !b.trim().is_empty()) {
                 None
             } else {
-                dicts.iter().filter(|d| !crate::commands::lookup::is_reference_dict(&d.source.meta().name)).find_map(|d| {
+                dicts.iter().filter(|d| !crate::commands::lookup::is_reference(d.source.meta())).find_map(|d| {
                     d.source.lookup(&w.lemma).ok()?.iter().find_map(|e| {
                         let (crate::dict::EntryBody::Html(t) | crate::dict::EntryBody::Text(t)) = &e.body;
                         crate::gloss::chinese_gloss(t)

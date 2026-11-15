@@ -211,8 +211,8 @@ export const en: Record<string, string> = {
   "查词结果与导出按这里的顺序排列，可用 ↑ ↓ 或 Alt+↑ / Alt+↓ 调整。移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。":
     "Results and exports follow this order. Drag the handle or use Alt+↑ / Alt+↓ to reorder. Removing deletes only Lens's index, not your dictionary files; removing an online dictionary also deletes its cache and key.",
   "拖动调整顺序（Alt+↑ / Alt+↓）": "Drag to reorder (Alt+↑ / Alt+↓)",
-  "查词结果与导出按这里的顺序排列，拖动左侧把手或用 Alt+↑ / Alt+↓ 调整。移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。":
-    "Results and exports follow this order. Drag the handle on the left or use Alt+↑ / Alt+↓ to reorder. Removing deletes only Lens's index, not your dictionary files; removing an online dictionary also deletes its cache and key.",
+  "查词结果与导出按这里的顺序排列，拖动左侧把手或用 Alt+↑ / Alt+↓ 调整。双击词典名称可以改名。移除只删除 Lens 的索引，不会删除你的词典文件；移除在线词典会一并删除它的缓存和 Key。":
+    "Results and exports follow this order. Drag the handle on the left or use Alt+↑ / Alt+↓ to reorder. Double-click a name to rename it. Removing deletes only Lens's index, not your dictionary files; removing an online dictionary also deletes its cache and key.",
 
   // ── 在线词典 ──
   "在线词典": "Online dictionaries",
@@ -558,6 +558,8 @@ export const en: Record<string, string> = {
   "配置组「{name}」· {n} 部": "Profile “{name}” · {n} dictionaries",
   "只影响划词弹出的查词小窗，主窗口照旧按当前配置组查。选「自选词典」后，「场景配置组」表格最右边多出「查词小窗」一列，勾上小窗要查的词典即可（比如只留两三部简明词典）；顺序和词典库一致。": "Only affects the capture popup; the main window still uses the current profile. Choose Custom and a “Popup” column appears at the right of the Profiles table — tick the dictionaries the popup should use (say, two or three concise ones). Order follows the Library.",
   "查词小窗": "Popup",
+  "双击改名": "Double-click to rename",
+  "新的词典名称": "New dictionary name",
   "小窗显示「当前语境」": "Show “In this sentence” in the popup",
   "划词弹出的小窗顶部，说明这个词在句中是哪个意思；关掉后小窗只显示词典释义，主窗口不受影响": "At the top of the capture popup, explains which sense the word has in its sentence. Turn off to show only dictionary entries in the popup; the main window is unaffected.",
   "查词小窗用 {dict}": "Use {dict} in the popup",

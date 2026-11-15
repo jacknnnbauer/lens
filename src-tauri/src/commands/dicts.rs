@@ -154,6 +154,28 @@ pub async fn reorder_dicts(state: State<'_, AppState>, ids: Vec<String>) -> Resu
 }
 
 /// 在某个场景配置组里启用 / 停用一部词典（设置 › 场景配置组）。
+/// 词典库里改显示名称（双击名称）。空名称不改；本地词典重新打开一次，让查词结果的标题马上换掉。
+#[tauri::command]
+pub async fn rename_dict(state: State<'_, AppState>, id: String, name: String) -> Result<()> {
+    let name: String = name.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(MAX_DICT_NAME).collect();
+    if name.is_empty() {
+        return Ok(());
+    }
+    state.db.with_conn(|c| dicts::rename(c, &id, &name))?;
+    let row = state.db.with_conn(dicts::list)?.into_iter().find(|r| r.id == id);
+    let Some(row) = row else { return Ok(()) };
+    if row.kind == "online" {
+        state.online.insert(crate::online::OnlineDict::from_row(&row)?)?;
+    } else if state.dicts.get(&id)?.is_some() {
+        let dict = crate::dict::open_dict(&row, state.dicts.index_dir())?;
+        state.dicts.insert(dict)?;
+    }
+    Ok(())
+}
+
+/// 词典显示名称最长多少字
+const MAX_DICT_NAME: usize = 80;
+
 #[tauri::command]
 pub async fn set_profile_dict(state: State<'_, AppState>, profile: String, dict: String, enabled: bool) -> Result<bool> {
     state.db.with_conn(|c| dicts::set_profile_enabled(c, &profile, &dict, enabled))

@@ -178,6 +178,20 @@
 
 .name {
   font-weight: 500;
+  cursor: text;
+}
+
+.nameInput {
+  font: inherit;
+  font-weight: 500;
+  width: 100%;
+  padding: 1px 6px;
+  margin: -2px -7px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  outline: none;
 }
 
 .meta {

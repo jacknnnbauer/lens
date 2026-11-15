@@ -736,7 +736,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             />
             <Toggle
               label={tr("当前语境")}
-              hint={tr("有语境句时（划词、窗口内查词，或自己粘贴一句话），结果上方说明这个词在句中是哪个意思、依据是什么")}
+              hint={tr("有语境句时（划词、窗口内查词，或自己粘贴一句话），结果上方说明这个词在句中是哪个意思、依据是什么。查词小窗在「取词」里单独设置")}
               checked={l.showContextSense ?? true}
               onChange={(v) => setL({ showContextSense: v })}
             />
@@ -1039,6 +1039,12 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
           </div>
           <p className={styles.hint}>{tr("取词超过等待时间仍未拿到语境句时先弹窗，用剪贴板里的文字查词。")}</p>
           <PopupDicts />
+          <Toggle
+            label={tr("小窗显示「当前语境」")}
+            hint={tr("划词弹出的小窗顶部，说明这个词在句中是哪个意思；关掉后小窗只显示词典释义，主窗口不受影响")}
+            checked={cap.popupContextSense ?? settings.layout?.showContextSense ?? true}
+            onChange={(v) => update({ capture: { popupContextSense: v } })}
+          />
           <div className={styles.grid2}>
             <Select
               label={tr("划词时加入生词本")}

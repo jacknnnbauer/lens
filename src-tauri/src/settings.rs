@@ -201,6 +201,9 @@ pub struct Capture {
     pub popup_profile: String,
     /// popup_profile 为 "custom" 时小窗查的词典 id（顺序按词典库）
     pub popup_dicts: Vec<String>,
+    /// 查词小窗是否显示「当前语境」；没设过（None）跟随 layout.show_context_sense
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub popup_context_sense: Option<bool>,
 }
 
 impl Default for Capture {
@@ -216,6 +219,7 @@ impl Default for Capture {
             popup_height: crate::capture::POPUP_H as u32,
             popup_profile: String::new(),
             popup_dicts: Vec::new(),
+            popup_context_sense: None,
         }
     }
 }

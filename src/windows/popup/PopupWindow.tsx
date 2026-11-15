@@ -124,7 +124,8 @@ export function PopupWindow() {
   }, [capture, extra]);
   const active = hits.find((c) => c.id === tab) ?? hits[0];
   const ctx = capture?.sentence ?? null;
-  const showContextSense = useSettings((s) => s.settings?.layout.showContextSense) ?? true;
+  // 小窗单独的开关（设置 › 取词）；没设过跟随布局里的「当前语境」
+  const showContextSense = useSettings((s) => s.settings?.capture?.popupContextSense ?? s.settings?.layout.showContextSense) ?? true;
   const [pasted, setPasted] = useState<(SentenceCtx & { query: string }) | null>(null);
 
   // Tab / Shift+Tab：滚到下一本 / 上一本词典的卡片（复制等操作针对这本）

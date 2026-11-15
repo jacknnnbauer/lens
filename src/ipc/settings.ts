@@ -88,6 +88,8 @@ export interface Capture {
   popupProfile?: string;
   /** popupProfile 为 "custom" 时小窗查的词典 id */
   popupDicts?: string[];
+  /** 查词小窗是否显示「当前语境」；没设过跟随 layout.showContextSense */
+  popupContextSense?: boolean;
 }
 
 /** 生词本 */

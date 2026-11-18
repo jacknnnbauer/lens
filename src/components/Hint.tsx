@@ -8,7 +8,7 @@ import { useSettings } from "../stores/settings";
 import styles from "./Hint.module.css";
 import { tr } from "../i18n";
 
-export type HintId = "nav" | "han-char" | "toc";
+export type HintId = "nav" | "han-char" | "toc" | "vocab-test";
 
 /** 同一时间只显示一条：先到先显示，这条看过或场景过去了再轮到下一条 */
 const useShowing = create<{ id: HintId | null }>(() => ({ id: null }));

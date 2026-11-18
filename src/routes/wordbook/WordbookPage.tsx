@@ -1,6 +1,7 @@
 // 生词本（SPEC M4、画板 04）：收藏的词、语境句与来源、标签、熟悉度、语境卡。
 // 复习（M8）：「开始复习」进入 ReviewSession，调度由 Rust 的 FSRS 完成。
 
+import { GrowthCard } from "../../components/vocab/GrowthCard";
 import { SourceLink, sourceText } from "../../components/SourceLink";
 import { CardWall } from "../../components/CardWall";
 import { useCallback, useEffect, useState } from "react";
@@ -288,6 +289,7 @@ export function WordbookPage({ onLookup, active }: Props) {
           {tr("开始复习 · {n}", { n: toReview })}
         </button>
       </header>
+      <GrowthCard active={active} />
 
       {stats && (
         <div className={styles.stats}>

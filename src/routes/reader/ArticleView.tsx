@@ -32,6 +32,8 @@ import { WysiwygEditor, type WysiwygApi } from "./WysiwygEditor";
 import { renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
 import { tr } from "../../i18n";
+import { syncVocab } from "../../stores/vocabSync";
+import { chooseLevel, effectiveLevel, migrateLevel } from "./levelPrefs";
 
 const LEVELS = [2000, 3000, 5000, 8000, 12000, 20000];
 const GLOSS_BATCH = 80;
@@ -116,7 +118,17 @@ function onText(x: number, y: number): boolean {
 export function ArticleView({ id, onBack }: Props) {
   const [article, setArticle] = useState<Article | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [level, setLevel] = useState<number>(() => readPref("lens.scan.level", 5000, (v) => LEVELS.includes(v as number)));
+  const vocab = useSettings((s) => s.settings?.vocab);
+  const updateSettings = useSettings((s) => s.update);
+  const level = effectiveLevel(vocab?.level ?? 0);
+  const [customOpen, setCustomOpen] = useState(false);
+  // 旧版的门槛存在 localStorage：搬进设置，保留用户选过的值
+  useEffect(() => {
+    if (!vocab) return;
+    const moved = migrateLevel(vocab, readPref<unknown>("lens.scan.level", null, () => true));
+    if (moved) updateSettings({ vocab: moved });
+  }, [vocab, updateSettings]);
+  const pickLevel = (choice: "me" | number) => updateSettings({ vocab: chooseLevel(choice, vocab?.estimate ?? 0) });
   const [marks, setMarks] = useState<boolean>(() => readPref("lens.reader.marks", true, (v) => typeof v === "boolean"));
   const [autoSave, setAutoSave] = useState<boolean>(() => readPref("lens.reader.autoSave", true, (v) => typeof v === "boolean"));
   const [tab, setTab] = useState<"dict" | "words">("words");
@@ -650,19 +662,42 @@ export function ArticleView({ id, onBack }: Props) {
             <label className={styles.inline}>
               {tr("词汇量")}
               <select
-                value={level}
+                value={vocab?.follow && vocab.estimate > 0 ? "me" : customOpen ? "custom" : String(level)}
                 onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setLevel(v);
-                  writePref("lens.scan.level", v);
+                  const v = e.target.value;
+                  setCustomOpen(v === "custom");
+                  if (v === "me") pickLevel("me");
+                  else if (v !== "custom") pickLevel(Number(v));
                 }}
               >
+                {!!vocab?.estimate && <option value="me">{tr("我的词汇量（{n}）", { n: vocab.estimate.toLocaleString() })}</option>}
                 {LEVELS.map((l) => (
                   <option key={l} value={l}>
                     {tr("最常用的 {n} 词", { n: l })}
                   </option>
                 ))}
+                {!LEVELS.includes(level) && !(vocab?.follow && vocab.estimate > 0) && <option value={level}>{tr("最常用的 {n} 词", { n: level })}</option>}
+                <option value="custom">{tr("自定义…")}</option>
               </select>
+              {customOpen && (
+                <input
+                  type="number"
+                  min={1}
+                  max={40000}
+                  defaultValue={level}
+                  aria-label={tr("自定义词汇量")}
+                  autoFocus
+                  style={{ width: 84 }}
+                  onBlur={(e) => {
+                    if (Number(e.target.value) > 0) pickLevel(Number(e.target.value));
+                    setCustomOpen(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") setCustomOpen(false);
+                  }}
+                />
+              )}
             </label>
             <label className={styles.inline}>
               <input type="checkbox" checked={marks} onChange={(e) => toggle("lens.reader.marks", e.target.checked, setMarks)} />
@@ -988,6 +1023,7 @@ function WordsPanel({
   const markKnown = async (lemmas: string[], known: boolean) => {
     try {
       await setKnownWords(lemmas, known);
+      void syncVocab();
       onChanged();
     } catch (e) {
       onError(String(e));

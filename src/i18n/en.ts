@@ -1427,4 +1427,6 @@ export const en: Record<string, string> = {
   "COCA 词频排名（数字越大越少见）": "COCA frequency rank (higher = rarer)",
   "内置词频表排名（数字越大越少见；导入 COCA 后改用 COCA）": "Built-in frequency rank (higher = rarer; uses COCA once imported)",
   "添加内置词典": "Add built-in dictionary",
+  "我的词汇量（{n}）": "My vocabulary ({n})",
+  "自定义词汇量": "Custom vocabulary size",
 };

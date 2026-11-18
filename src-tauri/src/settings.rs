@@ -264,6 +264,24 @@ impl Default for Ai {
     }
 }
 
+/// 词汇量和阅读的生词门槛。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Vocab {
+    /// 阅读的生词门槛；0 = 还没设置过
+    pub level: u32,
+    /// 门槛跟随词汇量（手动选过别的档位后为 false）
+    pub follow: bool,
+    /// 当前词汇量；0 = 还没测过
+    pub estimate: u32,
+}
+
+impl Default for Vocab {
+    fn default() -> Self {
+        Self { level: 0, follow: true, estimate: 0 }
+    }
+}
+
 /// 批量导出（SPEC 12、14）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -383,6 +401,7 @@ pub struct Settings {
     pub batch: Batch,
     pub ai: Ai,
     pub study: Study,
+    pub vocab: Vocab,
     /// 自定义主题（主题库里「复制并编辑」或导入的）
     pub custom_themes: Vec<crate::themes::CustomTheme>,
     pub active_profile: String,
@@ -407,6 +426,7 @@ impl Default for Settings {
             batch: Batch::default(),
             ai: Ai::default(),
             study: Study::default(),
+            vocab: Vocab::default(),
             custom_themes: Vec::new(),
             active_profile: "reading".into(),
             keys: Default::default(),

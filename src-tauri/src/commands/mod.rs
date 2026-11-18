@@ -14,4 +14,5 @@ pub mod popup;
 pub mod scan;
 pub mod settings;
 pub mod study;
+pub mod vocab;
 pub mod words;

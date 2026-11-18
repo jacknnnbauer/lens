@@ -1,6 +1,7 @@
 // 复习（M8、画板 04）：正面是当时读到的句子，Space 翻面看释义，1–4 评分（按钮上写着下次间隔）。
 // 调度在 Rust（FSRS）；一轮做完再取一次队列，「忘了」的词 10 分钟内会回来。
 
+import { syncVocab } from "../../stores/vocabSync";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { tr } from "../../i18n";
 import { reviewQueue, reviewRate, type ReviewItem } from "../../ipc/words";
@@ -78,6 +79,7 @@ export function ReviewSession({ onExit, onLookup }: Props) {
       setBusy(true);
       try {
         await reviewRate(item.word.id, r);
+        void syncVocab();
         setDone((n) => n + 1);
         if (items && index + 1 < items.length) {
           setIndex(index + 1);

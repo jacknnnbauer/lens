@@ -227,10 +227,14 @@ pub struct LevelCount {
 }
 
 /// 每档门槛有多少生词，选门槛前先看数量
-pub fn level_counts(study: &BookStudy, min_count: u32, saved: &HashSet<String>, known: &HashSet<String>) -> Vec<LevelCount> {
-    LEVELS
-        .iter()
-        .map(|&level| {
+pub fn level_counts(study: &BookStudy, min_count: u32, saved: &HashSet<String>, known: &HashSet<String>, extra: Option<u32>) -> Vec<LevelCount> {
+    // 阅读门槛可以是任意数字（比如测出来的词汇量），也要列出来
+    let mut levels: Vec<u32> = LEVELS.iter().copied().chain(extra).collect();
+    levels.sort_unstable();
+    levels.dedup();
+    levels
+        .into_iter()
+        .map(|level| {
             let picked = pick(study, Filter { level, min_count, include_saved: true }, saved, known);
             let words = picked.iter().filter(|(_, m)| *m == Mark::New).count() as u32;
             let new_tokens: u32 = picked.iter().filter(|(_, m)| *m == Mark::New).map(|(l, _)| l.count).sum();
@@ -396,7 +400,10 @@ mod tests {
     fn level_preview_and_chapter_rows() {
         let s = study();
         let none = HashSet::new();
-        let counts = level_counts(&s, 1, &none, &none);
+        let custom = level_counts(&s, 1, &none, &none, Some(7800));
+        assert!(custom.iter().any(|c| c.level == 7800), "当前门槛要在列表里");
+        assert!(custom.windows(2).all(|w| w[0].level < w[1].level), "按门槛升序");
+        let counts = level_counts(&s, 1, &none, &none, None);
         let at = |lv: u32| counts.iter().find(|c| c.level == lv).map(|c| c.words);
         assert_eq!(at(8000), Some(3));
         assert_eq!(at(10000), Some(2));

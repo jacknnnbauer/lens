@@ -130,7 +130,7 @@ pub async fn book_study_preview(state: State<'_, AppState>, id: i64, min_count: 
         total: study.total,
         unique: study.lemmas.len() as u32,
         minutes: study::minutes(study.total),
-        levels: study::level_counts(&study, min_count, &saved, &known),
+        levels: study::level_counts(&study, min_count, &saved, &known, Some(state.settings.get()?.vocab.level).filter(|l| *l > 0)),
         source: if state.coca().is_some() { "coca" } else { "builtin" },
         parts,
         from,

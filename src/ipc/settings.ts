@@ -119,6 +119,16 @@ export interface General {
   hintsSeen: string[];
 }
 
+/** 词汇量和阅读的生词门槛 */
+export interface VocabPrefs {
+  /** 阅读的生词门槛；0 = 还没设置过 */
+  level: number;
+  /** 门槛跟随词汇量 */
+  follow: boolean;
+  /** 当前词汇量；0 = 还没测过 */
+  estimate: number;
+}
+
 export interface Online {
   /** 默认查询时机，每部词典可在词典库里覆盖 */
   trigger: "always" | "localMiss" | "manual";
@@ -175,6 +185,7 @@ export interface Settings {
   batch: BatchPrefs;
   ai: AiPrefs;
   study: StudyPrefs;
+  vocab: VocabPrefs;
   customThemes: CustomTheme[];
   activeProfile: string;
   /** 应用内快捷键：只存改过的（动作 id → 组合键），见 src/keys.ts */

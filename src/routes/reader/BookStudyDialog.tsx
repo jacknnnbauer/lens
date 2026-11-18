@@ -112,7 +112,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
   const dicts = useDicts((s) => s.dicts).filter((d) => d.kind !== "online" && d.loaded);
 
   const [opts, setOpts] = useState<Opts>(DEFAULT_OPTS);
-  const [level, setLevel] = useState(8000);
+  const [level, setLevel] = useState(readerLevel);
   const [preview, setPreview] = useState<StudyPreview | null>(null);
   /** 预习范围（书里的章节序号）；null = 默认范围，每本书不一样，不记住 */
   const [range, setRange] = useState<{ from: number; to: number } | null>(null);
@@ -160,7 +160,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
         if (!alive) return;
         setPreview(p);
         setName((n) => n || `${safeFileName(p.title)}_${tr("预习")}_${isoDate(new Date())}`);
-        setLevel((cur) => (p.levels.some((l) => l.level === cur) ? cur : 8000));
+        setLevel((cur) => (p.levels.some((l) => l.level === cur) ? cur : p.levels.some((l) => l.level === readerLevel) ? readerLevel : 8000));
       },
       (e) => alive && setPreviewError(String(e)),
     );

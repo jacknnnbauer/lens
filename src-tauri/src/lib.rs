@@ -1,4 +1,5 @@
 mod ai;
+mod builtin_dict;
 mod anki_pkg;
 mod app_state;
 mod audio;
@@ -286,6 +287,11 @@ pub fn run() {
                 let state = handle.state::<AppState>();
                 state.load_wordnet();
                 state.load_coca();
+                match builtin_dict::install(&state) {
+                    Ok(Some(meta)) => commands::dicts::announce_builtin(&handle, &meta),
+                    Ok(None) => {}
+                    Err(e) => tracing::warn!(error = %e, "安装内置词典失败"),
+                }
                 if let Err(e) = lemma::normalize_saved(&state) {
                     tracing::warn!(error = %e, "整理生词本原形失败");
                 }
@@ -342,6 +348,7 @@ pub fn run() {
             commands::dicts::list_dicts,
             commands::dicts::import_dicts,
             commands::dicts::remove_dict,
+            commands::dicts::builtin_dict_add,
             commands::dicts::relink_dict,
             commands::dicts::reorder_dicts,
             commands::dicts::list_profiles,

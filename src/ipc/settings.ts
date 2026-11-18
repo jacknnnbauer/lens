@@ -113,6 +113,8 @@ export interface General {
   trayHintShown: boolean;
   /** 全新安装的第一次启动已经过了 */
   introDone: boolean;
+  /** 用户删除过内置词典 */
+  builtinDictRemoved: boolean;
   /** 看过的一次性提示 */
   hintsSeen: string[];
 }

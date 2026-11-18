@@ -1426,4 +1426,5 @@ export const en: Record<string, string> = {
   "当前配置组的本地词典里没有中文释义": "No Chinese gloss in this profile's local dictionaries",
   "COCA 词频排名（数字越大越少见）": "COCA frequency rank (higher = rarer)",
   "内置词频表排名（数字越大越少见；导入 COCA 后改用 COCA）": "Built-in frequency rank (higher = rarer; uses COCA once imported)",
+  "添加内置词典": "Add built-in dictionary",
 };

@@ -144,7 +144,43 @@ pub async fn remove_dict(state: State<'_, AppState>, id: String) -> Result<bool>
         }
         return state.db.with_conn(|c| dicts::delete(c, &id));
     }
-    import::remove_dict(&state.db, &state.dicts, &id)
+    let builtin = crate::builtin_dict::is_builtin(&state.db, &state.root, &id)?;
+    let removed = import::remove_dict(&state.db, &state.dicts, &id)?;
+    if removed && builtin {
+        state.settings.patch(serde_json::json!({ "general": { "builtinDictRemoved": true } }))?;
+    }
+    Ok(removed)
+}
+
+/// 告诉界面内置词典装好了（词典列表跟着刷新）
+pub fn announce_builtin(app: &AppHandle, meta: &crate::dict::DictMeta) {
+    let event = IndexProgress {
+        path: crate::builtin_dict::IFO_NAME.to_string(),
+        index: 0,
+        total: 1,
+        phase: "done",
+        dict_id: Some(meta.id.clone()),
+        name: Some(meta.name.clone()),
+        error: None,
+    };
+    let _ = app.emit(EVENT_INDEX_PROGRESS, event);
+}
+
+/// 词典库的「添加内置词典」：删过之后可以加回来
+#[tauri::command]
+pub async fn builtin_dict_add(app: AppHandle) -> Result<bool> {
+    let app2 = app.clone();
+    let meta = tokio::task::spawn_blocking(move || {
+        let state = app2.state::<AppState>();
+        state.settings.patch(serde_json::json!({ "general": { "builtinDictRemoved": false } }))?;
+        crate::builtin_dict::install_into(&state.db, &state.dicts, &state.root)
+    })
+    .await
+    .map_err(|e| crate::error::Error::Other(e.to_string()))??;
+    if let Some(m) = &meta {
+        announce_builtin(&app, m);
+    }
+    Ok(meta.is_some())
 }
 
 /// 调整词典顺序（词典库里上移 / 下移）。

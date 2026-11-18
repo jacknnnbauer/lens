@@ -165,6 +165,8 @@ pub struct General {
     /// 旧版本的设置文件里没有这一项，算已经过了
     #[serde(default = "yes")]
     pub intro_done: bool,
+    /// 用户删除过内置词典：以后不再自动加回
+    pub builtin_dict_removed: bool,
     /// 看过（点了「知道了」或用过一次）的一次性提示：nav | han-char | toc
     pub hints_seen: Vec<String>,
 }
@@ -175,7 +177,7 @@ fn yes() -> bool {
 
 impl Default for General {
     fn default() -> Self {
-        Self { check_updates: true, last_update_check: 0, close_to_tray: false, tray_hint_shown: false, intro_done: false, hints_seen: Vec::new() }
+        Self { check_updates: true, last_update_check: 0, close_to_tray: false, tray_hint_shown: false, intro_done: false, builtin_dict_removed: false, hints_seen: Vec::new() }
     }
 }
 

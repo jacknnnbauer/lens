@@ -9,6 +9,8 @@ import { useDragReorder } from "./useDragReorder";
 import styles from "./LibraryDialog.module.css";
 import { AddOnlinePanel, OnlineSettings, onlineMeta } from "./OnlineDicts";
 import { tr } from "../i18n";
+import { builtinDictAdd } from "../ipc/dicts";
+import { toast } from "../stores/toast";
 
 const KIND_LABEL: Record<string, string> = { mdx: "MDict", stardict: "StarDict", json: "JSON", online: "在线" };
 
@@ -79,6 +81,11 @@ export function LibraryDialog({ open, onClose }: Props) {
         <h2 id="library-title" className={styles.title}>
           {tr("词典库")}
         </h2>
+        {!dicts.some((d) => d.path?.endsWith("lens-ecdict.ifo")) && (
+          <button type="button" className={styles.ghost} onClick={() => void builtinDictAdd().catch((e) => toast(String(e)))}>
+            {tr("添加内置词典")}
+          </button>
+        )}
         <button type="button" className={styles.ghost} aria-expanded={adding} onClick={() => setAdding((a) => !a)}>
           {tr("添加在线词典")}
         </button>

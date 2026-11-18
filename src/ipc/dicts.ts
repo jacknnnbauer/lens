@@ -18,6 +18,11 @@ export function relinkDict(id: string, path: string): Promise<void> {
   return invoke("relink_dict", { id, path });
 }
 
+/** 把内置词典加回词典库 */
+export function builtinDictAdd(): Promise<boolean> {
+  return invoke("builtin_dict_add");
+}
+
 export function removeDict(id: string): Promise<boolean> {
   return invoke<boolean>("remove_dict", { id });
 }

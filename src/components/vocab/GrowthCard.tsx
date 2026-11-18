@@ -26,14 +26,20 @@ function Curve({ chart }: { chart: Chart }) {
   const y = (v: number) => H - PAD - ((v - chart.min) / (chart.max - chart.min)) * (H - PAD * 2);
   const line = chart.points.map((p) => `${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(" ");
   return (
-    <svg className={styles.chart} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={tr("词汇量成长曲线")}>
-      <polyline className={styles.line} points={line} vectorEffect="non-scaling-stroke" />
+    <div className={styles.chart} role="img" aria-label={tr("词汇量成长曲线")}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+        <polyline className={styles.line} points={line} vectorEffect="non-scaling-stroke" />
+      </svg>
+      {/* 曲线会随卡片宽度拉伸，圆点单独画，才不会变成椭圆 */}
       {chart.dots.map((d) => (
-        <circle key={d.x} className={styles.dot} cx={x(d.x)} cy={y(d.y)} r={4}>
-          <title>{tr("测试结果 {n}", { n: d.value.toLocaleString() })}</title>
-        </circle>
+        <i
+          key={d.x}
+          className={styles.dot}
+          style={{ left: `${(x(d.x) / W) * 100}%`, top: `${(y(d.y) / H) * 100}%` }}
+          title={tr("测试结果 {n}", { n: d.value.toLocaleString() })}
+        />
       ))}
-    </svg>
+    </div>
   );
 }
 

@@ -354,6 +354,29 @@ function UpdateCheck() {
   );
 }
 
+/**
+ * 关于 › 意见反馈：打开 GitHub 的新建 issue 页，描述框里预先填好两个问题和版本号。
+ * 只是在浏览器里打开一个网址，软件本身不发送任何东西；提交要用户自己登录 GitHub 点按钮。
+ */
+function Feedback({ version, portable }: { version?: string; portable?: boolean }) {
+  const open = () => {
+    const env = [`词镜 Lens v${version ?? "?"}`, portable ? tr("便携版") : tr("安装版"), "Windows"].join(" · ");
+    const body = [`**${tr("你希望词镜做什么？")}**`, "", "", `**${tr("这对你有什么帮助？")}**`, "", "", "---", env].join("\n");
+    void openUrl(`https://github.com/jacknnnbauer/lens/issues/new?body=${encodeURIComponent(body)}`);
+  };
+  return (
+    <div className={styles.row}>
+      <span>
+        {tr("意见反馈")}
+        <small>{tr("在 GitHub 上新建一条反馈（需要 GitHub 账号）")}</small>
+      </span>
+      <button type="button" className={styles.ghost} onClick={open}>
+        {tr("提意见 ↗")}
+      </button>
+    </div>
+  );
+}
+
 /** token 数简写：12.3k、1.2M */
 function tokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -1131,6 +1154,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
             {tr("文章生词扫描的内置词频表来自 wordfreq 3.1（Robyn Speer），按 CC BY-SA 4.0 许可分发。")}
           </p>
           <UpdateCheck />
+          <Feedback version={paths?.version} portable={paths?.portable} />
         </section>
       </div>
     </div>

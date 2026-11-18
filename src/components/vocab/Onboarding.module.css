@@ -1,0 +1,60 @@
+.page {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: var(--bg);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(520px, 100%);
+}
+
+.panel h1 {
+  margin: 0 0 6px;
+  font: 600 30px var(--font-gloss);
+  color: var(--text);
+}
+
+.panel p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--sub);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ghost,
+.primary {
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  color: var(--sub);
+  cursor: pointer;
+}
+
+.ghost:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}

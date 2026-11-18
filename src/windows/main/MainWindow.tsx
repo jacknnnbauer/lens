@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { comboOf, pressed, type KeyAction } from "../../keys";
 import { checkUpdate, mainReady } from "../../ipc/settings";
 import { toast } from "../../stores/toast";
+import { Onboarding } from "../../components/vocab/Onboarding";
 import { TrayHint } from "../../components/TrayHint";
 import { StudyJobChip } from "../../components/StudyJobChip";
 import { Hint, markHint } from "../../components/Hint";
@@ -159,15 +160,17 @@ export function MainWindow() {
 
   // 启动时回到简洁单栏（设置 › 布局，默认开）
   const startApplied = useRef(false);
+  const [onboarding, setOnboarding] = useState(false);
   useEffect(() => {
     if (!layout || startApplied.current) return;
     startApplied.current = true;
     // 全新安装的第一次启动：展开左侧导航，让人看到阅读、生词本、设置这些入口
     if (useSettings.getState().settings?.general.introDone === false) {
+      // introDone 等引导走完（或跳过）才写，中途关掉下次还会出现
       useSettings.getState().update({
         layout: { preset: "two-column", showNav: true, showContext: false, showStatusBar: true },
-        general: { introDone: true },
       });
+      setOnboarding(true);
       return;
     }
     if (layout.startCompact) {
@@ -260,6 +263,7 @@ export function MainWindow() {
     {showTitleBar && (
       <TitleBar navShown={layout?.showNav ?? false} onToggleNav={toggleNav} contextShown={layout?.showContext ?? false} onToggleContext={toggleContext} />
     )}
+    {onboarding && <Onboarding onFinish={() => setOnboarding(false)} />}
     <div id={SCROLL_ID} className={styles.scroller}>
     <div
       className={styles.shell}

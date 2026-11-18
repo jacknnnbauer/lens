@@ -1117,6 +1117,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
           <p className={styles.hint}>
             {tr("文章生词扫描的内置词频表来自 wordfreq 3.1（Robyn Speer），按 CC BY-SA 4.0 许可分发。")}
           </p>
+          <p className={styles.hint}>{tr("内置词典和词汇量测试的释义来自 ECDICT（skywind3000，MIT 许可）。")}</p>
           <UpdateCheck />
           <Feedback version={paths?.version} portable={paths?.portable} />
         </section>

@@ -37,6 +37,7 @@ mod settings;
 mod themes;
 mod update;
 mod vocab;
+mod vocab_test;
 mod word_family;
 mod wordnet;
 mod wordbook_export;

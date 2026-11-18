@@ -52,24 +52,22 @@ pub async fn coca_lookup(state: State<'_, AppState>, word: String) -> Result<Vec
     Ok(coca_of(&state).map(|c| c.lookup(&word)).unwrap_or_default())
 }
 
-/// 这个服务商（claude | deepseek）是否已保存 API Key。
+/// 是否已保存 DeepSeek API Key。
 #[tauri::command]
-pub async fn ai_key_status(provider: Option<String>) -> Result<bool> {
-    let p = ai::Provider::parse(provider.as_deref().unwrap_or("claude"));
-    Ok(credentials::read(p.key_id())?.is_some())
+pub async fn ai_key_status() -> Result<bool> {
+    Ok(credentials::read(ai::KEY_ID)?.is_some())
 }
 
-/// 保存或删除（传空）某个服务商的 API Key。
+/// 保存或删除（传空）DeepSeek API Key。
 #[tauri::command]
-pub async fn ai_set_key(provider: Option<String>, key: Option<String>) -> Result<bool> {
-    let p = ai::Provider::parse(provider.as_deref().unwrap_or("claude"));
+pub async fn ai_set_key(key: Option<String>) -> Result<bool> {
     match key.map(|k| k.trim().to_string()).filter(|k| !k.is_empty()) {
         Some(k) => {
-            credentials::write(p.key_id(), &k)?;
+            credentials::write(ai::KEY_ID, &k)?;
             Ok(true)
         }
         None => {
-            credentials::delete(p.key_id())?;
+            credentials::delete(ai::KEY_ID)?;
             Ok(false)
         }
     }
@@ -83,21 +81,19 @@ pub struct AiTest {
     pub ms: u64,
 }
 
-/// 设置 › AI 例句的「测试连接」：用当前服务商和模型发一句最短的请求
+/// 设置 › AI 例句的「测试连接」：用当前模型发一句最短的请求
 #[tauri::command]
 pub async fn ai_test(state: State<'_, AppState>) -> Result<AiTest> {
-    let cfg = state.settings.get()?.ai;
-    let provider = cfg.provider();
-    let model = cfg.active_model().to_string();
-    let key = credentials::read(provider.key_id())?.ok_or_else(|| {
-        crate::error::Error::Online(crate::tf!("还没有填写 {} API Key", "No {} API key yet", provider.name()))
+    let model = state.settings.get()?.ai.deepseek_model;
+    let key = credentials::read(ai::KEY_ID)?.ok_or_else(|| {
+        crate::error::Error::Online(crate::tf!("还没有填写 {} API Key", "No {} API key yet", ai::NAME))
     })?;
     let t = std::time::Instant::now();
-    let usage = ai::ping(state.online.client(), provider, &key, &model).await?;
+    let usage = ai::ping(state.online.client(), &key, &model).await?;
     let ms = t.elapsed().as_millis() as u64;
     let label = crate::i18n::t("（测试连接）", "(connection test)");
-    state.db.with_conn(|c| ai::record(c, provider, &model, label, usage, crate::db::now_ms()).map(|_| ()))?;
-    Ok(AiTest { provider: provider.name(), model, ms })
+    state.db.with_conn(|c| ai::record(c, &model, label, usage, crate::db::now_ms()).map(|_| ()))?;
+    Ok(AiTest { provider: ai::NAME, model, ms })
 }
 
 /// 双语例句：有缓存直接返回；`force` 时重新生成；`cached_only` 时没有缓存就返回 None（不花钱）。
@@ -114,8 +110,7 @@ pub async fn ai_examples(
         return Ok(None);
     }
     let cfg = state.settings.get()?.ai;
-    let provider = cfg.provider();
-    let model = cfg.active_model().to_string();
+    let model = cfg.deepseek_model.clone();
     if !force {
         if let Some((examples, at)) = state.db.with_conn(|c| ai::cached(c, &word, &model))? {
             return Ok(Some(Examples { word, model, examples, cached_at: Some(at) }));
@@ -124,20 +119,20 @@ pub async fn ai_examples(
     if cached_only {
         return Ok(None);
     }
-    let key = credentials::read(provider.key_id())?.ok_or_else(|| {
+    let key = credentials::read(ai::KEY_ID)?.ok_or_else(|| {
         Error::Online(crate::tf!(
             "还没有填写 {} API Key（设置 › AI 例句）",
             "No {} API key yet (Settings › AI examples)",
-            provider.name()
+            ai::NAME
         ))
     })?;
     let hint = coca_of(&state).map(|c| coca::collocation_hint(&c.lookup(&word), 8)).unwrap_or_default();
-    let body = ai::body_for(provider, &model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10));
-    let (examples, usage) = ai::generate(state.online.client(), provider, &key, &body).await?;
+    let body = ai::request_body(&model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10));
+    let (examples, usage) = ai::generate(state.online.client(), &key, &body).await?;
     let now = now_ms();
     state.db.with_conn(|c| {
         ai::store(c, &word, &model, &examples, now)?;
-        ai::record(c, provider, &model, &word, usage, now)?;
+        ai::record(c, &model, &word, usage, now)?;
         Ok(())
     })?;
     Ok(Some(Examples { word, model, examples, cached_at: None }))

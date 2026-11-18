@@ -15,7 +15,7 @@ use crate::digest::{self, ChapterRef, ChunkNotes, Digest, Rights, Scene, Synthes
 use crate::error::{Error, Result};
 
 const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
-/// 单次输出上限：DeepSeek flash 允许到 39 万，Claude Opus / Sonnet 都在 3.2 万以上。
+/// 单次输出上限：DeepSeek flash 允许到 39 万。
 /// 逐章复述一段八章约一万字，8000 不够；仍被截断时会把这一段拆小再读
 const MAX_TOKENS: u32 = 32_000;
 
@@ -24,7 +24,6 @@ struct Ctx {
     title: String,
     author: Option<String>,
     chunks: Vec<Vec<(ChapterRef, String)>>,
-    provider: crate::ai::Provider,
     model: String,
     dir: PathBuf,
     words: usize,
@@ -84,8 +83,7 @@ async fn ctx(state: &AppState, id: i64) -> Result<Ctx> {
         .map(|g| g.into_iter().map(|r| (r.clone(), refs[(r.idx - 1) as usize].1.clone())).collect())
         .collect();
     let cfg = state.settings.get()?.ai;
-    let provider = cfg.provider();
-    let model = cfg.active_model().to_string();
+    let model = cfg.deepseek_model.clone();
     let dir = state.root.join("digests").join(format!("{hash}-{}-v{}", safe(&model), digest::VERSION));
     Ok(Ctx {
         title: article.meta.title,
@@ -93,7 +91,6 @@ async fn ctx(state: &AppState, id: i64) -> Result<Ctx> {
         words: plain.iter().map(|c| c.words).sum(),
         chapters: plain.len(),
         chunks,
-        provider,
         model,
         dir,
     })
@@ -169,10 +166,10 @@ pub async fn book_digest_plan(state: State<'_, AppState>, id: i64) -> Result<Dig
     let steps = total_steps(&c);
     let done: Vec<usize> = (0..steps).filter(|&s| step_file(&c, s).exists()).collect();
     let (input, output) = digest::estimate_tokens(c.words, c.chapters);
-    let cost = crate::ai::cost_usd(c.provider, &c.model, crate::ai::Usage { input, cached: 0, output }, crate::db::now_ms());
-    let has_key = crate::online::credentials::read(c.provider.key_id()).ok().flatten().is_some();
+    let cost = crate::ai::cost_usd(&c.model, crate::ai::Usage { input, cached: 0, output }, crate::db::now_ms());
+    let has_key = crate::online::credentials::read(crate::ai::KEY_ID).ok().flatten().is_some();
     Ok(DigestPlan {
-        provider: c.provider.name(),
+        provider: crate::ai::NAME,
         model: c.model.clone(),
         has_key,
         chunks: c.chunks.len(),
@@ -226,8 +223,8 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
     } else {
         None
     };
-    let key = crate::online::credentials::read(c.provider.key_id())?.ok_or_else(|| {
-        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 例句）", "No {} API key yet (Settings › AI examples)", c.provider.name()))
+    let key = crate::online::credentials::read(crate::ai::KEY_ID)?.ok_or_else(|| {
+        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 例句）", "No {} API key yet (Settings › AI examples)", crate::ai::NAME))
     })?;
     let author = c.author.as_deref();
     let (output, usage) = if step < n {
@@ -244,12 +241,10 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
             }
             let res = crate::ai::complete_json(
                 state.online.client(),
-                c.provider,
                 &key,
                 &c.model,
                 digest::READ_SYSTEM,
                 &user,
-                digest::read_schema(),
                 digest::READ_FORMAT,
                 MAX_TOKENS,
                 TIMEOUT,
@@ -281,12 +276,10 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
     } else if let Some((part, chapters)) = scene_part {
         let (text, usage) = crate::ai::complete_json(
             state.online.client(),
-            c.provider,
             &key,
             &c.model,
             digest::SCENE_SYSTEM,
             &digest::scene_prompt(&c.title, author, &part, &chapters),
-            digest::scene_schema(),
             digest::SCENE_FORMAT,
             MAX_TOKENS,
             TIMEOUT,
@@ -300,12 +293,10 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         let notes = digest::notes_text(&c.title, author, &chapters, &quotes);
         let (text, usage) = crate::ai::complete_json(
             state.online.client(),
-            c.provider,
             &key,
             &c.model,
             digest::SYNTH_SYSTEM,
             &digest::synth_prompt(&notes, s),
-            digest::synth_schema(s),
             digest::synth_format(s),
             MAX_TOKENS,
             TIMEOUT,
@@ -315,7 +306,7 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         digest::merge_synth(&mut Synthesis::default(), &text)?;
         (text, usage)
     };
-    state.db.with_conn(|conn| crate::ai::record(conn, c.provider, &c.model, &c.title, usage, crate::db::now_ms()).map(|_| ()))?;
+    state.db.with_conn(|conn| crate::ai::record(conn, &c.model, &c.title, usage, crate::db::now_ms()).map(|_| ()))?;
     std::fs::create_dir_all(&c.dir)?;
     // 先写临时文件再改名：并发的几步、中途退出都不会留下半个文件
     let tmp = file.with_extension("tmp");

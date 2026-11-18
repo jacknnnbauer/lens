@@ -1,5 +1,5 @@
 // 右侧栏（三栏布局）：COCA 词频与搭配、vocabulary.com 真实例句、AI 双语例句。
-// COCA 来自用户导入的 2 万词频表；例句由 Claude 或 DeepSeek 生成，按（词, 模型）缓存，查过的词再看不花钱。
+// COCA 来自用户导入的 2 万词频表；例句由 DeepSeek 生成，按（词, 模型）缓存，查过的词再看不花钱。
 
 import { useEffect, useState } from "react";
 import { tr } from "../i18n";
@@ -120,8 +120,7 @@ export function CocaSection({ word }: { word: string }) {
 
 export function AiSection({ word, brief }: { word: string; brief: string | null }) {
   const auto = useSettings((s) => s.settings?.ai?.auto ?? false);
-  const provider = useSettings((s) => s.settings?.ai?.provider ?? "claude");
-  const model = useSettings((s) => (provider === "deepseek" ? s.settings?.ai?.deepseekModel : s.settings?.ai?.model));
+  const model = useSettings((s) => s.settings?.ai?.deepseekModel);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [data, setData] = useState<Examples | null>(null);
   const [busy, setBusy] = useState(false);
@@ -144,7 +143,7 @@ export function AiSection({ word, brief }: { word: string; brief: string | null 
     let alive = true;
     setData(null);
     setError(null);
-    void aiKeyStatus(provider).then(
+    void aiKeyStatus().then(
       (k) => {
         if (!alive) return;
         setHasKey(k);
@@ -156,8 +155,8 @@ export function AiSection({ word, brief }: { word: string; brief: string | null 
     return () => {
       alive = false;
     };
-    // 换了服务商或模型也重新取（缓存按模型区分）
-  }, [word, auto, provider, model]);
+    // 换了模型也重新取（缓存按模型区分）
+  }, [word, auto, model]);
 
   return (
     <section className={styles.section} aria-label={tr("AI 双语例句")} data-word-lookup="">
@@ -171,7 +170,7 @@ export function AiSection({ word, brief }: { word: string; brief: string | null 
       </div>
       {hasKey === false && !data && (
         <p className={styles.hint}>
-          {tr("填写 {name} API Key 后，可以按 COCA 真实搭配生成中英双语例句。", { name: provider === "deepseek" ? "DeepSeek" : "Claude" })}{" "}
+          {tr("填写 DeepSeek API Key 后，可以按 COCA 真实搭配生成中英双语例句。")}{" "}
           <button type="button" className={styles.link} onClick={openAiSettings}>
             {tr("去设置")}
           </button>

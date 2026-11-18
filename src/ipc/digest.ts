@@ -3,7 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export interface DigestPlan {
-  provider: "Claude" | "DeepSeek";
+  provider: string;
   model: string;
   hasKey: boolean;
   /** 通读的段数；总步数 = 段数 + 4（综合） */

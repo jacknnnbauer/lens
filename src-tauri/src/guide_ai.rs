@@ -1,4 +1,4 @@
-//! 读前导读的 AI 版：维基百科没有这本书、或用户想要时，用设置 › AI 例句里配好的 DeepSeek / Claude 写一份中文导读。
+//! 读前导读的 AI 版：维基百科没有这本书、或用户想要时，用设置 › AI 例句里配好的 DeepSeek 写一份中文导读。
 //!
 //! - 发给模型的只有书名、作者、章节标题和开头一段正文（约两千字），让它说清楚自己知不知道这本书；
 //!   不知道时只根据片段写开头的设定，不许编造情节和评价。
@@ -6,7 +6,6 @@
 //! - 结果按书和模型存成文件，同一本书不重复花钱。
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 
 use crate::error::{Error, Result};
 use crate::wiki::{Article, BookGuide, Kind, Section};
@@ -50,21 +49,7 @@ pub fn prompt(i: &Input) -> String {
     p
 }
 
-pub fn schema() -> Value {
-    let s = json!({ "type": "string" });
-    json!({
-        "type": "object",
-        "properties": {
-            "known": { "type": "boolean" },
-            "overview": s, "author": s, "background": s, "characters": s, "plot": s,
-            "themes": s, "reading_tips": s, "reception": s
-        },
-        "required": ["known", "overview", "author", "background", "characters", "plot", "themes", "reading_tips", "reception"],
-        "additionalProperties": false
-    })
-}
-
-/// DeepSeek 的 JSON 模式要在提示里给出格式
+/// JSON 模式要在提示里给出格式
 pub const JSON_FORMAT: &str = "只输出 JSON，格式：{\"known\": true, \"overview\": \"这本书讲什么、为什么值得读\", \"author\": \"作者简介\", \"background\": \"创作背景和时代\", \"characters\": \"\", \"plot\": \"\", \"themes\": \"主题与风格\", \"reading_tips\": \"读这本书的建议：难点、可以快读的部分\", \"reception\": \"评价与地位\"}";
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

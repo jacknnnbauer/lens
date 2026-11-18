@@ -243,15 +243,12 @@ impl Default for Online {
     }
 }
 
-/// AI 双语例句（Claude API）。Key 不在这里，在凭据管理器里。
+/// AI 双语例句（DeepSeek）。Key 不在这里，在凭据管理器里。
+/// 旧版设置文件里的 provider、model（Claude 用的）读取时直接忽略。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Ai {
-    /// claude | deepseek
-    pub provider: String,
-    /// Claude 的模型
-    pub model: String,
-    /// DeepSeek 的模型（OpenAI 兼容接口）
+    /// DeepSeek 的模型（缓存也按它区分）
     pub deepseek_model: String,
     /// 每次生成几句
     pub count: usize,
@@ -259,23 +256,9 @@ pub struct Ai {
     pub auto: bool,
 }
 
-impl Ai {
-    pub fn provider(&self) -> crate::ai::Provider {
-        crate::ai::Provider::parse(&self.provider)
-    }
-
-    /// 当前服务商用的模型（缓存也按它区分）
-    pub fn active_model(&self) -> &str {
-        match self.provider() {
-            crate::ai::Provider::Claude => &self.model,
-            crate::ai::Provider::DeepSeek => &self.deepseek_model,
-        }
-    }
-}
-
 impl Default for Ai {
     fn default() -> Self {
-        Self { provider: "claude".into(), model: "claude-opus-4-8".into(), deepseek_model: "deepseek-flash".into(), count: 5, auto: false }
+        Self { deepseek_model: "deepseek-flash".into(), count: 5, auto: false }
     }
 }
 
@@ -499,6 +482,13 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_claude_ai_settings_still_load() {
+        // 旧版存过 Claude 的 provider、model：读得进来，其余设置不丢
+        let a: Ai = serde_json::from_str(r#"{"provider":"claude","model":"claude-opus-4-8","deepseekModel":"deepseek-v4-pro","count":3,"auto":true}"#).unwrap();
+        assert_eq!(a, Ai { deepseek_model: "deepseek-v4-pro".into(), count: 3, auto: true });
+    }
     use serde_json::json;
 
     #[test]

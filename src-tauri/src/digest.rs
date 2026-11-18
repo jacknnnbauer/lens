@@ -289,45 +289,6 @@ pub fn read_prompt(title: &str, author: Option<&str>, chapters: &[(ChapterRef, S
     p
 }
 
-pub fn read_schema() -> Value {
-    let s = json!({ "type": "string" });
-    let list = json!({ "type": "array", "items": { "type": "string" } });
-    json!({
-        "type": "object",
-        "properties": {
-            "chapters": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "idx": { "type": "integer" },
-                        "summary": s, "kind": s, "events": list, "characters": list, "advice": s, "advice_why": s, "tension": { "type": "integer" },
-                        "scene": {
-                            "type": "object",
-                            "properties": { "title": s, "start": s, "end": s, "why": s, "importance": { "type": "integer" } },
-                            "required": ["title", "start", "end", "why", "importance"],
-                            "additionalProperties": false
-                        },
-                        "quotes": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": { "text": s, "zh": s, "why": s },
-                                "required": ["text", "zh", "why"],
-                                "additionalProperties": false
-                            }
-                        }
-                    },
-                    "required": ["idx", "summary", "kind", "events", "characters", "advice", "advice_why", "tension", "quotes", "scene"],
-                    "additionalProperties": false
-                }
-            }
-        },
-        "required": ["chapters"],
-        "additionalProperties": false
-    })
-}
-
 pub const READ_FORMAT: &str = "只输出 JSON，格式：{\"chapters\": [{\"idx\": 3, \"summary\": \"提要\", \"kind\": \"plot\", \"events\": [\"事件\"], \"characters\": [\"Ishmael\"], \"advice\": \"read\", \"advice_why\": \"理由\", \"tension\": 3, \"quotes\": [{\"text\": \"逐字复制的原文\", \"zh\": \"译文\", \"why\": \"为什么重要\"}], \"scene\": {\"title\": \"\", \"start\": \"\", \"end\": \"\", \"why\": \"\", \"importance\": 0}}]}";
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -565,26 +526,6 @@ pub fn scene_prompt(title: &str, author: Option<&str>, scenes: &[Scene], chapter
         p.push_str(&format!("=== 名场面 {}：{}（{}）===\n这一章的复述：{}\n原文：\n{}\n\n", s.id, s.title, title, summary, s.text));
     }
     p
-}
-
-pub fn scene_schema() -> Value {
-    let s = json!({ "type": "string" });
-    json!({
-        "type": "object",
-        "properties": {
-            "scenes": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": { "id": { "type": "integer" }, "zh": s, "context": s, "why": s },
-                    "required": ["id", "zh", "context", "why"],
-                    "additionalProperties": false
-                }
-            }
-        },
-        "required": ["scenes"],
-        "additionalProperties": false
-    })
 }
 
 pub const SCENE_FORMAT: &str = "只输出 JSON，格式：{\"scenes\": [{\"id\": 1, \"zh\": \"译文\", \"context\": \"前因后果\", \"why\": \"为什么是名场面\"}]}";
@@ -904,71 +845,6 @@ pub fn synth_task(step: usize) -> &'static str {
 
 pub fn synth_prompt(notes: &str, step: usize) -> String {
     format!("{notes}\n{}\n\n各项都要写；某项实在没有可写的内容就留空。", synth_task(step))
-}
-
-pub fn synth_schema(step: usize) -> Value {
-    let s = json!({ "type": "string" });
-    let i = json!({ "type": "integer" });
-    let ints = json!({ "type": "array", "items": { "type": "integer" } });
-    let obj = |props: Value| {
-        let req: Vec<String> = props.as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default();
-        json!({ "type": "object", "properties": props, "required": req, "additionalProperties": false })
-    };
-    let arr = |item: Value| json!({ "type": "array", "items": item });
-    let props = match step {
-        0 => json!({
-            "one_line": s, "paragraph": s, "talk": s,
-            "structure": arr(obj(json!({ "title": s, "from": i, "to": i, "summary": s }))),
-            "characters": arr(obj(json!({ "name": s, "role": s, "arc": s, "scenes": s, "meaning": s, "quote": i }))),
-            "relations": s
-        }),
-        1 => json!({
-            "background": s,
-            "glossary": arr(obj(json!({ "term": s, "zh": s, "note": s }))),
-            "timeline": arr(obj(json!({ "chapter": i, "event": s }))),
-            "motifs": arr(obj(json!({ "name": s, "meaning": s, "chapters": ints }))),
-            "themes": arr(obj(json!({ "name": s, "text": s, "chapters": ints }))),
-            "technique": s
-        }),
-        2 => json!({
-            "reception": s,
-            "criticism": arr(obj(json!({ "claim": s, "pro": s, "con": s }))),
-            "origins": s,
-            "misconceptions": arr(obj(json!({ "wrong": s, "right": s }))),
-            "topics": arr(obj(json!({ "topic": s, "view": s, "counter": s }))),
-            "golden": ints,
-            "further": arr(obj(json!({ "title": s, "author": s, "why": s })))
-        }),
-        4 => {
-            let link = |a: &str, b: &str| obj(json!({ a: s, b: s, "kind": s, "label": s }));
-            let tree = obj(json!({ "nodes": arr(obj(json!({ "id": s, "parent": s, "name": s, "role": s, "special": { "type": "boolean" } }))) }));
-            let graph = obj(json!({ "nodes": arr(obj(json!({ "id": s, "text": s, "kind": s }))), "links": arr(obj(json!({ "from": s, "to": s, "label": s }))) }));
-            json!({
-                "diagrams": obj(json!({
-                    "chosen": arr(obj(json!({ "kind": s, "why": s }))),
-                    "relations": obj(json!({
-                        "center": s,
-                        "groups": arr(obj(json!({ "id": s, "label": s }))),
-                        "people": arr(obj(json!({ "id": s, "name": s, "en": s, "group": s }))),
-                        "links": arr(link("a", "b"))
-                    })),
-                    "plot": obj(json!({ "events": arr(obj(json!({ "id": s, "chapter": i, "text": s }))), "links": arr(link("from", "to")) })),
-                    "tree": tree.clone(),
-                    "family": tree,
-                    "route": obj(json!({ "stops": arr(obj(json!({ "place": s, "chapter": i, "what": s }))) })),
-                    "rhythm": obj(json!({ "marks": arr(obj(json!({ "chapter": i, "label": s }))) })),
-                    "compare": obj(json!({ "title": s, "items": arr(obj(json!({ "name": s, "en": s, "chapter": i, "badge": s, "tone": s, "text": s }))) })),
-                    "causal": graph.clone(),
-                    "concepts": graph
-                }))
-            })
-        }
-        _ => json!({
-            "faq": arr(obj(json!({ "q": s, "a": s, "chapters": ints }))),
-            "quiz": arr(obj(json!({ "q": s, "a": s, "chapter": i })))
-        }),
-    };
-    obj(props)
 }
 
 pub fn synth_format(step: usize) -> &'static str {
@@ -1523,8 +1399,6 @@ and nothing particular to interest me on shore, I thought I would sail about a l
         assert_eq!(s.characters[1].quote, 1);
         assert_eq!(s.golden, vec![1]);
         for step in 0..SYNTH_STEPS {
-            let schema = synth_schema(step);
-            assert!(!schema["required"].as_array().unwrap().is_empty());
             assert!(synth_prompt("notes", step).contains("notes"));
         }
     }
@@ -1574,9 +1448,6 @@ and nothing particular to interest me on shore, I thought I would sail about a l
         assert_eq!(s2.diagrams.route.stops.len(), 1, "图解里坏的那种丢掉，其他保留");
         assert_eq!(ids_to_labels("岸上（1013—1145）与 [1010]，1851 年", &chs), "岸上（第 1 章—第 133 章）与 [ETYMOLOGY]，1851 年");
         assert_eq!(s.diagrams.route.stops.iter().map(|x| x.chapter).collect::<Vec<_>>(), vec![13, 145]);
-        for step in 0..SYNTH_STEPS {
-            assert!(synth_schema(step)["properties"].as_object().is_some_and(|m| !m.is_empty()), "step {step}");
-        }
     }
 
     fn long_text() -> String {

@@ -150,13 +150,8 @@ export interface ExportPrefs {
   dir: string | null;
 }
 
-export type AiProvider = "claude" | "deepseek";
-
-/** AI 双语例句（Claude 或 DeepSeek）；Key 存在凭据管理器，不在这里 */
+/** AI 双语例句（DeepSeek）；Key 存在凭据管理器，不在这里 */
 export interface AiPrefs {
-  provider: AiProvider;
-  /** Claude 的模型 */
-  model: string;
   /** DeepSeek 的模型 */
   deepseekModel: string;
   count: number;

@@ -170,7 +170,6 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
   }, [open, bookId, opts.minCount, opts.includeExtras, range]);
 
   // AI 导读：只取存过的（不花钱）；没有就等用户点「用 AI 生成」
-  const aiProvider = useSettings((s) => s.settings?.ai.provider) ?? "claude";
   useEffect(() => {
     if (!open || !opts.guide || opts.guideSource === "wiki") return;
     let alive = true;
@@ -534,7 +533,7 @@ export function BookStudyDialog({ open, onClose, bookId, level: readerLevel }: P
                             : aiGuide.kind === "error"
                               ? tr("AI 导读失败：{msg}", { msg: aiGuide.message })
                               : tr("AI 导读还没生成：会把书名、作者、章节标题和开头约两千字发给 {provider}，按用量计费，结果会存下来，同一本书不再收费。", {
-                                  provider: aiProvider === "deepseek" ? "DeepSeek" : "Claude",
+                                  provider: "DeepSeek",
                                 })}{" "}
                         {aiGuide.kind !== "loading" && (
                           <button type="button" className={dlg.ghost} onClick={() => void makeAiGuide(aiGuide.kind === "found")}>

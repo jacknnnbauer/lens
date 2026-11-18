@@ -159,8 +159,7 @@ pub async fn book_guide_ai(state: State<'_, AppState>, id: i64, cached_only: boo
     let hash = state.db.with_conn(|c| articles::book_hash(c, id))?.ok_or_else(deleted)?;
     let settings = state.settings.get()?;
     let (cfg, spoilers) = (settings.ai, settings.study.spoilers);
-    let provider = cfg.provider();
-    let model = cfg.active_model().to_string();
+    let model = cfg.deepseek_model.clone();
     let file = ai_guide_file(&state, &hash, &model, spoilers);
     if !force {
         if let Some(g) = std::fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<crate::wiki::BookGuide>(&t).ok()) {
@@ -170,8 +169,8 @@ pub async fn book_guide_ai(state: State<'_, AppState>, id: i64, cached_only: boo
     if cached_only {
         return Ok(None);
     }
-    let key = crate::online::credentials::read(provider.key_id())?.ok_or_else(|| {
-        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 例句）", "No {} API key yet (Settings › AI examples)", provider.name()))
+    let key = crate::online::credentials::read(crate::ai::KEY_ID)?.ok_or_else(|| {
+        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 例句）", "No {} API key yet (Settings › AI examples)", crate::ai::NAME))
     })?;
     // 章节标题（默认范围里的正文）和开头一段正文
     let all = scans(&state, id).await?;
@@ -202,12 +201,10 @@ pub async fn book_guide_ai(state: State<'_, AppState>, id: i64, cached_only: boo
     let user = crate::guide_ai::prompt(&input);
     let (text, usage) = crate::ai::complete_json(
         state.online.client(),
-        provider,
         &key,
         &model,
         crate::guide_ai::SYSTEM,
         &user,
-        crate::guide_ai::schema(),
         crate::guide_ai::JSON_FORMAT,
         4000,
         std::time::Duration::from_secs(180),
@@ -215,7 +212,7 @@ pub async fn book_guide_ai(state: State<'_, AppState>, id: i64, cached_only: boo
     .await?;
     let out = crate::guide_ai::parse(&text)?;
     let guide = crate::guide_ai::to_guide(&out, &article.meta.title, author.as_deref(), &model, spoilers);
-    state.db.with_conn(|c| crate::ai::record(c, provider, &model, &article.meta.title, usage, crate::db::now_ms()).map(|_| ()))?;
+    state.db.with_conn(|c| crate::ai::record(c, &model, &article.meta.title, usage, crate::db::now_ms()).map(|_| ()))?;
     if let Some(dir) = file.parent() {
         std::fs::create_dir_all(dir)?;
     }

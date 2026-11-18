@@ -139,14 +139,12 @@ function Select<T extends string | number>({ label, value, options, onChange }: 
   );
 }
 
-/** 设置 › AI 例句：COCA 词频表导入、Claude API Key、模型 */
+/** 设置 › AI 例句：COCA 词频表导入、DeepSeek API Key、模型 */
 function AiSettings() {
   const ai = useSettings((s) => s.settings?.ai);
   const update = useSettings((s) => s.update);
   const [coca, setCoca] = useState<CocaStatus | null>(null);
   const [hasKey, setHasKey] = useState(false);
-  const provider = ai?.provider ?? "claude";
-  const deepseek = provider === "deepseek";
   const [key, setKey] = useState("");
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -154,9 +152,8 @@ function AiSettings() {
     cocaStatus().then(setCoca, () => setCoca(null));
   }, []);
   useEffect(() => {
-    setKey("");
-    aiKeyStatus(provider).then(setHasKey, () => setHasKey(false));
-  }, [provider]);
+    aiKeyStatus().then(setHasKey, () => setHasKey(false));
+  }, []);
 
   const [testing, setTesting] = useState(false);
 
@@ -190,7 +187,7 @@ function AiSettings() {
 
   const saveKey = async (value: string | null) => {
     try {
-      setHasKey(await aiSetKey(provider, value));
+      setHasKey(await aiSetKey(value));
       setKey("");
       setMessage({ text: value ? tr("API Key 已保存到 Windows 凭据管理器") : tr("已删除 API Key") });
     } catch (e) {
@@ -201,19 +198,7 @@ function AiSettings() {
   return (
     <section id="set-ai" className={styles.section} aria-labelledby="h-ai">
       <h2 id="h-ai">{tr("AI 例句")}</h2>
-      <p className={styles.hint}>{tr("右侧栏显示当前词的 COCA 词频、语体与搭配，并可用 Claude 或 DeepSeek 按这些真实搭配生成中英双语例句。")}</p>
-
-      <div className={styles.grid2}>
-        <Select
-          label={tr("AI 服务")}
-          value={provider}
-          options={[
-            ["claude", "Claude（Anthropic）"],
-            ["deepseek", "DeepSeek（深度求索，国内可直连）"],
-          ]}
-          onChange={(v) => setAi({ provider: v })}
-        />
-      </div>
+      <p className={styles.hint}>{tr("右侧栏显示当前词的 COCA 词频、语体与搭配，并可用 DeepSeek 按这些真实搭配生成中英双语例句。")}</p>
 
       <div className={styles.row}>
         <span>
@@ -227,21 +212,15 @@ function AiSettings() {
 
       <div className={styles.row}>
         <span>
-          {deepseek ? tr("DeepSeek API Key") : tr("Claude API Key")}
-          <small>
-            {hasKey
-              ? tr("已保存（存在 Windows 凭据管理器，不写进设置文件）")
-              : deepseek
-                ? tr("在 platform.deepseek.com 创建；按用量计费")
-                : tr("在 console.anthropic.com 创建；按用量计费")}
-          </small>
+          {tr("DeepSeek API Key")}
+          <small>{hasKey ? tr("已保存（存在 Windows 凭据管理器，不写进设置文件）") : tr("在 platform.deepseek.com 创建；按用量计费")}</small>
         </span>
         <span className={styles.keyRow}>
           <input
             type="password"
             value={key}
-            placeholder={hasKey ? "••••••••" : deepseek ? "sk-…" : "sk-ant-…"}
-            aria-label={deepseek ? tr("DeepSeek API Key") : tr("Claude API Key")}
+            placeholder={hasKey ? "••••••••" : "sk-…"}
+            aria-label={tr("DeepSeek API Key")}
             autoComplete="off"
             spellCheck={false}
             onChange={(e) => setKey(e.target.value)}
@@ -263,30 +242,15 @@ function AiSettings() {
       </div>
 
       <div className={styles.grid2}>
-        {deepseek ? (
-          <Select
-            label={tr("模型")}
-            value={ai.deepseekModel}
-            options={[
-              ["deepseek-flash", "DeepSeek Flash（默认，快、便宜）"],
-              ["deepseek-v4-pro", "DeepSeek V4 Pro（质量更好）"],
-            ]}
-            onChange={(v) => setAi({ deepseekModel: v })}
-          />
-        ) : (
-          <Select
-            label={tr("模型")}
-            value={ai.model}
-            options={[
-              ["claude-opus-4-8", "Claude Opus 4.8（默认）"],
-              ["claude-opus-5-5", "Claude Opus 5.5（最新，比 4.8 便宜）"],
-              ["claude-sonnet-5-5", "Claude Sonnet 5.5（更便宜）"],
-              ["claude-sonnet-5", "Claude Sonnet 5"],
-              ["claude-haiku-4-5", "Claude Haiku 4.5（最便宜、最快）"],
-            ]}
-            onChange={(v) => setAi({ model: v })}
-          />
-        )}
+        <Select
+          label={tr("模型")}
+          value={ai.deepseekModel}
+          options={[
+            ["deepseek-flash", "DeepSeek Flash（默认，快、便宜）"],
+            ["deepseek-v4-pro", "DeepSeek V4 Pro（质量更好）"],
+          ]}
+          onChange={(v) => setAi({ deepseekModel: v })}
+        />
         <Select
           label={tr("每次生成")}
           value={ai.count}

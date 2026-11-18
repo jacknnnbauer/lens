@@ -129,12 +129,12 @@ pub fn known_lemmas(conn: &Connection) -> Result<Vec<String>> {
     Ok(rows.collect::<std::result::Result<_, _>>()?)
 }
 
-/// 标记 / 取消「认识」
-pub fn set_known(conn: &Connection, lemmas: &[String], known: bool) -> Result<()> {
+/// 标记 / 取消「认识」。`source`：manual 手动标记，import 批量导入
+pub fn set_known(conn: &Connection, lemmas: &[String], known: bool, source: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     for l in lemmas.iter().map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty()) {
         if known {
-            tx.execute("INSERT OR IGNORE INTO known_word (lemma, created_at) VALUES (?1, ?2)", params![l, now_ms()])?;
+            tx.execute("INSERT OR IGNORE INTO known_word (lemma, created_at, source) VALUES (?1, ?2, ?3)", params![l, now_ms(), source])?;
         } else {
             tx.execute("DELETE FROM known_word WHERE lemma = ?1", params![l])?;
         }

@@ -42,7 +42,7 @@ pub async fn scan_text(state: State<'_, AppState>, text: String, level: u32) -> 
 /// 标记 / 取消「认识」：认识的词以后扫描不再当生词
 #[tauri::command]
 pub async fn set_known_words(state: State<'_, AppState>, lemmas: Vec<String>, known: bool) -> Result<()> {
-    state.db.with_conn(|c| words::set_known(c, &lemmas, known))
+    state.db.with_conn(|c| words::set_known(c, &lemmas, known, "manual"))
 }
 
 #[derive(Debug, Deserialize)]
@@ -115,7 +115,7 @@ pub async fn import_known_words(state: State<'_, AppState>, path: std::path::Pat
         return Err(Error::Other(crate::i18n::t("这个文件里没有认出英文单词", "No English words were found in this file").into()));
     }
     let before: HashSet<String> = state.db.with_conn(words::known_lemmas)?.into_iter().collect();
-    state.db.with_conn(|c| words::set_known(c, &lemmas, true))?;
+    state.db.with_conn(|c| words::set_known(c, &lemmas, true, "import"))?;
     let added = lemmas.iter().filter(|l| !before.contains(*l)).count();
     Ok(KnownImport { found: lemmas.len(), added, total: before.len() + added })
 }

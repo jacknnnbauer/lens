@@ -309,6 +309,7 @@ pub fn run() {
             app.manage(commands::articles::PendingOpen::default());
             let args: Vec<String> = std::env::args().skip(1).collect();
             commands::articles::open_from_args(app.handle(), &args);
+            ai::forget_old_claude_key();
             tracing::info!(ms = t_setup.elapsed().as_millis() as u64, "启动：后端就绪");
             // 主窗口配置为先隐藏：取消最大化、缩到屏幕以内并居中，等界面画好第一帧（main_ready）再显示，
             // 避免先闪一个空白窗口；界面迟迟不报到也在 3 秒后显示

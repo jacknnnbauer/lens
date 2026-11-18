@@ -16,6 +16,16 @@ const ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
 pub const KEY_ID: &str = "ai-deepseek";
 /// 服务商的名字（提示文字里用）
 pub const NAME: &str = "DeepSeek";
+/// 旧版存 Claude API Key 的条目名
+const OLD_CLAUDE_KEY_ID: &str = "ai-anthropic";
+
+/// 0.42.0 起不再用 Claude：启动时清掉旧版留在凭据管理器里的 Key（界面上已经没有地方能删它）。没有这一条时什么也不做
+pub fn forget_old_claude_key() {
+    if let Err(e) = crate::online::credentials::delete(OLD_CLAUDE_KEY_ID) {
+        tracing::warn!(error = %e, "清除旧的 Claude API Key 失败");
+    }
+}
+
 const TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

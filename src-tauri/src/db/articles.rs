@@ -255,6 +255,12 @@ pub struct BookInfo {
     /// 读到第几章、这一章读到的位置（0–1）
     pub chapter: i64,
     pub chapter_pos: f64,
+    /// PDF 书：每章开头是原 PDF 第几页；不是 PDF 为 None
+    pub pdf_pages: Option<Vec<i64>>,
+    /// 原版页面看到第几页（0 = 还没看过）
+    pub pdf_page: i64,
+    /// 上次用的视图：reflow / pages
+    pub pdf_view: Option<String>,
 }
 
 fn insert_chapters(conn: &Connection, id: i64, book: &Book) -> Result<()> {
@@ -314,14 +320,30 @@ pub fn book_hash(conn: &Connection, id: i64) -> Result<Option<String>> {
 }
 
 pub fn book_info(conn: &Connection, id: i64) -> Result<Option<BookInfo>> {
-    let row: Option<(Option<String>, i64, f64)> = conn.query_row("SELECT toc, chapter, chapter_pos FROM article WHERE id = ?1", params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional()?;
-    let Some((toc, chapter, chapter_pos)) = row else { return Ok(None) };
+    type Row = (Option<String>, i64, f64, Option<String>, i64, Option<String>);
+    let row: Option<Row> = conn
+        .query_row("SELECT toc, chapter, chapter_pos, pdf_pages, pdf_page, pdf_view FROM article WHERE id = ?1", params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))
+        .optional()?;
+    let Some((toc, chapter, chapter_pos, pdf_pages, pdf_page, pdf_view)) = row else { return Ok(None) };
     let mut st = conn.prepare("SELECT idx, title, href, words FROM article_chapter WHERE article_id = ?1 ORDER BY idx")?;
     let chapters = st
         .query_map(params![id], |r| Ok(ChapterInfo { idx: r.get(0)?, title: r.get(1)?, href: r.get(2)?, words: r.get(3)? }))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let toc = toc.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
-    Ok(Some(BookInfo { chapters, toc, chapter, chapter_pos }))
+    let pdf_pages = pdf_pages.and_then(|p| serde_json::from_str(&p).ok());
+    Ok(Some(BookInfo { chapters, toc, chapter, chapter_pos, pdf_pages, pdf_page, pdf_view }))
+}
+
+/// PDF 书：记下每章开头的页码
+pub fn set_pdf_pages(conn: &Connection, id: i64, pages: &[i64]) -> Result<()> {
+    conn.execute("UPDATE article SET pdf_pages = ?2 WHERE id = ?1", params![id, serde_json::to_string(pages)?])?;
+    Ok(())
+}
+
+/// PDF 书：原版页面看到第几页、上次用的视图
+pub fn set_pdf_state(conn: &Connection, id: i64, view: &str, page: i64) -> Result<()> {
+    conn.execute("UPDATE article SET pdf_view = ?2, pdf_page = ?3 WHERE id = ?1", params![id, view, page])?;
+    Ok(())
 }
 
 pub fn chapter_href(conn: &Connection, id: i64, idx: i64) -> Result<Option<String>> {

@@ -45,6 +45,12 @@ export interface BookInfo {
   /** 读到第几章、这一章读到的位置（0–1） */
   chapter: number;
   chapterPos: number;
+  /** PDF 书：每章开头是原 PDF 第几页（从 1 起）；不是 PDF 为 null */
+  pdfPages: number[] | null;
+  /** 原版页面看到第几页（0 = 还没看过） */
+  pdfPage: number;
+  /** 上次用的视图 */
+  pdfView: "reflow" | "pages" | null;
 }
 
 export interface Article extends ArticleMeta {

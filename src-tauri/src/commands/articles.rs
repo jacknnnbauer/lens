@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app_state::AppState;
 use crate::db::articles::{self, Article, ArticleMeta, BookInfo};
+use crate::db::Db;
 use crate::epub;
 use crate::error::{Error, Result};
 
@@ -40,7 +41,7 @@ pub struct ImportResult {
     pub failed: Vec<(String, String)>,
 }
 
-const EXTS: [&str; 4] = ["md", "markdown", "txt", "epub"];
+const EXTS: [&str; 7] = ["md", "markdown", "txt", "epub", "mobi", "azw3", "azw"];
 
 fn is_article_file(p: &Path) -> bool {
     p.extension().is_some_and(|e| EXTS.contains(&e.to_string_lossy().to_lowercase().as_str()))
@@ -50,44 +51,85 @@ fn is_epub(p: &Path) -> bool {
     p.extension().is_some_and(|e| e.eq_ignore_ascii_case("epub"))
 }
 
+/// Kindle 格式：导入时转成 EPUB
+fn is_kindle(p: &Path) -> bool {
+    p.extension().is_some_and(|e| ["mobi", "azw3", "azw"].iter().any(|k| e.eq_ignore_ascii_case(k)))
+}
+
 /// 数据目录里这本书的副本：原文件挪走、删掉都不影响阅读
 pub fn book_file(root: &Path, hash: &str) -> PathBuf {
     root.join("books").join(format!("{hash}.epub"))
 }
 
-fn import_book(state: &AppState, p: &Path) -> Result<i64> {
-    if std::fs::metadata(p)?.len() > MAX_BOOK {
-        return Err(Error::Other(crate::i18n::t("文件超过 500 MB", "The file is over 500 MB").into()));
-    }
-    let book = epub::parse(p)?;
-    let hash = epub::hash_file(p)?;
-    let dest = book_file(&state.root, &hash);
-    if !dest.is_file() {
+/// 数据目录里 PDF 书的原件（原版页面用）
+pub fn pdf_file(root: &Path, hash: &str) -> PathBuf {
+    root.join("books").join(format!("{hash}.pdf"))
+}
+
+/// 把一本书存进书库：`write` 负责把 EPUB 写到给它的路径（同样内容的书已经在了就不调用），
+/// 然后解析、入库。`record_path` 记作这本书的来源；`pdf_pages` 只有 PDF 书才有。
+pub fn store_book(db: &Db, root: &Path, record_path: &Path, hash: &str, write: impl FnOnce(&Path) -> Result<()>, pdf_pages: Option<&[i64]>) -> Result<i64> {
+    let dest = book_file(root, hash);
+    let fresh = !dest.is_file();
+    if fresh {
         if let Some(dir) = dest.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        // 先写临时文件再改名：复制到一半退出不会留下半本书
+        // 先写临时文件再改名：写到一半退出不会留下半本书
         let tmp = dest.with_extension("tmp");
-        std::fs::copy(p, &tmp)?;
-        std::fs::rename(&tmp, &dest)?;
-    }
-    let name = p.display().to_string();
-    let stem = p.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-    let done = state.db.with_conn(|c| articles::import_book(c, &name, &hash, &stem, &book))?;
-    if let Some(old) = done.stale_hash {
-        if let Err(e) = std::fs::remove_file(book_file(&state.root, &old)) {
-            tracing::warn!(error = %e, "删除旧的电子书副本失败");
+        let written = write(&tmp).and_then(|()| Ok(std::fs::rename(&tmp, &dest)?));
+        if let Err(e) = written {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e);
         }
     }
+    let book = match epub::parse(&dest) {
+        Ok(b) => b,
+        Err(e) => {
+            if fresh {
+                let _ = std::fs::remove_file(&dest);
+            }
+            return Err(e);
+        }
+    };
+    let name = record_path.display().to_string();
+    let stem = record_path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let done = db.with_conn(|c| articles::import_book(c, &name, hash, &stem, &book))?;
+    if let Some(pages) = pdf_pages {
+        db.with_conn(|c| articles::set_pdf_pages(c, done.id, pages))?;
+    }
+    if let Some(old) = done.stale_hash {
+        if let Err(e) = std::fs::remove_file(book_file(root, &old)) {
+            tracing::warn!(error = %e, "删除旧的电子书副本失败");
+        }
+        let _ = std::fs::remove_file(pdf_file(root, &old));
+    }
     Ok(done.id)
+}
+
+/// 导入 EPUB 或 Kindle 书（Kindle 的转成 EPUB）
+fn import_book_at(db: &Db, root: &Path, p: &Path) -> Result<i64> {
+    if std::fs::metadata(p)?.len() > MAX_BOOK {
+        return Err(Error::Other(crate::i18n::t("文件超过 500 MB", "The file is over 500 MB").into()));
+    }
+    let hash = epub::hash_file(p)?;
+    if is_kindle(p) {
+        store_book(db, root, p, &hash, |dest| crate::epub_write::write_epub(dest, &crate::mobi::read(p)?), None)
+    } else {
+        store_book(db, root, p, &hash, |dest| Ok(std::fs::copy(p, dest).map(|_| ())?), None)
+    }
+}
+
+fn import_book(state: &AppState, p: &Path) -> Result<i64> {
+    import_book_at(&state.db, &state.root, p)
 }
 
 /// 读一个文件并导入（同一个文件导入过就沿用或更新那篇，见 `articles::import_file`）
 fn import_one(state: &AppState, p: &Path) -> std::result::Result<i64, String> {
     if !is_article_file(p) {
-        return Err(crate::i18n::t("只支持 .md、.txt 和 .epub 文件", "Only .md, .txt and .epub files are supported").into());
+        return Err(crate::i18n::t("只支持 .md、.txt、.epub、.mobi 和 .azw3 文件", "Only .md, .txt, .epub, .mobi and .azw3 files are supported").into());
     }
-    if is_epub(p) {
+    if is_epub(p) || is_kindle(p) {
         return import_book(state, p).map_err(|e| e.to_string());
     }
     match std::fs::metadata(p) {
@@ -118,7 +160,7 @@ pub async fn article_import_files(state: State<'_, AppState>, paths: Vec<PathBuf
 #[derive(Default)]
 pub struct PendingOpen(Mutex<Option<i64>>);
 
-/// 启动参数或第二次启动转过来的参数里有 .md / .txt / .epub：导入、记下等界面来取，并通知主窗口切到阅读
+/// 启动参数或第二次启动转过来的参数里有 .md / .txt / .epub / .mobi / .azw3：导入、记下等界面来取，并通知主窗口切到阅读
 pub fn open_from_args(app: &AppHandle, args: &[String]) {
     let Some(state) = app.try_state::<AppState>() else { return };
     let mut last = None;
@@ -166,16 +208,27 @@ pub async fn article_progress(state: State<'_, AppState>, id: i64, progress: f64
     state.db.with_conn(|c| articles::set_progress(c, id, progress))
 }
 
-#[tauri::command]
-pub async fn article_delete(state: State<'_, AppState>, id: i64) -> Result<bool> {
-    let hash = state.db.with_conn(|c| articles::book_hash(c, id))?;
-    let deleted = state.db.with_conn(|c| articles::delete(c, id))?;
+/// 删掉一篇文章；电子书连同书库里的副本（EPUB，PDF 书还有原件）一起删
+fn delete_at(db: &Db, root: &Path, id: i64) -> Result<bool> {
+    let hash = db.with_conn(|c| articles::book_hash(c, id))?;
+    let deleted = db.with_conn(|c| articles::delete(c, id))?;
     if let (true, Some(hash)) = (deleted, hash) {
-        if let Err(e) = std::fs::remove_file(book_file(&state.root, &hash)) {
+        if let Err(e) = std::fs::remove_file(book_file(root, &hash)) {
             tracing::warn!(error = %e, "删除电子书副本失败");
+        }
+        let pdf = pdf_file(root, &hash);
+        if pdf.exists() {
+            if let Err(e) = std::fs::remove_file(&pdf) {
+                tracing::warn!(error = %e, "删除 PDF 原件失败");
+            }
         }
     }
     Ok(deleted)
+}
+
+#[tauri::command]
+pub async fn article_delete(state: State<'_, AppState>, id: i64) -> Result<bool> {
+    delete_at(&state.db, &state.root, id)
 }
 
 /// 电子书的章节、目录和读到的位置；普通文章或已删除时返回 None
@@ -221,4 +274,67 @@ pub async fn bookmark_add(state: State<'_, AppState>, id: i64, chapter: i64, pos
 #[tauri::command]
 pub async fn bookmark_delete(state: State<'_, AppState>, bookmark: i64) -> Result<()> {
     state.db.with_conn(|c| articles::delete_bookmark(c, bookmark))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::Db;
+
+    fn alice() -> PathBuf {
+        crate::mobi::tests::fixture("alice-old.mobi")
+    }
+
+    #[test]
+    fn imports_mobi_as_book() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let root = tempfile::tempdir()?;
+        let id = import_book_at(&db, root.path(), &alice())?;
+        let info = db.with_conn(|c| articles::book_info(c, id))?.expect("书");
+        assert_eq!(info.chapters.len(), crate::mobi::read(&alice())?.chapters.len());
+        assert!(info.chapters.iter().any(|c| c.title.contains("Rabbit-Hole")));
+        let hash = db.with_conn(|c| articles::book_hash(c, id))?.expect("hash");
+        assert_eq!(hash, epub::hash_file(&alice())?, "哈希取原始文件");
+        assert!(book_file(root.path(), &hash).is_file());
+        assert_eq!((info.pdf_pages, info.pdf_view), (None, None), "不是 PDF");
+        Ok(())
+    }
+
+    #[test]
+    fn reimport_same_mobi_keeps_one_book() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let root = tempfile::tempdir()?;
+        let a = import_book_at(&db, root.path(), &alice())?;
+        let copy = root.path().join("moved.mobi");
+        std::fs::copy(alice(), &copy)?;
+        let b = import_book_at(&db, root.path(), &copy)?;
+        assert_eq!(a, b);
+        assert_eq!(db.with_conn(articles::list)?.len(), 1);
+        assert_eq!(std::fs::read_dir(root.path().join("books"))?.count(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn delete_removes_pdf_copy() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let root = tempfile::tempdir()?;
+        let id = import_book_at(&db, root.path(), &alice())?;
+        let hash = db.with_conn(|c| articles::book_hash(c, id))?.expect("hash");
+        std::fs::write(pdf_file(root.path(), &hash), b"%PDF")?;
+        assert!(delete_at(&db, root.path(), id)?);
+        assert!(!book_file(root.path(), &hash).exists() && !pdf_file(root.path(), &hash).exists());
+        Ok(())
+    }
+
+    #[test]
+    fn bad_kindle_file_leaves_nothing_behind() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let root = tempfile::tempdir()?;
+        let junk = root.path().join("junk.azw3");
+        std::fs::write(&junk, b"nope")?;
+        assert!(import_book_at(&db, root.path(), &junk).is_err());
+        let left = std::fs::read_dir(root.path().join("books")).map(|d| d.count()).unwrap_or(0);
+        assert_eq!(left, 0);
+        Ok(())
+    }
 }

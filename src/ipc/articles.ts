@@ -105,6 +105,11 @@ export function takePendingArticle(): Promise<number | null> {
   return invoke<number | null>("article_take_pending");
 }
 
+/** 资源管理器里打开的 PDF：路径交给界面用 pdf.js 整理（取走后清空） */
+export function takePendingPdfs(): Promise<string[]> {
+  return invoke<string[]>("article_take_pending_pdfs");
+}
+
 /** Lens 开着时又从资源管理器打开了文章 */
 export function onOpenArticle(cb: () => void): Promise<UnlistenFn> {
   return getCurrentWebviewWindow().listen("reader:open", () => cb());

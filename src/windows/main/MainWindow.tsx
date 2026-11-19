@@ -22,7 +22,9 @@ import { SideNav } from "../../components/SideNav";
 import { StatusBar } from "../../components/StatusBar";
 import { Toast } from "../../components/Toast";
 import { onMainLookup } from "../../ipc/capture";
-import { onOpenArticle, takePendingArticle } from "../../ipc/articles";
+import { onOpenArticle, takePendingArticle, takePendingPdfs } from "../../ipc/articles";
+import { usePdfImport } from "../../stores/pdfImport";
+import { PdfImportProgress } from "../../routes/reader/PdfImportProgress";
 import { LookupPage, type LookupPageHandle } from "../../routes/lookup/LookupPage";
 import { subscribeBatchEvents, useBatch } from "../../stores/batch";
 import { subscribeDictEvents, useDicts } from "../../stores/dicts";
@@ -112,7 +114,7 @@ export function MainWindow() {
     void useBatch.getState().refreshUnfinished();
     void refreshDicts();
     // 资源管理器右键「用 Lens 打开」：启动时取一次，开着时收到事件再取
-    const openPending = () =>
+    const openPending = () => {
       void takePendingArticle().then(
         (id) => {
           if (id === null) return;
@@ -121,6 +123,12 @@ export function MainWindow() {
         },
         () => undefined,
       );
+      void takePendingPdfs().then((paths) => {
+        if (paths.length === 0) return;
+        useRoute.getState().go("reader");
+        usePdfImport.getState().enqueue(paths);
+      }, () => undefined);
+    };
     openPending();
     const subs = [
       onOpenArticle(openPending),
@@ -379,6 +387,7 @@ export function MainWindow() {
       <Hint id="nav" anchor="nav" show={showTitleBar && !(layout?.showNav ?? false) && !immersive && page === "lookup" && idleLookup}>
         {tr("阅读、生词本、设置都在左侧导航里：点这里或按 Ctrl+\\ 打开。")}
       </Hint>
+      <PdfImportProgress />
       <Toast />
       <BatchDialog />
       {!immersive && <BatchChip />}

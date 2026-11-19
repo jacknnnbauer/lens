@@ -190,11 +190,21 @@ function blocks(lines: Line[], isWord: (w: string) => boolean): Block[] {
   // 左右栏的边界取全书的（单页行少时也稳）：左边取靠前的 x0，右边取靠后的 x1
   const colKey = (l: Line) => `${l.page}|${l.col}`;
   const pct = (v: number[], q: number) => [...v].sort((a, b) => a - b)[Math.min(v.length - 1, Math.floor(v.length * q))] ?? 0;
-  const bounds = new Map<number, { left: number; right: number }>();
+  const docBounds = new Map<number, { left: number; right: number }>();
   for (const col of [0, 1]) {
     const ls = lines.filter((l) => l.col === col && !isHeading(l));
-    if (ls.length) bounds.set(col, { left: pct(ls.map((l) => l.x0), 0.1), right: pct(ls.map((l) => l.x1), 0.9) });
+    if (ls.length) docBounds.set(col, { left: pct(ls.map((l) => l.x0), 0.1), right: pct(ls.map((l) => l.x1), 0.9) });
   }
+  // 一页有几行正文时，左边距按这一页自己的（前言、致谢页常常整体缩进，按全书的算会每行都像段首缩进）
+  const pageLeft = new Map<string, number>();
+  const byPage = new Map<string, Line[]>();
+  for (const l of lines.filter((l) => !isHeading(l))) byPage.set(colKey(l), [...(byPage.get(colKey(l)) ?? []), l]);
+  for (const [k, ls] of byPage) if (ls.length >= 3) pageLeft.set(k, Math.min(...ls.map((l) => l.x0)));
+  const boundsOf = (l: Line) => {
+    const d = docBounds.get(l.col) ?? { left: l.x0, right: l.x1 };
+    const left = pageLeft.get(colKey(l)) ?? d.left;
+    return { left, right: Math.max(d.right, left + 1) };
+  };
   const gaps: number[] = [];
   for (let i = 1; i < lines.length; i++) {
     const a = lines[i - 1];
@@ -206,6 +216,23 @@ function blocks(lines: Line[], isWord: (w: string) => boolean): Block[] {
   const out: Block[] = [];
   let cur: Block | null = null;
   let prev: Line | null = null;
+  // 当前段落首行、第二行起相对本页左边距缩进了多少：段首缩进、整段缩进的引文、从引文退回正文，都靠和它比
+  let firstRel = 0;
+  let bodyRel: number | null = null;
+  const rel = (l: Line) => l.x0 - boundsOf(l).left;
+  // 全书常用的段首缩进：「比上一行靠右、下一行又退回去」的行，取最常见的缩进量
+  const indents = new Map<number, number>();
+  for (let i = 1; i + 1 < lines.length; i++) {
+    const [a, b, c] = [lines[i - 1], lines[i], lines[i + 1]];
+    if (isHeading(a) || isHeading(b) || isHeading(c) || colKey(a) !== colKey(b) || colKey(b) !== colKey(c)) continue;
+    const tol = b.size * 0.9;
+    if (rel(b) > rel(a) + tol && rel(c) < rel(b) - tol) {
+      const k = Math.round(rel(b));
+      indents.set(k, (indents.get(k) ?? 0) + 1);
+    }
+  }
+  const paraIndent = [...indents.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
+  const atParaIndent = (r: number) => paraIndent !== null && paraIndent > 0 && Math.abs(r - paraIndent) <= 2;
   for (const l of lines) {
     if (isHeading(l)) {
       const last = out[out.length - 1];
@@ -219,13 +246,19 @@ function blocks(lines: Line[], isWord: (w: string) => boolean): Block[] {
       prev = l;
       continue;
     }
-    const b = bounds.get(l.col) ?? { left: l.x0, right: l.x1 };
     let newPara = cur === null || prev === null;
     if (!newPara && prev) {
       const sameCol = colKey(prev) === colKey(l);
       const gap = l.y - prev.y;
-      const pb = bounds.get(prev.col) ?? b;
-      const indent = l.x0 - b.left > l.size * 0.9;
+      const pb = boundsOf(prev);
+      const tol = l.size * 0.9;
+      const r = rel(l);
+      // 和本段已有的行比：比正文行更靠右 = 新段首缩进或引文开始；比正文行更靠左 = 引文结束
+      const indent =
+        bodyRel === null
+          ? // 本段才一行：再往右缩是新段；两行都在常用段首缩进处（对话一行一段）也是新段
+            r > firstRel + tol || (atParaIndent(firstRel) && atParaIndent(r))
+          : r > bodyRel + tol || r < bodyRel - tol;
       const prevShort = prev.x1 < pb.left + (pb.right - pb.left) * 0.7 && /[.!?:;"”’)]$/.test(prev.text);
       newPara = (sameCol && lineGap > 0 && gap > lineGap * 1.5) || indent || prevShort;
       // 换页处：上一页最后一行句子结束、这一行大写开头，也当新段（分不清时宁可多分一段）
@@ -234,7 +267,10 @@ function blocks(lines: Line[], isWord: (w: string) => boolean): Block[] {
     if (newPara) {
       if (cur) out.push(cur);
       cur = { kind: "p", text: l.text, page: l.page, marks: [[l.page, 0]] };
+      firstRel = rel(l);
+      bodyRel = null;
     } else if (cur && prev) {
+      bodyRel ??= rel(l);
       const w = hyphenPair(cur.text, l.text);
       if (l.page !== prev.page) cur.marks.push([l.page, cur.text.length + (w ? 0 : 1)]);
       if (w) cur.text = isWord(w) ? cur.text.slice(0, -1) + l.text : cur.text + l.text;
@@ -275,6 +311,8 @@ export function reflow(pages: PdfPage[], outline: PdfOutline[], isWord: (w: stri
       level: m.level - top,
       chapter: Math.max(0, chapters.reduce((at, c, i) => (c.page <= m.page ? i : at), 0)),
     }));
+    // 第一个书签之前的内容自成一章，目录里也给它一项（不然显示成「第 1 节」）
+    if (front.length) toc.unshift({ title: chapters[0].title, level: 0, chapter: 0 });
     return { chapters, toc };
   }
 

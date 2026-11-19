@@ -1,4 +1,4 @@
-// 阅读：文章库（粘贴 Markdown、打开或拖入 .md / .txt / .epub / .mobi / .azw3 文件）→ 阅读视图（ArticleView）。
+// 阅读：文章库（粘贴 Markdown、打开或拖入 .md / .txt / .epub / .mobi / .azw3 / .pdf 文件；PDF 交给 usePdfImport 整理）→ 阅读视图（ArticleView）。
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -6,12 +6,13 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { createArticle, deleteArticle, importArticleFiles, listArticles, type ArticleMeta } from "../../ipc/articles";
 import { useReader } from "../../stores/reader";
+import { usePdfImport } from "../../stores/pdfImport";
 import { toast } from "../../stores/toast";
 import { ArticleView } from "./ArticleView";
 import styles from "./ReaderPage.module.css";
 import { getLang, tr } from "../../i18n";
 
-const EXTENSIONS = ["md", "markdown", "txt", "epub", "mobi", "azw3", "azw"];
+const EXTENSIONS = ["md", "markdown", "txt", "epub", "mobi", "azw3", "azw", "pdf"];
 
 function date(ms: number): string {
   const d = new Date(ms);
@@ -33,19 +34,25 @@ export function ReaderPage() {
     listArticles().then(setList, (e) => setError(String(e)));
   }, []);
 
+  // 回到文章库、或后台又导入好一本 PDF 时刷新列表
+  const pdfVersion = usePdfImport((s) => s.version);
   useEffect(() => {
     if (openId === null) refresh();
-  }, [openId, refresh]);
+  }, [openId, refresh, pdfVersion]);
 
   const importPaths = useCallback(
     async (paths: string[]) => {
       const files = paths.filter((p) => EXTENSIONS.includes(p.split(".").pop()?.toLowerCase() ?? ""));
       if (files.length === 0) {
-        toast(tr("只支持 .md、.txt、.epub、.mobi 和 .azw3 文件"));
+        toast(tr("只支持 .md、.txt、.epub、.mobi、.azw3 和 .pdf 文件"));
         return;
       }
+      const pdfs = files.filter((p) => /\.pdf$/i.test(p));
+      if (pdfs.length) usePdfImport.getState().enqueue(pdfs);
+      const others = files.filter((p) => !/\.pdf$/i.test(p));
+      if (others.length === 0) return;
       try {
-        const r = await importArticleFiles(files);
+        const r = await importArticleFiles(others);
         for (const [file, why] of r.failed) toast(tr("没有导入 {file}：{why}", { file: file.split(/[\\/]/).pop() ?? file, why }));
         if (r.ids.length === 1) open(r.ids[0]);
         else if (r.ids.length > 1) {
@@ -111,7 +118,7 @@ export function ReaderPage() {
           {tr("粘贴新文章")}
         </button>
       </header>
-      <p className={styles.sub}>{tr("把英文文章和电子书存进 Lens 来读：点词就在右边查词，查过的词连同所在句子自动收进生词本；生词按词频标在正文上。支持 Markdown，也可以把 .md / .txt / .epub / .mobi / .azw3 文件拖进窗口。")}</p>
+      <p className={styles.sub}>{tr("把英文文章和电子书存进 Lens 来读：点词就在右边查词，查过的词连同所在句子自动收进生词本；生词按词频标在正文上。支持 Markdown，也可以把 .md / .txt / .epub / .mobi / .azw3 / .pdf 文件拖进窗口。")}</p>
 
       {error && (
         <p role="alert" className={styles.error}>
@@ -140,7 +147,7 @@ export function ReaderPage() {
         </section>
       )}
 
-      {list && list.length === 0 && !pasting && <p className={styles.empty}>{tr("还没有文章。粘贴一篇，或打开 .md / .txt / .epub / .mobi / .azw3 文件。")}</p>}
+      {list && list.length === 0 && !pasting && <p className={styles.empty}>{tr("还没有文章。粘贴一篇，或打开 .md / .txt / .epub / .mobi / .azw3 / .pdf 文件。")}</p>}
 
       {list && list.length > 0 && (
         <ul className={styles.library}>

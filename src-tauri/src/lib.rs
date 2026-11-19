@@ -316,6 +316,7 @@ pub fn run() {
             app.manage(batch::BatchManager::default());
             // 资源管理器右键「用 Lens 打开」启动的：导入文件，等界面画好后来取
             app.manage(commands::articles::PendingOpen::default());
+            app.manage(commands::articles::PendingPdfs::default());
             let args: Vec<String> = std::env::args().skip(1).collect();
             commands::articles::open_from_args(app.handle(), &args);
             ai::forget_old_claude_key();
@@ -377,6 +378,10 @@ pub fn run() {
             commands::articles::article_rename,
             commands::articles::article_update_body,
             commands::articles::article_take_pending,
+            commands::articles::article_take_pending_pdfs,
+            commands::articles::pdf_read,
+            commands::articles::pdf_import,
+            commands::articles::words_exist,
             commands::articles::article_progress,
             commands::articles::article_delete,
             commands::articles::book_open,

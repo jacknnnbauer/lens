@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app_state::AppState;
@@ -124,6 +124,89 @@ fn import_book(state: &AppState, p: &Path) -> Result<i64> {
     import_book_at(&state.db, &state.root, p)
 }
 
+fn is_pdf(p: &Path) -> bool {
+    p.extension().is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
+}
+
+/// 前端用 pdf.js 重排好的 PDF 书
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PdfBook {
+    pub title: Option<String>,
+    pub author: Option<String>,
+    pub chapters: Vec<PdfChapterIn>,
+    pub toc: Vec<PdfTocIn>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PdfChapterIn {
+    pub title: String,
+    pub html: String,
+    /// 这一章从原 PDF 第几页开始（从 1 起）
+    pub page: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PdfTocIn {
+    pub title: String,
+    pub level: i64,
+    pub chapter: usize,
+}
+
+/// 重排结果写成 EPUB 入库，原 PDF 另存一份（原版页面用）
+fn pdf_import_at(db: &Db, root: &Path, src: &Path, book: &PdfBook) -> Result<i64> {
+    use crate::epub_write::{write_epub, BookSource, SourceChapter, SourceToc};
+    if book.chapters.is_empty() {
+        return Err(Error::Other(crate::i18n::t("这本书里没有可读的内容", "This book has no readable content").into()));
+    }
+    let hash = epub::hash_file(src)?;
+    let stem = src.file_stem().map(|s| s.to_string_lossy().into_owned());
+    let source = BookSource {
+        title: book.title.clone().filter(|t| !t.trim().is_empty()).or(stem),
+        author: book.author.clone(),
+        chapters: book.chapters.iter().map(|c| SourceChapter { title: c.title.clone(), body: c.html.clone() }).collect(),
+        toc: book.toc.iter().map(|t| SourceToc { title: t.title.clone(), level: t.level, chapter: t.chapter, anchor: None }).collect(),
+        ..Default::default()
+    };
+    let pages: Vec<i64> = book.chapters.iter().map(|c| c.page).collect();
+    let id = store_book(db, root, src, &hash, |dest| write_epub(dest, &source), Some(&pages))?;
+    let pdf = pdf_file(root, &hash);
+    if !pdf.is_file() {
+        let tmp = pdf.with_extension("pdftmp");
+        std::fs::copy(src, &tmp)?;
+        std::fs::rename(&tmp, &pdf)?;
+    }
+    Ok(id)
+}
+
+/// 读整个 PDF 给前端的 pdf.js（原始字节，不经 JSON）
+#[tauri::command]
+pub async fn pdf_read(path: PathBuf) -> Result<tauri::ipc::Response> {
+    if std::fs::metadata(&path)?.len() > MAX_BOOK {
+        return Err(Error::Other(crate::i18n::t("文件超过 500 MB", "The file is over 500 MB").into()));
+    }
+    let bytes = tauri::async_runtime::spawn_blocking(move || std::fs::read(path)).await.map_err(|e| Error::Other(e.to_string()))??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
+pub async fn pdf_import(state: State<'_, AppState>, path: PathBuf, book: PdfBook) -> Result<i64> {
+    pdf_import_at(&state.db, &state.root, &path, &book)
+}
+
+fn words_exist_in(words: &[String]) -> Vec<bool> {
+    let f = crate::freq::get();
+    words.iter().map(|w| f.rank(&w.to_lowercase()).is_some()).collect()
+}
+
+/// 这些词在不在词频表里（PDF 重排时判断行尾连字符要不要去掉）
+#[tauri::command]
+pub fn words_exist(words: Vec<String>) -> Vec<bool> {
+    words_exist_in(&words)
+}
+
 /// 读一个文件并导入（同一个文件导入过就沿用或更新那篇，见 `articles::import_file`）
 fn import_one(state: &AppState, p: &Path) -> std::result::Result<i64, String> {
     if !is_article_file(p) {
@@ -160,12 +243,21 @@ pub async fn article_import_files(state: State<'_, AppState>, paths: Vec<PathBuf
 #[derive(Default)]
 pub struct PendingOpen(Mutex<Option<i64>>);
 
+/// 同上，PDF：要在界面里用 pdf.js 重排，只记下路径
+#[derive(Default)]
+pub struct PendingPdfs(Mutex<Vec<String>>);
+
 /// 启动参数或第二次启动转过来的参数里有 .md / .txt / .epub / .mobi / .azw3：导入、记下等界面来取，并通知主窗口切到阅读
 pub fn open_from_args(app: &AppHandle, args: &[String]) {
     let Some(state) = app.try_state::<AppState>() else { return };
     let mut last = None;
+    let mut pdfs = Vec::new();
     for a in args {
         let p = Path::new(a);
+        if is_pdf(p) && p.is_file() {
+            pdfs.push(a.clone());
+            continue;
+        }
         if !is_article_file(p) || !p.is_file() {
             continue;
         }
@@ -173,6 +265,14 @@ pub fn open_from_args(app: &AppHandle, args: &[String]) {
             Ok(id) => last = Some(id),
             Err(e) => tracing::warn!(path = %p.display(), error = %e, "打开文章失败"),
         }
+    }
+    if !pdfs.is_empty() {
+        if let Some(pending) = app.try_state::<PendingPdfs>() {
+            if let Ok(mut g) = pending.0.lock() {
+                g.extend(pdfs);
+            }
+        }
+        let _ = app.emit_to("main", "reader:open", ());
     }
     let Some(id) = last else { return };
     if let Some(pending) = app.try_state::<PendingOpen>() {
@@ -187,6 +287,12 @@ pub fn open_from_args(app: &AppHandle, args: &[String]) {
 #[tauri::command]
 pub fn article_take_pending(pending: State<'_, PendingOpen>) -> Option<i64> {
     pending.0.lock().ok().and_then(|mut g| g.take())
+}
+
+/// 界面取走等着导入的 PDF 路径
+#[tauri::command]
+pub fn article_take_pending_pdfs(pending: State<'_, PendingPdfs>) -> Vec<String> {
+    pending.0.lock().map(|mut g| std::mem::take(&mut *g)).unwrap_or_default()
 }
 
 #[tauri::command]
@@ -324,6 +430,54 @@ mod tests {
         assert!(delete_at(&db, root.path(), id)?);
         assert!(!book_file(root.path(), &hash).exists() && !pdf_file(root.path(), &hash).exists());
         Ok(())
+    }
+
+    fn pdf_book() -> PdfBook {
+        PdfBook {
+            title: Some("A Tale".into()),
+            author: Some("Someone".into()),
+            chapters: vec![
+                PdfChapterIn { title: "One".into(), html: "<h2>One</h2><p>First &amp; best.</p>".into(), page: 1 },
+                PdfChapterIn { title: "Two".into(), html: "<p>Second.</p>".into(), page: 9 },
+            ],
+            toc: vec![PdfTocIn { title: "One".into(), level: 0, chapter: 0 }, PdfTocIn { title: "Two".into(), level: 0, chapter: 1 }],
+        }
+    }
+
+    #[test]
+    fn pdf_import_stores_pages() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let root = tempfile::tempdir()?;
+        let src = root.path().join("tale.pdf");
+        std::fs::write(&src, b"%PDF-1.7 fake bytes")?;
+        let id = pdf_import_at(&db, root.path(), &src, &pdf_book())?;
+        let info = db.with_conn(|c| articles::book_info(c, id))?.expect("书");
+        assert_eq!(info.pdf_pages, Some(vec![1, 9]));
+        assert_eq!(info.chapters.iter().map(|c| c.title.as_str()).collect::<Vec<_>>(), ["One", "Two"]);
+        let hash = epub::hash_file(&src)?;
+        assert_eq!(std::fs::read(pdf_file(root.path(), &hash))?, b"%PDF-1.7 fake bytes", "原件另存一份");
+        let meta = db.with_conn(articles::list)?;
+        assert_eq!(meta[0].title, "A Tale");
+        Ok(())
+    }
+
+    #[test]
+    fn pdf_import_same_hash_reuses_article() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let root = tempfile::tempdir()?;
+        let src = root.path().join("tale.pdf");
+        std::fs::write(&src, b"%PDF same")?;
+        let a = pdf_import_at(&db, root.path(), &src, &pdf_book())?;
+        let b = pdf_import_at(&db, root.path(), &src, &pdf_book())?;
+        assert_eq!(a, b);
+        let names: Vec<String> = std::fs::read_dir(root.path().join("books"))?.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        assert_eq!(names.len(), 2, "一份 .epub 一份 .pdf：{names:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn words_exist_checks_word_list() {
+        assert_eq!(words_exist_in(&["Transport".into(), "wellknown".into()]), vec![true, false]);
     }
 
     #[test]

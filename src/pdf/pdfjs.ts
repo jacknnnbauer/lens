@@ -23,10 +23,13 @@ export function pdfjs(): Promise<typeof import("pdfjs-dist")> {
   return lib;
 }
 
-export async function loadPdf(data: Uint8Array): Promise<PDFDocumentProxy> {
+/** 打开 PDF；用完调 destroy() 释放 worker 里的内存 */
+export async function loadPdf(data: Uint8Array): Promise<PDFDocumentProxy & { destroy: () => Promise<void> }> {
   const m = await pdfjs();
+  const task = m.getDocument({ data, disableFontFace: true, useSystemFonts: false });
   try {
-    return await m.getDocument({ data, disableFontFace: true, useSystemFonts: false }).promise;
+    const doc = await task.promise;
+    return Object.assign(doc, { destroy: () => task.destroy() });
   } catch (e) {
     if ((e as { name?: string })?.name === "PasswordException") throw new PdfPasswordError();
     throw e;

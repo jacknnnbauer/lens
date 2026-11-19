@@ -55,6 +55,64 @@ describe("reflow", () => {
     expect(html.match(/<p>/g)?.length).toBe(2);
   });
 
+  it("pages_with_their_own_margin_are_not_all_indented", () => {
+    // 正文页左边距 72；致谢页整体往右缩到 95，段首再缩到 118
+    const body = (n: number) => page(n, [[100, FULL], [112, FULL], [124, FULL], [136, FULL]]);
+    const thanks = page(4, [
+      [100, FULL, { x: 118 }],
+      [112, FULL, { x: 95 }],
+      [124, FULL, { x: 95 }],
+      [136, "and kindness.", { x: 95 }],
+      [148, FULL, { x: 118 }],
+      [160, FULL, { x: 95 }],
+      [172, "complete.", { x: 95 }],
+    ]);
+    const book = reflow([body(1), body(2), body(3), thanks], [], never);
+    const paras = book.chapters.flatMap((c) => c.html.match(/<p>[^<]*<\/p>/g) ?? []);
+    expect(paras.filter((p) => p.includes("kindness") || p.includes("complete")).length).toBe(2);
+    expect(paras.length).toBe(3);
+  });
+
+  it("indented_block_quote_stays_one_paragraph", () => {
+    const q = (y: number, s: string): Line => [y, s, { x: 102 }];
+    const pages = [
+      page(1, [
+        [100, FULL, { x: 92 }],
+        [112, FULL],
+        [124, "as he wrote in his diary:"],
+        q(136, "it was the kind of morning that made everyone restless and nobody"),
+        q(148, "could quite say why it was so, and nobody could quite say why it"),
+        q(160, "was not so."),
+        [172, FULL, { x: 92 }],
+        [184, FULL],
+      ]),
+    ];
+    const paras = reflow(pages, [], never).chapters.flatMap((c) => c.html.match(/<p>[^<]*<\/p>/g) ?? []);
+    expect(paras.length).toBe(3);
+    expect(paras[1]).toContain("restless and nobody could quite say why it was so");
+  });
+
+  it("consecutive_dialogue_lines_at_paragraph_indent_are_separate", () => {
+    // 正文 x=107，段首缩进到 122；对话一行一段
+    const pages = [
+      page(1, [
+        [88, "and so on.", { x: 107 }],
+        [100, FULL, { x: 122 }],
+        [112, FULL, { x: 107 }],
+        [124, "the end of it.", { x: 107 }],
+        // 对话行几乎铺满（不够「短行」），只能靠缩进判断
+        [136, "‘We must shift him onto the couch at once, before anyone else comes,’ said Oddball.", { x: 122 }],
+        [148, "I didn’t like this idea at all. I didn’t like having to touch him, not one bit.", { x: 122 }],
+        [160, "‘I think we should wait for the Police to come here first,’ I said. But Oddball", { x: 122 }],
+        [172, "had already made space on the folding couch and was rolling", { x: 107 }],
+        [184, "with those pale eyes of his.", { x: 107 }],
+      ]),
+    ];
+    const paras = reflow(pages, [], never).chapters.flatMap((c) => c.html.match(/<p>[^<]*<\/p>/g) ?? []);
+    expect(paras.length).toBe(5);
+    expect(paras[4]).toContain("But Oddball had already made space");
+  });
+
   it("rejoins_hyphenated_words", () => {
     const pages = [page(1, [[100, "This is a trans-"], [112, "port system and a well-"], [124, "known thing."]])];
     const isWord = (w: string) => w === "transport";
@@ -98,6 +156,19 @@ describe("reflow", () => {
       { title: "Two, part B", level: 1, chapter: 1 },
     ]);
     expect(text(book.chapters[1].html)).toContain("Page d");
+  });
+
+  it("pages_before_the_first_bookmark_get_their_own_toc_entry", () => {
+    const pages = [1, 2, 3].map((n) => page(n, [[100, `Text on page ${"abc"[n - 1]}.`]]));
+    const book = reflow(pages, [{ title: "Chapter 1", page: 3, level: 0 }], never);
+    expect(book.chapters.map((c) => [c.title, c.page])).toEqual([
+      ["开头", 1],
+      ["Chapter 1", 3],
+    ]);
+    expect(book.toc).toEqual([
+      { title: "开头", level: 0, chapter: 0 },
+      { title: "Chapter 1", level: 0, chapter: 1 },
+    ]);
   });
 
   it("splits_by_large_headings_without_outline", () => {

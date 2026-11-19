@@ -15,6 +15,7 @@ mod dict;
 mod digest;
 mod epub;
 mod epub_write;
+mod mobi;
 mod error;
 mod export;
 mod fatal;

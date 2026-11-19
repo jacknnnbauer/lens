@@ -22,6 +22,9 @@ export interface VocabEstimate {
   high: number;
   capped: boolean;
   optimistic: boolean;
+  /** 各词频段认识的比例（0–1） */
+  profile: { from: number; to: number; known: number }[];
+  stats: { real: number; realKnown: number; fakes: number; fakesCaught: number; checks: number; checksRight: number };
 }
 
 export interface VocabTestPoint {

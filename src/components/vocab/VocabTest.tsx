@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { tr } from "../../i18n";
 import { vocabTestFinish, vocabTestNext, type VocabAnswer, type VocabEstimate, type VocabNext } from "../../ipc/vocabTest";
 import { useSettings } from "../../stores/settings";
-import { chooseLevel } from "../../routes/reader/levelPrefs";
-import { formatEstimate, keyToAction, withAnswer, withCheck, type Action } from "./testFlow";
+import { keyToAction, withAnswer, withCheck, type Action } from "./testFlow";
+import { VocabResult } from "./VocabResult";
 import styles from "./VocabTest.module.css";
+
+export { VocabResult };
 
 interface Props {
   onDone: (result: VocabEstimate) => void;
@@ -131,31 +133,6 @@ export function VocabTest({ onDone, onCancel }: Props) {
       )}
 
       {!question && !error && <p className={styles.note}>{finished.current ? tr("正在计算结果…") : " "}</p>}
-    </div>
-  );
-}
-
-/** 测试结果：词汇量、误差范围，以及和阅读门槛的关系 */
-export function VocabResult({ result, onClose, closeLabel }: { result: VocabEstimate; onClose: () => void; closeLabel: string }) {
-  const vocab = useSettings((s) => s.settings?.vocab);
-  const update = useSettings((s) => s.update);
-  return (
-    <div className={styles.card}>
-      <p className={styles.note}>{tr("你的词汇量")}</p>
-      <p className={styles.result}>{formatEstimate(result)}</p>
-      {result.optimistic && <p className={styles.warn}>{tr("这次答题可能偏乐观，建议重测。")}</p>}
-      {vocab?.follow ? (
-        <p className={styles.note}>{tr("已设为阅读的生词门槛，排名在这之后的词会被标出来。")}</p>
-      ) : (
-        <button type="button" className={styles.choice} onClick={() => update({ vocab: chooseLevel("me", vocab?.estimate ?? result.value) })}>
-          {tr("设为阅读门槛")}
-        </button>
-      )}
-      <div className={styles.choices}>
-        <button type="button" className={`${styles.choice} ${styles.main}`} onClick={onClose}>
-          {closeLabel}
-        </button>
-      </div>
     </div>
   );
 }

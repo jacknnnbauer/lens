@@ -1,0 +1,307 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  width: min(640px, 100%);
+  margin: auto;
+  padding: 36px 36px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: 0 18px 50px -28px rgba(0, 0, 0, 0.28);
+}
+
+/* ---------- 顶部：数字、范围、阶段 ---------- */
+.head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--faint);
+}
+
+.value {
+  margin: 6px 0 0;
+  font: 600 64px/1 var(--font-gloss);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.interval {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+
+.badge {
+  margin: 16px 0 0;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.summary {
+  max-width: 440px;
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--sub);
+}
+
+.warn {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--warn);
+}
+
+/* ---------- 参照刻度 ---------- */
+.scale {
+  padding: 18px 8px 0;
+}
+
+.track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+.range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.tick {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--faint);
+  opacity: 0.45;
+}
+
+.tick[data-passed] {
+  background: var(--accent);
+  opacity: 0.8;
+}
+
+.dot {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--panel);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  transform: translate(-50%, -50%);
+}
+
+.labels {
+  position: relative;
+  height: 38px;
+  margin-top: 8px;
+}
+
+.labels span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--faint);
+}
+
+.labels span[data-row="1"] {
+  top: 18px;
+}
+
+.labels span[data-passed] {
+  color: var(--text);
+}
+
+/* ---------- 词汇分布 / 答题表现 ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.panel h3 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bars li {
+  display: grid;
+  grid-template-columns: 96px 1fr 36px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.barName {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--sub);
+}
+
+.barTrack {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+.barTrack span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.barPct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 10px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.stats dt {
+  color: var(--sub);
+}
+
+.stats dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.stats small {
+  font-weight: 400;
+  color: var(--faint);
+}
+
+/* ---------- 建议 ---------- */
+.advice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.advice dt {
+  color: var(--faint);
+}
+
+.advice dd {
+  margin: 0;
+  color: var(--text);
+}
+
+/* ---------- 底部 ---------- */
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.note {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--sub);
+}
+
+.ghost,
+.primary {
+  min-height: 40px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ghost {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+}
+
+.ghost:hover {
+  background: var(--raised);
+}
+
+.primary {
+  min-width: 120px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}
+
+.fine {
+  margin: -12px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--faint);
+}

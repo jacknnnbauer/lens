@@ -85,6 +85,81 @@ pub struct Estimate {
     pub capped: bool,
     /// 假词认得太多，这次结果可能偏乐观
     pub optimistic: bool,
+    /// 各词频段大约认识多少（按拟合出的曲线算，比逐题统计稳）
+    pub profile: Vec<Segment>,
+    /// 答题情况
+    pub stats: Stats,
+}
+
+/// 结果页「词汇分布」的分段（排名区间）
+pub const SEGMENTS: [(u32, u32); 5] = [(1, 2000), (2001, 5000), (5001, 10_000), (10_001, 20_000), (20_001, MAX_VOCAB)];
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Segment {
+    pub from: u32,
+    pub to: u32,
+    /// 这一段认识的比例 0–1
+    pub known: f64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Stats {
+    /// 真词题数 / 答「认识」的
+    pub real: u32,
+    pub real_known: u32,
+    /// 假词题数 / 识破的（答「不认识」）
+    pub fakes: u32,
+    pub fakes_caught: u32,
+    /// 释义抽查题数 / 答对的
+    pub checks: u32,
+    pub checks_right: u32,
+}
+
+fn stats_of(answers: &[Answer]) -> Stats {
+    let mut s = Stats::default();
+    for a in answers {
+        if a.band.is_some() {
+            s.real += 1;
+            s.real_known += a.said_known as u32;
+        } else {
+            s.fakes += 1;
+            s.fakes_caught += !a.said_known as u32;
+        }
+        if let Some(c) = a.check {
+            s.checks += 1;
+            s.checks_right += c as u32;
+        }
+    }
+    s
+}
+
+/// 按后验把各题库段的认识率平均，再按排名区间重叠的长度摊到结果页的分段上
+fn profile_of(post: &[f64]) -> Vec<Segment> {
+    let bands = &bank().bands;
+    let mut know = vec![0.0; bands.len()];
+    for (c, p) in grid().iter().zip(post) {
+        for (k, ck) in know.iter_mut().zip(&c.know) {
+            *k += p * ck;
+        }
+    }
+    SEGMENTS
+        .iter()
+        .map(|&(from, to)| {
+            let (mut sum, mut len) = (0.0, 0.0);
+            for (b, k) in bands.iter().zip(&know) {
+                let lo = b.from.max(from);
+                let hi = b.to.min(to);
+                if lo <= hi {
+                    let n = (hi - lo + 1) as f64;
+                    sum += k * n;
+                    len += n;
+                }
+            }
+            Segment { from, to, known: if len > 0.0 { sum / len } else { 0.0 } }
+        })
+        .collect()
 }
 
 /// SplitMix64：由种子和序号算出确定的随机数
@@ -315,8 +390,10 @@ pub fn estimate(answers: &[Answer], _seed: u64) -> Estimate {
     let fa = if fakes.is_empty() { 0.0 } else { fake_known as f64 / fakes.len() as f64 };
     let optimistic = fa >= OPTIMISTIC_FAKE_RATE;
     let none_known = !real.iter().any(|a| a.said_known);
+    let stats = stats_of(answers);
     if none_known {
-        return Estimate { value: 0, low: 0, high: 0, capped: false, optimistic };
+        let profile = SEGMENTS.iter().map(|&(from, to)| Segment { from, to, known: 0.0 }).collect();
+        return Estimate { value: 0, low: 0, high: 0, capped: false, optimistic, profile, stats };
     }
     let post = posterior(answers);
     let mut by_vocab: Vec<(f64, f64)> = grid().iter().zip(&post).map(|(c, p)| (c.vocab, *p)).collect();
@@ -336,7 +413,8 @@ pub fn estimate(answers: &[Answer], _seed: u64) -> Estimate {
     let value = if top { MAX_VOCAB } else { quantile(0.5).round().clamp(0.0, MAX_VOCAB as f64) as u32 };
     let low = (quantile(0.05).round() as u32).min(value);
     let high = (quantile(0.95).round() as u32).clamp(value, MAX_VOCAB);
-    Estimate { value, low, high, capped: value >= MAX_VOCAB, optimistic }
+    let profile = profile_of(&post);
+    Estimate { value, low, high, capped: value >= MAX_VOCAB, optimistic, profile, stats }
 }
 
 #[cfg(test)]
@@ -535,5 +613,18 @@ mod tests {
         assert!(rate(within15, total) >= 0.7, "{report}");
         assert!(rate(within25, total) >= 0.9, "{report}");
         assert!(rate(covered, total) >= 0.75, "误差范围要盖住真实值：{report}");
+    }
+
+    #[test]
+    fn profile_falls_with_rank_and_stats_count_answers() {
+        let e = estimate(&simulate(7, center_for(6000.0), Kind::Honest), 7);
+        assert_eq!(e.profile.len(), SEGMENTS.len());
+        assert_eq!(e.profile[0].from, 1);
+        assert_eq!(e.profile.last().unwrap().to, MAX_VOCAB);
+        assert!(e.profile.windows(2).all(|w| w[0].known >= w[1].known), "{:?}", e.profile);
+        assert!(e.profile[0].known > 0.9 && e.profile.last().unwrap().known < 0.3, "{:?}", e.profile);
+        let s = &e.stats;
+        assert!(s.real >= 50 && s.fakes >= 6, "{s:?}");
+        assert!(s.real_known <= s.real && s.fakes_caught <= s.fakes && s.checks_right <= s.checks);
     }
 }

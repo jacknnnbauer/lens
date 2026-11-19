@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEstimate, keyToAction, withAnswer, withCheck } from "./testFlow";
+import { keyToAction, withAnswer, withCheck } from "./testFlow";
 
 describe("词汇量测试的操作", () => {
   it("键盘：左不认识、右认识", () => {
@@ -23,17 +23,5 @@ describe("词汇量测试的操作", () => {
     expect(withCheck(a, 1, 1)[0].check).toBe(true);
     expect(withCheck(a, 0, 1)[0].check).toBe(false);
     expect(withCheck(a, null, 1)[0].check).toBe(false);
-  });
-});
-
-describe("结果显示", () => {
-  it("按百位显示结果和区间", () => {
-    expect(formatEstimate({ value: 7812, low: 7420, high: 8190, capped: false, optimistic: false })).toBe("约 7,800（7,400–8,200）");
-  });
-  it("超过上限显示 40,000+", () => {
-    expect(formatEstimate({ value: 40000, low: 36000, high: 40000, capped: true, optimistic: false })).toBe("40,000+");
-  });
-  it("一个词都不认识时显示 0", () => {
-    expect(formatEstimate({ value: 0, low: 0, high: 0, capped: false, optimistic: false })).toBe("约 0（0–0）");
   });
 });

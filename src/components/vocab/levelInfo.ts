@@ -4,19 +4,21 @@
 export interface Milestone {
   /** 参照点的词数 */
   at: number;
-  /** 刻度上的短名 */
+  /** 刻度下方的短名（两个字，排得下） */
+  short: string;
+  /** 悬停时的全称 */
   label: string;
 }
 
 /** 刻度上的参照点 */
 export const MILESTONES: Milestone[] = [
-  { at: 1600, label: "初中" },
-  { at: 3000, label: "高中" },
-  { at: 4500, label: "四级" },
-  { at: 6000, label: "六级" },
-  { at: 8000, label: "雅思 / 托福" },
-  { at: 13000, label: "专八 / GRE" },
-  { at: 20000, label: "母语者" },
+  { at: 1600, short: "初中", label: "初中课标" },
+  { at: 3000, short: "高中", label: "高中课标" },
+  { at: 4500, short: "四级", label: "大学英语四级" },
+  { at: 6000, short: "六级", label: "大学英语六级" },
+  { at: 8000, short: "托福", label: "雅思 / 托福高分" },
+  { at: 13000, short: "专八", label: "专八 / GRE" },
+  { at: 20000, short: "母语", label: "受过教育的母语者" },
 ];
 
 export interface LevelInfo {
@@ -102,8 +104,46 @@ export function levelInfo(value: number): LevelInfo {
   return info;
 }
 
-/** 刻度位置（0–1）：按对数排，常用词那头不至于挤成一团 */
+/** 刻度位置（0–1）：按平方根排，常用词那头不挤，高端也不会拉得太长 */
 export function scalePos(value: number, min = 500, max = 25000): number {
   const v = Math.min(max, Math.max(min, value));
-  return (Math.log(v) - Math.log(min)) / (Math.log(max) - Math.log(min));
+  return (Math.sqrt(v) - Math.sqrt(min)) / (Math.sqrt(max) - Math.sqrt(min));
+}
+
+// ---------- 学习者参照曲线（估算） ----------
+// 没有可信的公开统计可用：这里假设中国英语学习者的词汇量呈对数正态分布，
+// 中位数约 4,000（大学四级附近），σ = 0.75（约 10% 在 1,500 以下、10% 在 10,500 以上）。只作大致参照。
+export const LEARNER_MEDIAN = 4000;
+export const LEARNER_SIGMA = 0.75;
+
+/** 标准正态分布函数（Abramowitz–Stegun 7.1.26，误差 < 1.5e-7） */
+function phi(z: number): number {
+  const t = 1 / (1 + 0.3275911 * (Math.abs(z) / Math.SQRT2));
+  const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-(z * z) / 2);
+  return z >= 0 ? (1 + y) / 2 : (1 - y) / 2;
+}
+
+/** 这个词汇量超过了百分之多少的学习者（0–100，估算） */
+export function learnerPercentile(value: number): number {
+  if (value <= 0) return 0;
+  return 100 * phi((Math.log(value) - Math.log(LEARNER_MEDIAN)) / LEARNER_SIGMA);
+}
+
+/** 显示用：「超过约 63%」；两头收在 1% 和 99% */
+export function percentileText(value: number): number {
+  return Math.min(99, Math.max(1, Math.round(learnerPercentile(value))));
+}
+
+/** 画在刻度上的曲线：n 个点 [横向位置 0–1, 高度 0–1]，横向和 scalePos 用同一把尺 */
+export function learnerCurve(n = 120, min = 500, max = 25000): [number, number][] {
+  const inv = (p: number) => (Math.sqrt(min) + p * (Math.sqrt(max) - Math.sqrt(min))) ** 2;
+  const ys: number[] = [];
+  for (let i = 0; i < n; i++) {
+    // 每一小格里的人数比例 = 两端的分布函数之差
+    const a = learnerPercentile(inv(i / n));
+    const b = learnerPercentile(inv((i + 1) / n));
+    ys.push(b - a);
+  }
+  const top = Math.max(...ys);
+  return ys.map((y, i) => [(i + 0.5) / n, y / top]);
 }

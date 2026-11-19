@@ -4,7 +4,7 @@ import { tr } from "../../i18n";
 import type { VocabEstimate } from "../../ipc/vocabTest";
 import { useSettings } from "../../stores/settings";
 import { chooseLevel } from "../../routes/reader/levelPrefs";
-import { levelInfo, MILESTONES, scalePos } from "./levelInfo";
+import { learnerCurve, levelInfo, MILESTONES, percentileText, scalePos } from "./levelInfo";
 import styles from "./VocabResult.module.css";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
@@ -17,22 +17,47 @@ function segmentName(from: number, to: number, last: boolean): string {
   return `${fmt(from - 1)}–${fmt(to)}`;
 }
 
-/** 参照刻度：初中、高中……母语者；误差范围是一段浅色带，自己的位置是一个点 */
-function Scale({ value, low, high }: { value: number; low: number; high: number }) {
+const W = 560;
+const H = 96;
+const CURVE = learnerCurve();
+
+/** 学习者分布曲线（估算）：自己左边的部分涂上强调色，竖线标出位置；下面是参照刻度 */
+function Scale({ value }: { value: number }) {
+  const x = scalePos(value);
   const at = (v: number) => `${(scalePos(v) * 100).toFixed(2)}%`;
+  const pts = CURVE.map(([px, py]) => `${(px * W).toFixed(1)},${(H - py * (H - 6)).toFixed(1)}`);
+  const area = `M0,${H} L${pts.join(" L")} L${W},${H} Z`;
+  const line = `M${pts.join(" L")}`;
+  const p = percentileText(value);
   return (
-    <div className={styles.scale} aria-hidden="true">
-      <div className={styles.track}>
-        <span className={styles.range} style={{ left: at(low), right: `calc(100% - ${at(high)})` }} />
+    <div className={styles.scale}>
+      <div className={styles.plot}>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <clipPath id="vocab-left">
+              <rect x="0" y="0" width={x * W} height={H} />
+            </clipPath>
+          </defs>
+          <path d={area} className={styles.areaAll} />
+          <path d={area} className={styles.areaMine} clipPath="url(#vocab-left)" />
+          <path d={line} className={styles.curve} vectorEffect="non-scaling-stroke" />
+        </svg>
+        {value > 0 && (
+          <span className={styles.marker} style={{ left: `${x * 100}%` }} data-side={x > 0.72 ? "left" : "right"}>
+            <b>{tr("超过约 {p}% 的学习者", { p })}</b>
+          </span>
+        )}
+      </div>
+      <div className={styles.axis} aria-hidden="true">
         {MILESTONES.map((m) => (
-          <i key={m.at} className={styles.tick} style={{ left: at(m.at) }} data-passed={value >= m.at || undefined} />
+          <i key={m.at} style={{ left: at(m.at) }} data-passed={value >= m.at || undefined} />
         ))}
-        <span className={styles.dot} style={{ left: at(value) }} />
       </div>
       <div className={styles.labels}>
-        {MILESTONES.map((m, i) => (
-          <span key={m.at} style={{ left: at(m.at) }} data-row={i % 2} data-passed={value >= m.at || undefined} title={`${tr(m.label)} ≈ ${fmt(m.at)}`}>
-            {tr(m.label)}
+        {MILESTONES.map((m) => (
+          <span key={m.at} style={{ left: at(m.at) }} data-passed={value >= m.at || undefined} title={`${tr(m.label)} ≈ ${fmt(m.at)}`}>
+            <b>{tr(m.short)}</b>
+            <small>{fmt(m.at)}</small>
           </span>
         ))}
       </div>
@@ -56,7 +81,7 @@ export function VocabResult({ result, onClose, closeLabel }: { result: VocabEsti
         {result.optimistic && <p className={styles.warn}>{tr("这次答题可能偏乐观，建议重测。")}</p>}
       </header>
 
-      <Scale value={result.value} low={result.low} high={result.high} />
+      <Scale value={result.value} />
 
       <div className={styles.grid}>
         <section className={styles.panel}>
@@ -118,7 +143,7 @@ export function VocabResult({ result, onClose, closeLabel }: { result: VocabEsti
           {closeLabel}
         </button>
       </footer>
-      <p className={styles.fine}>{tr("参照点是各类考纲或课标要求的词数，计算口径和本测试不完全相同，仅供大致参考。")}</p>
+      <p className={styles.fine}>{tr("曲线是估算的学习者分布（假设中位数约 4,000 词），不是实测统计；参照点是各类考纲或课标的词数，口径和本测试不完全相同。都只作大致参考。")}</p>
     </div>
   );
 }

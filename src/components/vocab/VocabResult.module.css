@@ -65,74 +65,130 @@
   color: var(--warn);
 }
 
-/* ---------- 参照刻度 ---------- */
+/* ---------- 学习者分布曲线 + 参照刻度 ---------- */
 .scale {
-  padding: 18px 8px 0;
+  padding: 4px 8px 0;
 }
 
-.track {
+.plot {
   position: relative;
-  height: 6px;
-  border-radius: 3px;
+  height: 96px;
+}
+
+.plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.areaAll {
+  fill: var(--line);
+  opacity: 0.55;
+}
+
+.areaMine {
+  fill: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.curve {
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 1.25;
+  opacity: 0.7;
+}
+
+/* 自己的位置：竖线 + 顶上一个点 + 旁边一句话 */
+.marker {
+  position: absolute;
+  top: -6px;
+  bottom: 0;
+  width: 0;
+  border-left: 2px solid var(--accent);
+}
+
+.marker::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--panel);
+}
+
+.marker b {
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--accent-ink);
+}
+
+.marker[data-side="left"] b {
+  right: 10px;
+  left: auto;
+}
+
+.axis {
+  position: relative;
+  height: 1px;
   background: var(--line);
 }
 
-.range {
+.axis i {
   position: absolute;
   top: 0;
-  bottom: 0;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
-}
-
-.tick {
-  position: absolute;
-  top: -3px;
-  width: 2px;
-  height: 12px;
-  margin-left: -1px;
-  border-radius: 1px;
+  width: 1px;
+  height: 6px;
   background: var(--faint);
-  opacity: 0.45;
+  opacity: 0.5;
 }
 
-.tick[data-passed] {
+.axis i[data-passed] {
   background: var(--accent);
-  opacity: 0.8;
-}
-
-.dot {
-  position: absolute;
-  top: 50%;
-  width: 16px;
-  height: 16px;
-  border: 3px solid var(--panel);
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-  transform: translate(-50%, -50%);
+  opacity: 0.9;
 }
 
 .labels {
   position: relative;
-  height: 38px;
-  margin-top: 8px;
+  height: 34px;
+  margin-top: 10px;
 }
 
 .labels span {
   position: absolute;
   top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   transform: translateX(-50%);
-  font-size: 11px;
   white-space: nowrap;
+  cursor: default;
+}
+
+.labels b {
+  font-size: 12px;
+  font-weight: 500;
   color: var(--faint);
 }
 
-.labels span[data-row="1"] {
-  top: 18px;
+.labels small {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+  opacity: 0.75;
 }
 
-.labels span[data-passed] {
+.labels span[data-passed] b {
   color: var(--text);
 }
 

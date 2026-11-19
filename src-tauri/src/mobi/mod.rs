@@ -3,6 +3,7 @@
 
 mod huffcdic;
 mod indx;
+mod kf8;
 mod lz77;
 mod mobi6;
 mod palmdb;
@@ -207,19 +208,27 @@ pub(crate) fn image_kind(data: &[u8]) -> Option<(&'static str, &'static str)> {
 pub(crate) struct Images<'a> {
     records: &'a [&'a [u8]],
     first: Option<usize>,
+    /// 合体文件的图片放在 MOBI6 那一半，按 MOBI6 头里的首张图片位置编号：相对 KF8 找不到时用它
+    fallback: Option<usize>,
     pub out: Vec<SourceImage>,
 }
 
 impl<'a> Images<'a> {
     pub fn new(records: &'a [&'a [u8]], base: usize, first_image: u32) -> Self {
         let first = (first_image != NONE).then(|| base + first_image as usize);
-        Images { records, first, out: Vec::new() }
+        Images { records, first, fallback: None, out: Vec::new() }
+    }
+
+    /// `first_image` 是绝对记录号（合体文件里 MOBI6 头的值）
+    pub fn with_fallback(mut self, first_image: Option<u32>) -> Self {
+        self.fallback = first_image.filter(|&f| f != NONE).map(|f| f as usize);
+        self
     }
 
     pub fn name(&mut self, n: u32) -> Option<String> {
-        let idx = self.first? + (n as usize).checked_sub(1)?;
-        let data = *self.records.get(idx)?;
-        let (mime, ext) = image_kind(data)?;
+        let k = (n as usize).checked_sub(1)?;
+        let pick = |start: Option<usize>| start.and_then(|s| self.records.get(s + k)).and_then(|d| image_kind(d).map(|kind| (*d, kind)));
+        let (data, (mime, ext)) = pick(self.first).or_else(|| pick(self.fallback))?;
         let name = format!("images/{n:05}.{ext}");
         if !self.out.iter().any(|i| i.name == name) {
             self.out.push(SourceImage { name: name.clone(), mime: mime.into(), data: data.to_vec() });
@@ -229,6 +238,10 @@ impl<'a> Images<'a> {
 }
 
 fn meta(db: &palmdb::PalmDb, h: &Header) -> (Option<String>, Option<String>) {
+    meta_of(db.name, h)
+}
+
+pub(crate) fn meta_of(db_name: &[u8], h: &Header) -> (Option<String>, Option<String>) {
     let clean = |s: String| Some(s.trim().to_string()).filter(|s| !s.is_empty());
     let title = h
         .exth(503)
@@ -236,7 +249,7 @@ fn meta(db: &palmdb::PalmDb, h: &Header) -> (Option<String>, Option<String>) {
         .map(|b| h.decode(b))
         .and_then(clean)
         .or_else(|| h.title.as_deref().map(|b| h.decode(b)).and_then(clean))
-        .or_else(|| clean(String::from_utf8_lossy(db.name).replace('_', " ")));
+        .or_else(|| clean(String::from_utf8_lossy(db_name).replace('_', " ")));
     let authors: Vec<String> = h.exth(100).map(|b| h.decode(b)).filter_map(clean).collect();
     (title, (!authors.is_empty()).then(|| authors.join(" & ")))
 }
@@ -299,7 +312,21 @@ pub fn read_bytes(bytes: &[u8]) -> Result<BookSource> {
     }
     match &db.kind {
         b"TEXtREAd" => read_palmdoc(&db, &h),
-        b"BOOKMOBI" => read_mobi6(&db, &h),
+        b"BOOKMOBI" if h.version >= 8 => kf8::read(&db.records, 0, &h, db.name, None),
+        b"BOOKMOBI" => {
+            // 合体文件：EXTH 121 指向 KF8 部分的 record0，优先用它（排版和目录更完整）
+            if let Some(b) = h.exth_u32(121).map(|b| b as usize).filter(|&b| b > 0 && b < db.records.len()) {
+                if let Ok(h8) = Header::parse(db.records[b]) {
+                    if h8.version >= 8 && h8.encryption == 0 {
+                        match kf8::read(&db.records, b, &h8, db.name, Some(h.first_image)) {
+                            Ok(book) => return Ok(book),
+                            Err(e) => tracing::warn!(error = %e, "KF8 部分读不出，改用 MOBI6 部分"),
+                        }
+                    }
+                }
+            }
+            read_mobi6(&db, &h)
+        }
         _ => Err(corrupt_error()),
     }
 }
@@ -361,6 +388,35 @@ pub(crate) mod tests {
             assert!(img.name.starts_with("images/") && !img.data.is_empty() && img.mime.starts_with("image/"));
         }
         assert!(all.contains("../images/"), "img 的 recindex 换成文件路径");
+        Ok(())
+    }
+
+    fn assert_alice(book: &BookSource) {
+        assert_eq!(book.title.as_deref(), Some("Alice's Adventures in Wonderland"));
+        assert_eq!(book.author.as_deref(), Some("Lewis Carroll"));
+        let titles: Vec<&str> = book.chapters.iter().map(|c| c.title.as_str()).collect();
+        assert!(titles.contains(&"CHAPTER I. Down the Rabbit-Hole") && titles.contains(&"CHAPTER II. The Pool of Tears"), "{titles:?}");
+        let toc: Vec<&str> = book.toc.iter().map(|t| t.title.as_str()).collect();
+        assert!(toc.iter().any(|t| t.contains("Rabbit-Hole")) && toc.iter().any(|t| t.contains("Pool of Tears")), "{toc:?}");
+        let all: String = book.chapters.iter().map(|c| c.body.as_str()).collect();
+        assert!(all.contains("Alice was beginning to get very tired"));
+        assert!(!all.contains("kindle:"), "kindle: 链接和图片地址都要换掉");
+        assert!(all.contains("../images/") && !book.images.is_empty());
+    }
+
+    #[test]
+    fn reads_azw3_fixture() -> Result<()> {
+        let book = read(&fixture("alice.azw3"))?;
+        assert_alice(&book);
+        Ok(())
+    }
+
+    #[test]
+    fn joint_mobi_prefers_kf8() -> Result<()> {
+        let book = read(&fixture("alice-both.mobi"))?;
+        assert_alice(&book);
+        // KF8 部分的标签带 aid 属性，MOBI6 部分没有
+        assert!(book.chapters.iter().any(|c| c.body.contains(" aid=")), "合体文件要用 KF8 部分");
         Ok(())
     }
 

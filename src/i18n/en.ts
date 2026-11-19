@@ -1439,6 +1439,7 @@ export const en: Record<string, string> = {
   "误差范围 {low} – {high}": "Likely range {low} – {high}",
   "词汇分布": "By word frequency",
   "开头": "Opening",
+  "PDF 的读取和显示用的是 Mozilla 的 pdf.js（Apache 2.0 许可）。": "PDFs are read and displayed with Mozilla's pdf.js (Apache 2.0 licence).",
   "这本书没有 PDF 原件": "This book has no original PDF",
   "放大": "Zoom in",
   "缩小": "Zoom out",

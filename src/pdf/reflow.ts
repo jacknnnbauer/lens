@@ -40,6 +40,8 @@ export interface ReflowBook {
 
 /** 每章最多多少页（既没书签也没标题时按页数切） */
 const PAGES_PER_CHAPTER = 20;
+/** 列表项开头：项目符号或「4.」「12)」 */
+const LIST_MARK = /^([•·▪◦‣–*]|\d{1,3}[.)])\s/;
 /** 页眉页脚只在页面上下这么宽的范围里找 */
 const MARGIN_BAND = 0.1;
 
@@ -233,6 +235,12 @@ function blocks(lines: Line[], isWord: (w: string) => boolean): Block[] {
   }
   const paraIndent = [...indents.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
   const atParaIndent = (r: number) => paraIndent !== null && paraIndent > 0 && Math.abs(r - paraIndent) <= 2;
+  // 比栏宽窄、左右留白差不多的行
+  const centered = (x: Line) => {
+    const b = boundsOf(x);
+    const w = b.right - b.left;
+    return w > 0 && x.x1 - x.x0 < w * 0.85 && Math.abs((x.x0 + x.x1) / 2 - (b.left + b.right) / 2) < w * 0.04;
+  };
   for (const l of lines) {
     if (isHeading(l)) {
       const last = out[out.length - 1];
@@ -254,13 +262,18 @@ function blocks(lines: Line[], isWord: (w: string) => boolean): Block[] {
       const tol = l.size * 0.9;
       const r = rel(l);
       // 和本段已有的行比：比正文行更靠右 = 新段首缩进或引文开始；比正文行更靠左 = 引文结束
-      const indent =
+      const endsSentence = /[.!?"”’)]$/.test(prev.text);
+      let indent =
         bodyRel === null
-          ? // 本段才一行：再往右缩是新段；两行都在常用段首缩进处（对话一行一段）也是新段
-            r > firstRel + tol || (atParaIndent(firstRel) && atParaIndent(r))
+          ? // 本段才一行：再往右缩是新段；两行都在常用段首缩进处、上一行又是句子结尾（对话一行一段）也是新段
+            r > firstRel + tol || (atParaIndent(firstRel) && atParaIndent(r) && endsSentence)
           : r > bodyRel + tol || r < bodyRel - tol;
+      // 列表项：第二行起悬挂缩进，是同一项
+      if (bodyRel === null && cur && LIST_MARK.test(cur.text) && r > firstRel) indent = false;
+      // 居中排的几行（引语、题词）：左边距各不相同，但是一段
+      if (centered(prev) && centered(l) && Math.abs(prev.size - l.size) < 0.5) indent = false;
       const prevShort = prev.x1 < pb.left + (pb.right - pb.left) * 0.7 && /[.!?:;"”’)]$/.test(prev.text);
-      newPara = (sameCol && lineGap > 0 && gap > lineGap * 1.5) || indent || prevShort;
+      newPara = (sameCol && lineGap > 0 && gap > lineGap * 1.5) || indent || prevShort || LIST_MARK.test(l.text);
       // 换页处：上一页最后一行句子结束、这一行大写开头，也当新段（分不清时宁可多分一段）
       if (!newPara && prev.page !== l.page && /[.!?"”’)]$/.test(prev.text) && /^[\p{Lu}"“‘(]/u.test(l.text)) newPara = true;
     }

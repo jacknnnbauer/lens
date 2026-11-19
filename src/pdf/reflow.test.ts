@@ -113,6 +113,56 @@ describe("reflow", () => {
     expect(paras[4]).toContain("But Oddball had already made space");
   });
 
+  it("block_at_paragraph_indent_does_not_split_every_line", () => {
+    // 段首缩进 15（92 对 77）；一个整体缩进 15 的列表段，行尾不是句号就该接着
+    const pages = [
+      page(1, [
+        [88, "and so on.", { x: 77 }],
+        [100, FULL, { x: 92 }],
+        [112, FULL, { x: 77 }],
+        [124, "the end of it.", { x: 77 }],
+        [136, "4. Shop for bargains in all markets. When the supermarket has a sale, the", { x: 92 }],
+        [148, "consumer runs in and stocks up. But when the housing market has a sale,", { x: 92 }],
+        [160, "the same consumer often runs away from it, and that is the whole point.", { x: 92 }],
+      ]),
+    ];
+    const paras = reflow(pages, [], never).chapters.flatMap((c) => c.html.match(/<p>[^<]*<\/p>/g) ?? []);
+    expect(paras.length).toBe(3);
+    expect(paras[2]).toContain("has a sale, the consumer runs in and stocks up. But when the housing market has a sale, the same consumer");
+  });
+
+  it("bullet_items_keep_their_hanging_lines", () => {
+    const pages = [
+      page(1, [
+        [100, FULL, { x: 72 }],
+        [112, "the end of it.", { x: 72 }],
+        [124, "• Houses do not always go up in value. I have friends who owe a lot of", { x: 72 }],
+        [136, "money for a home that today would sell for far less than they paid.", { x: 86 }],
+        [148, "• Stop doing what you are doing. In other words, take a break and then", { x: 72 }],
+        [160, "assess what is working and what is not working at all.", { x: 86 }],
+      ]),
+    ];
+    const paras = reflow(pages, [], never).chapters.flatMap((c) => c.html.match(/<p>[^<]*<\/p>/g) ?? []);
+    expect(paras.length).toBe(3);
+    expect(paras[1]).toContain("owe a lot of money for a home");
+  });
+
+  it("centered_pull_quote_is_one_paragraph", () => {
+    const line1 = "It is not how much money you make. It is how much money you";
+    const pages = [
+      page(1, [
+        [100, FULL, { x: 72 }],
+        [112, "the end of it.", { x: 72 }],
+        [136, line1, { x: 300 - line1.length * 2.5 }],
+        [148, "keep.", { x: 300 - 5 * 2.5 }],
+        [172, FULL, { x: 92 }],
+        [184, "and so on.", { x: 72 }],
+      ]),
+    ];
+    const paras = reflow(pages, [], never).chapters.flatMap((c) => c.html.match(/<p>[^<]*<\/p>/g) ?? []);
+    expect(paras).toContain("<p>It is not how much money you make. It is how much money you keep.</p>");
+  });
+
   it("rejoins_hyphenated_words", () => {
     const pages = [page(1, [[100, "This is a trans-"], [112, "port system and a well-"], [124, "known thing."]])];
     const isWord = (w: string) => w === "transport";

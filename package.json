@@ -19,6 +19,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "dompurify": "^3.4.16",
     "marked": "^18.1.2",
+    "pdfjs-dist": "6.5.438",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "turndown": "^7.2.4",

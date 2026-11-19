@@ -1438,6 +1438,8 @@ export const en: Record<string, string> = {
   "你的词汇量": "Your vocabulary",
   "误差范围 {low} – {high}": "Likely range {low} – {high}",
   "词汇分布": "By word frequency",
+  "开头": "Opening",
+  "第 {a}–{b} 页": "Pages {a}–{b}",
   "超过约 {p}% 的学习者": "Ahead of about {p}% of learners",
   "曲线是估算的学习者分布（假设中位数约 4,000 词），不是实测统计；参照点是各类考纲或课标的词数，口径和本测试不完全相同。都只作大致参考。": "The curve is an estimated spread of learners (assumed median about 4,000 words), not measured data. Reference points are word counts from Chinese exams and curricula, counted differently from this test. Treat both as a rough guide.",
   "最常用 {n} 词": "Top {n} words",

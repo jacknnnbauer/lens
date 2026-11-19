@@ -96,6 +96,11 @@ export function bookChapter(id: number, idx: number): Promise<string> {
   return invoke<string>("book_chapter", { id, idx });
 }
 
+/** PDF 书：记住上次用的视图和原版页面看到第几页 */
+export function setBookPdfState(id: number, view: "reflow" | "pages", page: number): Promise<void> {
+  return invoke("book_pdf_state", { id, view, page });
+}
+
 export function setBookProgress(id: number, chapter: number, pos: number): Promise<void> {
   return invoke("book_progress", { id, chapter, pos });
 }

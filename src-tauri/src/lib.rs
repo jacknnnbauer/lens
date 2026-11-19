@@ -382,6 +382,8 @@ pub fn run() {
             commands::articles::pdf_read,
             commands::articles::pdf_import,
             commands::articles::words_exist,
+            commands::articles::book_pdf,
+            commands::articles::book_pdf_state,
             commands::articles::article_progress,
             commands::articles::article_delete,
             commands::articles::book_open,

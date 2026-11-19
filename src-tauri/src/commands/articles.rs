@@ -196,6 +196,40 @@ pub async fn pdf_import(state: State<'_, AppState>, path: PathBuf, book: PdfBook
     pdf_import_at(&state.db, &state.root, &path, &book)
 }
 
+/// 这本 PDF 书的原件在哪
+fn pdf_path_at(db: &Db, root: &Path, id: i64) -> Result<PathBuf> {
+    let hash = db.with_conn(|c| articles::book_hash(c, id))?;
+    hash.map(|h| pdf_file(root, &h))
+        .filter(|p| p.is_file())
+        .ok_or_else(|| Error::Other(crate::i18n::t("这本书没有 PDF 原件", "This book has no original PDF").into()))
+}
+
+#[cfg(test)]
+fn read_pdf_at(db: &Db, root: &Path, id: i64) -> Result<Vec<u8>> {
+    Ok(std::fs::read(pdf_path_at(db, root, id)?)?)
+}
+
+fn pdf_state_at(db: &Db, id: i64, view: &str, page: i64) -> Result<()> {
+    if view != "reflow" && view != "pages" {
+        return Err(Error::Other("view".into()));
+    }
+    db.with_conn(|c| articles::set_pdf_state(c, id, view, page.max(0)))
+}
+
+/// 原版页面要显示的 PDF（原始字节）
+#[tauri::command]
+pub async fn book_pdf(state: State<'_, AppState>, id: i64) -> Result<tauri::ipc::Response> {
+    let path = pdf_path_at(&state.db, &state.root, id)?;
+    let bytes = tauri::async_runtime::spawn_blocking(move || std::fs::read(path)).await.map_err(|e| Error::Other(e.to_string()))??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// 记住 PDF 书上次用的视图（reflow / pages）和原版页面看到第几页
+#[tauri::command]
+pub async fn book_pdf_state(state: State<'_, AppState>, id: i64, view: String, page: i64) -> Result<()> {
+    pdf_state_at(&state.db, id, &view, page)
+}
+
 fn words_exist_in(words: &[String]) -> Vec<bool> {
     let f = crate::freq::get();
     words.iter().map(|w| f.rank(&w.to_lowercase()).is_some()).collect()
@@ -472,6 +506,21 @@ mod tests {
         assert_eq!(a, b);
         let names: Vec<String> = std::fs::read_dir(root.path().join("books"))?.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
         assert_eq!(names.len(), 2, "一份 .epub 一份 .pdf：{names:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn pdf_view_state_is_remembered() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let root = tempfile::tempdir()?;
+        let src = root.path().join("tale.pdf");
+        std::fs::write(&src, b"%PDF state")?;
+        let id = pdf_import_at(&db, root.path(), &src, &pdf_book())?;
+        assert_eq!(read_pdf_at(&db, root.path(), id)?, b"%PDF state");
+        pdf_state_at(&db, id, "pages", 7)?;
+        let info = db.with_conn(|c| articles::book_info(c, id))?.expect("书");
+        assert_eq!((info.pdf_view.as_deref(), info.pdf_page), (Some("pages"), 7));
+        assert!(pdf_state_at(&db, id, "sideways", 1).is_err(), "只认 reflow / pages");
         Ok(())
     }
 

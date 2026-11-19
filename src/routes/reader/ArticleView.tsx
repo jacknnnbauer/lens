@@ -12,7 +12,9 @@ import { createPortal } from "react-dom";
 import { DictCard } from "../../components/DictCard";
 import { Hint, markHint } from "../../components/Hint";
 import { acceptable, paragraphOf } from "../../components/inAppLookup";
-import { bookChapter, openArticle, openBook, renameArticle, saveReadingContext, setArticleProgress, setBookProgress, updateArticleBody, type Article, type BookInfo, type TocItem } from "../../ipc/articles";
+import { bookChapter, openArticle, openBook, renameArticle, saveReadingContext, setArticleProgress, setBookPdfState, setBookProgress, updateArticleBody, type Article, type BookInfo, type TocItem } from "../../ipc/articles";
+import { chapterFor } from "../../pdf/viewMap";
+import { PdfPages, type PdfStart } from "./PdfPages";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
 import { clearKnownWords, importKnownWords, saveScannedWords, scanText, setKnownWords, type ScanResult, type ScanStatus, type ScanWord } from "../../ipc/scan";
 import { saveWord, wordId } from "../../ipc/words";
@@ -149,6 +151,11 @@ export function ArticleView({ id, onBack }: Props) {
   // 电子书：章节和目录，以及正在读的章节（anchor 是从目录或脚注跳过来要到的位置，否则回到 pos）
   const [book, setBook] = useState<BookInfo | null>(null);
   const [at, setAt] = useState<{ idx: number; pos: number; anchor?: string | null } | null>(null);
+  // PDF 书：重排（默认）还是原版页面；原版打开时停在哪；原版看到第几页（共几页）
+  const [pdfView, setPdfView] = useState<"reflow" | "pages">("reflow");
+  const [pdfStart, setPdfStart] = useState<PdfStart | null>(null);
+  const pdfAt = useRef<{ page: number; total: number } | null>(null);
+  const pdfSave = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [tocOpen, setTocOpen] = useState(false);
   const [tocAt, setTocAt] = useState(-1);
   const tocRef = useRef<HTMLElement>(null);
@@ -174,6 +181,10 @@ export function ArticleView({ id, onBack }: Props) {
               if (!alive || !b) return;
               setBook(b);
               setAt({ idx: Math.min(b.chapter, b.chapters.length - 1), pos: b.chapterPos });
+              if (b.pdfPages && b.pdfView === "pages") {
+                setPdfStart(b.pdfPage > 0 ? { page: b.pdfPage } : { chapter: b.chapter, pos: b.chapterPos });
+                setPdfView("pages");
+              } else setPdfView("reflow");
             },
             (e) => alive && setError(String(e)),
           );
@@ -236,6 +247,32 @@ export function ArticleView({ id, onBack }: Props) {
     }
     const root = scrollRoot();
     root.scrollTo({ top: pos * Math.max(0, root.scrollHeight - root.clientHeight) });
+  };
+
+  // PDF 书切换视图：位置按页码换算过去，并记住这次用的是哪种
+  const switchPdfView = (view: "reflow" | "pages") => {
+    if (!book?.pdfPages || articleId === undefined || view === pdfView) return;
+    if (view === "pages") {
+      const root = scrollRoot();
+      const pos = root.scrollHeight > root.clientHeight ? root.scrollTop / (root.scrollHeight - root.clientHeight) : 0;
+      setPdfStart({ chapter: at?.idx ?? 0, pos });
+      void setBookPdfState(articleId, "pages", pdfAt.current?.page ?? 0).catch(() => undefined);
+    } else {
+      const here = pdfAt.current;
+      if (here) {
+        const { chapter, pos } = chapterFor(book.pdfPages, here.page, here.total);
+        void setBookProgress(articleId, chapter, pos).catch(() => undefined);
+        setAt({ idx: chapter, pos });
+      }
+      void setBookPdfState(articleId, "reflow", here?.page ?? 0).catch(() => undefined);
+    }
+    setPdfView(view);
+  };
+
+  const onPdfPage = (page: number, total: number) => {
+    pdfAt.current = { page, total };
+    clearTimeout(pdfSave.current);
+    if (articleId !== undefined) pdfSave.current = setTimeout(() => void setBookPdfState(articleId, "pages", page).catch(() => undefined), 600);
   };
 
   const goChapter = (idx: number, anchor?: string | null) => {
@@ -656,6 +693,16 @@ export function ArticleView({ id, onBack }: Props) {
                 onJump={jumpTo}
               />
             )}
+            {book?.pdfPages && (
+              <div role="group" aria-label={tr("PDF 显示方式")} className={styles.segmentedSmall}>
+                <button type="button" aria-pressed={pdfView === "reflow"} onClick={() => switchPdfView("reflow")} title={tr("按 Lens 的排版阅读，标出生词")}>
+                  {tr("重排")}
+                </button>
+                <button type="button" aria-pressed={pdfView === "pages"} onClick={() => switchPdfView("pages")} title={tr("照原样一页页显示，图表公式都在")}>
+                  {tr("原版")}
+                </button>
+              </div>
+            )}
             <button type="button" className={styles.ghost} onClick={() => setExporting(true)} disabled={!article || !scan} title={tr("导出 PDF / HTML：标注过的原文 + 词汇表")}>
               {tr("导出")}
             </button>
@@ -753,8 +800,11 @@ export function ArticleView({ id, onBack }: Props) {
             )}
           </>
         )}
+        {book?.pdfPages && pdfView === "pages" && pdfStart && article && (
+          <PdfPages articleId={article.id} pdfPages={book.pdfPages} start={pdfStart} onPage={onPdfPage} onPick={(w, r) => void pick(w, r)} />
+        )}
         <div
-          hidden={draft !== null}
+          hidden={draft !== null || pdfView === "pages"}
           ref={bodyRef}
           className={styles.prose}
           data-reader=""
@@ -762,7 +812,7 @@ export function ArticleView({ id, onBack }: Props) {
           onClick={onClick}
           onMouseUp={onMouseUp}
         />
-        {book && at && draft === null && (
+        {book && at && draft === null && pdfView === "reflow" && (
           <nav className={styles.chapterNav} aria-label={tr("翻章")}>
             <button type="button" className={styles.ghost} disabled={at.idx === 0} onClick={() => goChapter(at.idx - 1)}>
               {tr("← 上一章")}

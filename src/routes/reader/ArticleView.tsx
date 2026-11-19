@@ -684,7 +684,8 @@ export function ArticleView({ id, onBack }: Props) {
           </>
         ) : (
           <>
-            {article && (
+            {/* 书签记的是重排正文里的位置：原版视图时不显示 */}
+            {article && pdfView === "reflow" && (
               <Bookmarks
                 articleId={article.id}
                 chapter={at?.idx ?? 0}

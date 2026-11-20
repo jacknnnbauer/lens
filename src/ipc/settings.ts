@@ -186,11 +186,19 @@ export interface Settings {
   ai: AiPrefs;
   study: StudyPrefs;
   vocab: VocabPrefs;
+  /** 阅读页点词用的词典 */
+  reading: ReadingPrefs;
   customThemes: CustomTheme[];
   activeProfile: string;
   /** 应用内快捷键：只存改过的（动作 id → 组合键），见 src/keys.ts */
   keys: Record<string, string>;
   [section: string]: unknown;
+}
+
+/** 阅读页点词用的词典：profile 空 = 跟随当前配置组；"custom" = dicts；其余是配置组 id */
+export interface ReadingPrefs {
+  profile: string;
+  dicts: string[];
 }
 
 /** 全书预习包 */

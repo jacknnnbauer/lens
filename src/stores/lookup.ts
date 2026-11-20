@@ -14,7 +14,12 @@ export interface SearchOptions {
   commit?: boolean;
   /** 划词捕获的语境句 id，随历史一起保存 */
   contextId?: number | null;
+  /** 从阅读页查的：按「阅读时的词典」设置选词典 */
+  scope?: "reader";
 }
+
+/** 当前结果是按哪种词典选择查的（同一个词从查词页换到阅读页要重查） */
+let currentScope: "reader" | null = null;
 
 /** 请求了提交、但结果还没回来的查询 */
 let pendingCommit: string | null = null;
@@ -137,7 +142,7 @@ export const useLookup = create<LookupState>((set, get) => ({
     const q = get().handle?.query;
     if (!q) return;
     set({ handle: null });
-    await get().search(q);
+    await get().search(q, { scope: currentScope ?? undefined });
   },
 
   search: async (query, opts = {}) => {
@@ -148,7 +153,8 @@ export const useLookup = create<LookupState>((set, get) => ({
       get().clear();
       return;
     }
-    if (prev && prev.query === query) {
+    const scope = opts.scope ?? null;
+    if (prev && prev.query === query && currentScope === scope) {
       if (opts.commit) get().commit();
       return;
     }
@@ -157,7 +163,8 @@ export const useLookup = create<LookupState>((set, get) => ({
     currentContextId = opts.contextId ?? null;
     set({ contextId: currentContextId });
     try {
-      const handle = await ipcLookup(query);
+      const handle = await ipcLookup(query, scope);
+      currentScope = scope;
       if (seq !== searchSeq) {
         void cancelLookup(handle.requestId);
         return;

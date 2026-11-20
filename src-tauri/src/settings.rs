@@ -386,6 +386,16 @@ impl Default for Immersive {
     }
 }
 
+/// 阅读页点词时用的词典（设置 › 场景配置组）
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Reading {
+    /// 空 = 跟随当前配置组；"custom" = 用 dicts；其余是场景配置组 id（组不存在时按跟随处理）
+    pub profile: String,
+    /// profile 为 "custom" 时阅读页查的词典 id（顺序按词典库）
+    pub dicts: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -402,6 +412,7 @@ pub struct Settings {
     pub ai: Ai,
     pub study: Study,
     pub vocab: Vocab,
+    pub reading: Reading,
     /// 自定义主题（主题库里「复制并编辑」或导入的）
     pub custom_themes: Vec<crate::themes::CustomTheme>,
     pub active_profile: String,
@@ -427,6 +438,7 @@ impl Default for Settings {
             ai: Ai::default(),
             study: Study::default(),
             vocab: Vocab::default(),
+            reading: Reading::default(),
             custom_themes: Vec::new(),
             active_profile: "reading".into(),
             keys: Default::default(),

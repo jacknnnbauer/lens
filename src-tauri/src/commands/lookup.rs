@@ -13,29 +13,52 @@ pub(crate) fn profile_sources(state: &AppState) -> Result<Vec<Source>> {
     sources_for_profile(state, &profile)
 }
 
-/// 发起查询的窗口用的词典：查词小窗可以在设置里指定配置组，其余窗口跟随当前配置组。
-fn sources_for_window(state: &AppState, label: &str) -> Result<Vec<Source>> {
+/// 某个入口（查词小窗、阅读页）设置的词典选择
+#[derive(Debug, PartialEq)]
+enum Pick {
+    /// 跟随当前配置组
+    Active,
+    Profile(String),
+    /// 自选的词典 id
+    Custom(Vec<String>),
+}
+
+/// 设置值：空 = 跟随；"custom" = 自选；其余是配置组 id（不存在或就是当前组时按跟随处理）
+fn pick(setting: &str, custom: &[String], active: &str, exists: impl Fn(&str) -> bool) -> Pick {
+    match setting {
+        "" => Pick::Active,
+        "custom" => Pick::Custom(custom.to_vec()),
+        p if p != active && exists(p) => Pick::Profile(p.to_string()),
+        _ => Pick::Active,
+    }
+}
+
+/// 发起查询的地方用的词典：查词小窗、阅读页（scope = "reader"）可以在设置里另选，其余跟随当前配置组。
+fn sources_for_window(state: &AppState, label: &str, scope: Option<&str>) -> Result<Vec<Source>> {
     let s = state.settings.get()?;
-    let popup = &s.capture.popup_profile;
-    if label == crate::capture::POPUP && popup == "custom" {
-        // 自选词典：顺序跟词典库一致（拖动排序会写进每个配置组，取当前组的顺序即可）
-        let order = state.db.with_conn(|c| dicts::profile_order(c, &s.active_profile))?;
-        let want = &s.capture.popup_dicts;
-        let mut ids: Vec<String> = order.into_iter().filter(|id| want.contains(id)).collect();
-        for id in want {
-            if !ids.contains(id) {
-                ids.push(id.clone());
+    let (setting, custom) = if label == crate::capture::POPUP {
+        (s.capture.popup_profile.as_str(), s.capture.popup_dicts.as_slice())
+    } else if scope == Some("reader") {
+        (s.reading.profile.as_str(), s.reading.dicts.as_slice())
+    } else {
+        ("", &[][..])
+    };
+    let profiles = if setting.is_empty() || setting == "custom" { Vec::new() } else { state.db.with_conn(dicts::profiles)? };
+    match pick(setting, custom, &s.active_profile, |p| profiles.iter().any(|(id, _, _)| id == p)) {
+        Pick::Active => sources_for_profile(state, &s.active_profile),
+        Pick::Profile(p) => sources_for_profile(state, &p),
+        Pick::Custom(want) => {
+            // 自选词典：顺序跟词典库一致（拖动排序会写进每个配置组，取当前组的顺序即可）
+            let order = state.db.with_conn(|c| dicts::profile_order(c, &s.active_profile))?;
+            let mut ids: Vec<String> = order.into_iter().filter(|id| want.contains(id)).collect();
+            for id in &want {
+                if !ids.contains(id) {
+                    ids.push(id.clone());
+                }
             }
-        }
-        return sources_of(state, ids);
-    }
-    if label == crate::capture::POPUP && !popup.is_empty() && *popup != s.active_profile {
-        let exists = state.db.with_conn(dicts::profiles)?.iter().any(|(id, _, _)| id == popup);
-        if exists {
-            return sources_for_profile(state, popup);
+            sources_of(state, ids)
         }
     }
-    sources_for_profile(state, &s.active_profile)
 }
 
 /// 指定场景配置组里启用且已加载的词典（批量导出按开始时的配置组查）。
@@ -70,7 +93,8 @@ pub(crate) fn locals(sources: Vec<Source>) -> Vec<LoadedDict> {
 /// 立即返回 requestId 和参与查询的词典；结果通过 `lookup:result` 逐部推送，最后推送 `lookup:done`。
 /// 新查询会取消同一窗口之前未完成的查询；事件只推送给发起的窗口。
 #[tauri::command]
-pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, query: String) -> Result<LookupHandle> {
+/// `scope`：从哪儿查的（"reader" = 阅读页，按「阅读时的词典」设置选词典）；不传按窗口决定
+pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, query: String, scope: Option<String>) -> Result<LookupHandle> {
     let mut keys = query::candidates(&query);
     let normalized = keys.last().cloned().unwrap_or_default();
     // 不收屈折形式的词典（牛津高阶没有 boutiques）查不到原词时再查原形；收了的照常命中原词
@@ -80,7 +104,7 @@ pub async fn lookup(app: AppHandle, window: Window, state: State<'_, AppState>, 
         keys.push(base);
     }
     let request_id = uuid::Uuid::new_v4().to_string();
-    let sources = if keys.is_empty() { Vec::new() } else { sources_for_window(&state, window.label())? };
+    let sources = if keys.is_empty() { Vec::new() } else { sources_for_window(&state, window.label(), scope.as_deref())? };
 
     let handle = LookupHandle {
         request_id: request_id.clone(),
@@ -371,7 +395,18 @@ pub async fn first_entry(state: State<'_, AppState>, query: String, dict: Option
 
 #[cfg(test)]
 mod tests {
-    use super::is_reference_dict;
+
+    #[test]
+    fn pick_follows_custom_or_profile() {
+        let exists = |p: &str| p == "translate";
+        assert_eq!(pick("", &[], "reading", exists), Pick::Active);
+        assert_eq!(pick("custom", &["a".into(), "b".into()], "reading", exists), Pick::Custom(vec!["a".into(), "b".into()]));
+        assert_eq!(pick("translate", &[], "reading", exists), Pick::Profile("translate".into()));
+        assert_eq!(pick("deleted", &[], "reading", exists), Pick::Active, "选的组被删了按跟随");
+        assert_eq!(pick("translate", &[], "translate", exists), Pick::Active, "就是当前组");
+    }
+
+    use super::{is_reference_dict, pick, Pick};
 
     #[test]
     fn spots_collocation_and_frequency_dicts() {

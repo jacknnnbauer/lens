@@ -6,8 +6,9 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { EntryBody, LookupDoneEvent, LookupHandle, LookupResultEvent } from "./types";
 
 /** 立即返回；结果通过 onLookupResult 逐部推送，最后 onLookupDone。 */
-export function lookup(query: string): Promise<LookupHandle> {
-  return invoke<LookupHandle>("lookup", { query });
+/** scope = "reader"：阅读页查的，按设置 › 场景配置组 › 阅读时的词典 选词典 */
+export function lookup(query: string, scope: "reader" | null = null): Promise<LookupHandle> {
+  return invoke<LookupHandle>("lookup", { query, scope });
 }
 
 export function cancelLookup(requestId: string): Promise<void> {

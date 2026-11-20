@@ -423,7 +423,7 @@ export function ArticleView({ id, onBack }: Props) {
       setTab("dict");
       // 右侧栏关着时点词，打开它显示释义
       if (!useReader.getState().sideHost) useSettings.getState().updateLayout({ showContext: true });
-      void useLookup.getState().search(word, { commit: true, contextId });
+      void useLookup.getState().search(word, { commit: true, contextId, scope: "reader" });
     },
     [article],
   );
@@ -497,7 +497,7 @@ export function ArticleView({ id, onBack }: Props) {
     const contextId = picked?.contextId ?? null;
     setPicked({ word, contextId, lemma: null, at: Date.now() });
     savedFor.current = null;
-    void useLookup.getState().search(word, { commit: true, contextId });
+    void useLookup.getState().search(word, { commit: true, contextId, scope: "reader" });
   };
 
   const lookupInPanel = (w: string) => {
@@ -505,7 +505,7 @@ export function ArticleView({ id, onBack }: Props) {
     savedFor.current = null;
     setTab("dict");
     if (!useReader.getState().sideHost) useSettings.getState().updateLayout({ showContext: true });
-    void useLookup.getState().search(w, { commit: true });
+    void useLookup.getState().search(w, { commit: true, scope: "reader" });
   };
 
   const locate = (lemma: string) => {

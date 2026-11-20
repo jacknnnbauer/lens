@@ -686,3 +686,12 @@ kbd {
   font-weight: 600;
   color: var(--sub);
 }
+
+/* 设置 › AI › 英文怎么说的对象：名字 | 描述 | 删除 */
+.audienceRow {
+  display: grid;
+  grid-template-columns: 9em 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}

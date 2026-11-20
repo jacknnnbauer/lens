@@ -9,7 +9,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "
 import { useCaptureStatus } from "../../components/HotkeyNotice";
 import { htmlToMarkdown, sourceLine } from "../../copy/convert";
 import { aiKeyStatus, aiSetKey, aiTest, aiUsage, aiUsageClear, cocaImport, cocaStatus, type CocaStatus, type ModelUsage, type UsageSummary } from "../../ipc/ai";
-import { appPaths, checkUpdate, type AiPrefs, type AppPaths, type UpdateInfo, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
+import { appPaths, checkUpdate, type AiPrefs, type AppPaths, type Audience, type UpdateInfo, type Copy, type ExportPrefs, type Immersive, type Layout, type LayoutPreset } from "../../ipc/settings";
 import { useSettings } from "../../stores/settings";
 import { useDicts } from "../../stores/dicts";
 import { exportStyleChoices, PAPER_CHOICES } from "../../components/ExportStyleOptions";
@@ -269,8 +269,46 @@ function AiSettings() {
         </p>
       )}
       <p className={styles.hint}>{tr("发给 AI 服务的只有：单词、首部词典的简释、COCA 搭配词。不发送语境句和生词本。")}</p>
+      <p className={styles.hint}>{tr("「英文怎么说」会发送你输入的内容和所选对象的描述；「拆解」会发送选中的句子和前后各一句。")}</p>
+      <Audiences />
       <AiUsageStats />
     </section>
+  );
+}
+
+/** 设置 › AI › 英文怎么说的对象：名字 + 一行描述，可增删改 */
+function Audiences() {
+  const list = useSettings((s) => s.settings?.expression?.audiences) ?? [];
+  const last = useSettings((s) => s.settings?.expression?.lastAudience) ?? "";
+  const update = useSettings((s) => s.update);
+  const save = (audiences: Audience[], lastAudience = last) => update({ expression: { audiences, lastAudience } });
+  const edit = (id: string, patch: Partial<Audience>) => save(list.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  return (
+    <fieldset id="set-expression" className={styles.fieldset}>
+      <legend>{tr("英文怎么说 · 对象")}</legend>
+      <p className={styles.hint}>{tr("选了对象后，五种说法会按这个人调整用词、长度和礼貌程度。描述写清楚对方英语水平、身份和关系。")}</p>
+      {list.map((a) => (
+        <div key={a.id} className={styles.audienceRow}>
+          <input aria-label={tr("对象名字")} value={a.name} placeholder={tr("名字")} onChange={(e) => edit(a.id, { name: e.target.value })} />
+          <input aria-label={tr("对象描述")} value={a.note} placeholder={tr("英语水平、身份、关系")} onChange={(e) => edit(a.id, { note: e.target.value })} />
+          <button
+            type="button"
+            className={styles.ghost}
+            onClick={() =>
+              save(
+                list.filter((x) => x.id !== a.id),
+                last === a.id ? "" : last,
+              )
+            }
+          >
+            {tr("删除")}
+          </button>
+        </div>
+      ))}
+      <button type="button" className={styles.ghost} onClick={() => save([...list, { id: Date.now().toString(36), name: tr("新对象"), note: "" }])}>
+        {tr("添加对象")}
+      </button>
+    </fieldset>
   );
 }
 

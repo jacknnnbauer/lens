@@ -11,6 +11,7 @@ import { ExportDialog } from "../../components/ExportDialog";
 import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { isHanPhrase, isSentence } from "../../components/sentence";
+import { ExpressionCard } from "../../components/ExpressionCard";
 import { Hint } from "../../components/Hint";
 import { normalizeHeadword } from "./alsoForm";
 import { SenseAtlas } from "../../components/SenseAtlas";
@@ -147,7 +148,10 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
   const sentenceCtx = pasted && handle && pasted.query === handle.query ? pasted : captured;
 
   // 搜索框里粘贴了一整句：不查整句，等在句中点词（SearchBox 选中那个词），查它并用这句话判断词义
+  // 搜索框里的整段文字（英文怎么说用；在句中点词查词时不变）
+  const [boxText, setBoxText] = useState("");
   const onSearchBox = (q: string, commit: boolean) => {
+    setBoxText(q);
     void search(isSentence(q) ? "" : q, { commit });
   };
   const pickInSentence = (sentence: string, hlStart: number, hlEnd: number) => {
@@ -349,6 +353,8 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
           {error}
         </p>
       )}
+
+      <ExpressionCard input={boxText} onLookup={lookupWord} />
 
       {handle && <ReverseStrip query={handle.query} onLookup={lookupWord} onOpenSearch={onOpenSearch} />}
 

@@ -1,0 +1,168 @@
+/* 英文怎么说卡片：外观和「当前语境」卡片一致 */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--card-border, var(--line)));
+  border-radius: 14px;
+  background: var(--card-bg, var(--panel));
+  box-shadow: var(--card-shadow, none);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 标题行本身就是「点开」：不另放按钮 */
+.title {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.title:disabled {
+  cursor: default;
+}
+
+.sub {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title:not(:disabled):hover .sub {
+  color: var(--accent);
+}
+
+.audience {
+  flex: none;
+  max-width: 40%;
+  font-size: 12px;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 4.2em 1fr auto;
+  column-gap: 12px;
+  align-items: baseline;
+}
+
+.style {
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.en {
+  margin: 0;
+  font-family: var(--font-gloss);
+  font-size: var(--gloss-size, 17px);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* 英文里的词：看起来是正文，点了就查 */
+.word {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.word:hover {
+  background: var(--hl);
+}
+
+.copy {
+  align-self: center;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sub);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.item:hover .copy,
+.copy:focus-visible {
+  opacity: 1;
+}
+
+.copy:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.note {
+  grid-column: 2 / 4;
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--sub);
+}
+
+.skeleton {
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--raised), color-mix(in srgb, var(--raised) 50%, transparent), var(--raised));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--warn);
+}

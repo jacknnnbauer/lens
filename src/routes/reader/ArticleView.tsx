@@ -40,6 +40,7 @@ import { Bookmarks } from "./Bookmarks";
 import { WysiwygEditor, type WysiwygApi } from "./WysiwygEditor";
 import { renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
+import { currentPos, scrollToPos } from "./position";
 import { tr } from "../../i18n";
 import { syncVocab } from "../../stores/vocabSync";
 import { chooseLevel, effectiveLevel, migrateLevel } from "./levelPrefs";
@@ -212,7 +213,7 @@ export function ArticleView({ id, onBack }: Props) {
     setRendered((n) => n + 1);
     requestAnimationFrame(() => {
       const root = scrollRoot();
-      root.scrollTo({ top: article.progress * Math.max(0, root.scrollHeight - root.clientHeight) });
+      scrollToPos(index.current, root, article.progress);
     });
   }, [article]);
 
@@ -231,7 +232,7 @@ export function ArticleView({ id, onBack }: Props) {
         setRendered((n) => n + 1);
         requestAnimationFrame(() => {
           const root = scrollRoot();
-          if (!scrollToAnchor(el, at.anchor)) root.scrollTo({ top: at.pos * Math.max(0, root.scrollHeight - root.clientHeight) });
+          if (!scrollToAnchor(el, at.anchor)) scrollToPos(index.current, root, at.pos);
           setTocAt(tocIndexAt(book.toc, at.idx, el, root.getBoundingClientRect().top));
         });
       },
@@ -252,16 +253,14 @@ export function ArticleView({ id, onBack }: Props) {
         return;
       }
     }
-    const root = scrollRoot();
-    root.scrollTo({ top: pos * Math.max(0, root.scrollHeight - root.clientHeight) });
+    scrollToPos(index.current, scrollRoot(), pos);
   };
 
   // PDF 书切换视图：位置按页码换算过去，并记住这次用的是哪种
   const switchPdfView = (view: "reflow" | "pages") => {
     if (!book?.pdfPages || articleId === undefined || view === pdfView) return;
     if (view === "pages") {
-      const root = scrollRoot();
-      const pos = root.scrollHeight > root.clientHeight ? root.scrollTop / (root.scrollHeight - root.clientHeight) : 0;
+      const pos = currentPos(index.current, scrollRoot());
       setPdfStart({ chapter: at?.idx ?? 0, pos });
       void setBookPdfState(articleId, "pages", pdfAt.current?.page ?? 0).catch(() => undefined);
     } else {
@@ -393,9 +392,8 @@ export function ArticleView({ id, onBack }: Props) {
     const onScroll = () => {
       clearTimeout(t);
       t = setTimeout(() => {
-        const max = root.scrollHeight - root.clientHeight;
-        if (max <= 0) return;
-        const pos = root.scrollTop / max;
+        if (root.scrollHeight <= root.clientHeight) return;
+        const pos = currentPos(index.current, root);
         const el = bodyRef.current;
         if (book && chapterIdx !== undefined && el) setTocAt(tocIndexAt(book.toc, chapterIdx, el, root.getBoundingClientRect().top));
         void (chapterIdx === undefined ? setArticleProgress(article.id, pos) : setBookProgress(article.id, chapterIdx, pos)).catch(() => undefined);
@@ -532,8 +530,7 @@ export function ArticleView({ id, onBack }: Props) {
   const startEdit = () => {
     if (!article) return;
     const root = scrollRoot();
-    const max = root.scrollHeight - root.clientHeight;
-    editAt.current = max > 0 ? root.scrollTop / max : 0;
+    editAt.current = currentPos(index.current, root);
     setConfirmDiscard(false);
     setDraft(article.body);
     requestAnimationFrame(() => root.scrollTo({ top: 0 }));
@@ -568,8 +565,7 @@ export function ArticleView({ id, onBack }: Props) {
     setConfirmDiscard(false);
     // 正文没变，回到进编辑前的位置
     requestAnimationFrame(() => {
-      const root = scrollRoot();
-      root.scrollTo({ top: editAt.current * Math.max(0, root.scrollHeight - root.clientHeight) });
+      scrollToPos(index.current, scrollRoot(), editAt.current);
     });
   };
   const saveBody = async () => {
@@ -707,6 +703,7 @@ export function ArticleView({ id, onBack }: Props) {
             {/* 书签记的是重排正文里的位置：原版视图时不显示 */}
             {article && pdfView === "reflow" && (
               <Bookmarks
+                index={index}
                 articleId={article.id}
                 chapter={at?.idx ?? 0}
                 chapterTitles={book ? book.chapters.map((c) => c.title) : null}

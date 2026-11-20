@@ -7,6 +7,8 @@ import { pressed, useKeyLabel } from "../../keys";
 import { toast } from "../../stores/toast";
 import { scrollRoot } from "../../windows/main/scroll";
 import styles from "./ReaderPage.module.css";
+import type { WordIndex } from "./markdown";
+import { currentPos } from "./position";
 import { tr } from "../../i18n";
 
 /** 屏幕上第一段看得见的原文，当书签的名字 */
@@ -21,12 +23,6 @@ function visibleText(body: HTMLElement | null): string {
   return (body.innerText || "").replace(/\s+/g, " ").trim();
 }
 
-function currentPos(): number {
-  const root = scrollRoot();
-  const max = root.scrollHeight - root.clientHeight;
-  return max > 0 ? Math.min(1, Math.max(0, root.scrollTop / max)) : 0;
-}
-
 interface Props {
   articleId: number;
   /** 当前章（普通文章为 0） */
@@ -34,10 +30,12 @@ interface Props {
   /** 电子书各章标题；普通文章为 null */
   chapterTitles: string[] | null;
   body: React.RefObject<HTMLDivElement | null>;
+  /** 本章的词索引（记位置用） */
+  index: React.RefObject<WordIndex | null>;
   onJump: (chapter: number, pos: number) => void;
 }
 
-export function Bookmarks({ articleId, chapter, chapterTitles, body, onJump }: Props) {
+export function Bookmarks({ articleId, chapter, chapterTitles, body, index, onJump }: Props) {
   const [list, setList] = useState<Bookmark[]>([]);
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
@@ -51,13 +49,13 @@ export function Bookmarks({ articleId, chapter, chapterTitles, body, onJump }: P
   const add = useCallback(async () => {
     try {
       const label = visibleText(body.current) || tr("（无文字）");
-      await addBookmark(articleId, chapter, currentPos(), label);
+      await addBookmark(articleId, chapter, currentPos(index.current, scrollRoot()), label);
       toast(tr("已加书签：{label}", { label: label.length > 30 ? `${label.slice(0, 30)}…` : label }));
       reload();
     } catch (e) {
       toast(String(e));
     }
-  }, [articleId, chapter, body, reload]);
+  }, [articleId, chapter, body, index, reload]);
 
   const remove = async (id: number) => {
     await deleteBookmark(id).catch(() => undefined);

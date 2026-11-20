@@ -1025,3 +1025,9 @@
 .prose :global(mark.lens-hl.lens-hl-flash) {
   background: color-mix(in srgb, var(--hl) 80%, transparent);
 }
+
+/* 长章节（data-long，见 LONG_CHAPTER_WORDS）：屏幕外的段落跳过排版，点词、选词、标注时不用整章重排 */
+.prose[data-long] :is(p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, table, figure) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 4em;
+}

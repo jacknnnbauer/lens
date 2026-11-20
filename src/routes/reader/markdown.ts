@@ -107,7 +107,12 @@ export interface WordIndex {
   plain: string;
   /** 纯文本里的起点（UTF-16）→ span */
   byStart: Map<number, HTMLElement>;
+  /** 所有词 span，按正文先后 */
+  spans: HTMLElement[];
 }
+
+/** 词数超过这么多的章节跳过屏幕外段落的排版（content-visibility），否则每次改动都要整章重排、点词选词会卡 */
+export const LONG_CHAPTER_WORDS = 8000;
 
 /** 在已经放好 HTML 的容器里包词，返回纯文本和位置索引 */
 export function wrapWords(root: HTMLElement): WordIndex {
@@ -120,6 +125,7 @@ export function wrapWords(root: HTMLElement): WordIndex {
   let plain = "";
   let lastBlock: Node | null = null;
   const byStart = new Map<number, HTMLElement>();
+  const spans: HTMLElement[] = [];
   for (const node of nodes) {
     const block = blockOf(node, root);
     if (lastBlock && block !== lastBlock && plain && !plain.endsWith("\n")) plain += "\n";
@@ -140,11 +146,14 @@ export function wrapWords(root: HTMLElement): WordIndex {
       span.textContent = m[0];
       span.dataset.start = String(base + i);
       byStart.set(base + i, span);
+      spans.push(span);
       frag.append(span);
       pos = i + m[0].length;
     }
     if (pos < text.length) frag.append(text.slice(pos));
     node.replaceWith(frag);
   }
-  return { plain, byStart };
+  if (spans.length > LONG_CHAPTER_WORDS) root.dataset.long = "";
+  else delete root.dataset.long;
+  return { plain, byStart, spans };
 }

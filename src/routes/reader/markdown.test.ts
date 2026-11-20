@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords } from "./markdown";
+import { LONG_CHAPTER_WORDS, renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords } from "./markdown";
 
 describe("reader markdown", () => {
   const md = "# Rusty bikes\n\nAn **old** bike, [rusted](https://x.com) by rain. ![a pic](p.png)\n\n```\nlet code = 1;\n```\n\n- It's `inline` still ubiquitous.";
@@ -20,6 +20,19 @@ describe("reader markdown", () => {
     for (const [start, span] of byStart) {
       expect(plain.slice(start, start + (span.textContent ?? "").length)).toBe(span.textContent);
     }
+  });
+
+  it("marks_long_chapters_and_lists_spans_in_order", () => {
+    const root = document.createElement("div");
+    root.innerHTML = `<p>${"word ".repeat(LONG_CHAPTER_WORDS + 1)}</p>`;
+    const ix = wrapWords(root);
+    expect(root.dataset.long).toBe("");
+    expect(ix.spans.length).toBe(LONG_CHAPTER_WORDS + 1);
+    expect(ix.spans.map((s) => Number(s.dataset.start))).toEqual([...ix.byStart.keys()]);
+    // 换成短章：标记去掉
+    root.innerHTML = "<p>short one</p>";
+    wrapWords(root);
+    expect(root.dataset.long).toBeUndefined();
   });
 });
 

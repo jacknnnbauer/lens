@@ -186,3 +186,45 @@ pub async fn ai_usage(state: State<'_, AppState>, month_start: i64) -> Result<ai
 pub async fn ai_usage_clear(state: State<'_, AppState>) -> Result<()> {
     state.db.with_conn(ai::clear_usage)
 }
+
+// —— 长难句拆解 ——
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BreakdownResult {
+    pub breakdown: crate::sentence_ai::Breakdown,
+    pub model: String,
+    /// 从缓存取的：当时拆的时间；刚拆的为 None
+    pub cached_at: Option<i64>,
+    /// 这次请求花了多少（美元）；缓存为 0
+    pub cost_usd: f64,
+}
+
+/// 拆一句长难句：先查缓存（force 时跳过），没有再问 DeepSeek
+#[tauri::command]
+pub async fn sentence_breakdown(state: State<'_, AppState>, sentence: String, before: Option<String>, after: Option<String>, force: bool) -> Result<BreakdownResult> {
+    use crate::sentence_ai;
+    let sentence = sentence.split_whitespace().collect::<Vec<_>>().join(" ");
+    if sentence.is_empty() {
+        return Err(Error::Other("sentence".into()));
+    }
+    let model = state.settings.get()?.ai.deepseek_model;
+    if !force {
+        if let Some((breakdown, at)) = state.db.with_conn(|c| sentence_ai::cached(c, &sentence, &model))? {
+            return Ok(BreakdownResult { breakdown, model, cached_at: Some(at), cost_usd: 0.0 });
+        }
+    }
+    let key = credentials::read(ai::KEY_ID)?.ok_or_else(|| {
+        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 服务）", "No {} API key yet (Settings › AI)", ai::NAME))
+    })?;
+    let user = sentence_ai::prompt(&sentence, before.as_deref(), after.as_deref());
+    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, sentence_ai::SYSTEM, &user, sentence_ai::JSON_FORMAT, 2000, std::time::Duration::from_secs(90)).await?;
+    let breakdown = sentence_ai::parse(&text)?;
+    let now = now_ms();
+    let label: String = sentence.chars().take(40).collect();
+    let cost_usd = state.db.with_conn(|c| {
+        sentence_ai::store(c, &sentence, &model, &breakdown, now)?;
+        ai::record(c, &model, &label, usage, now)
+    })?;
+    Ok(BreakdownResult { breakdown, model, cached_at: None, cost_usd })
+}

@@ -228,3 +228,68 @@ pub async fn sentence_breakdown(state: State<'_, AppState>, sentence: String, be
     })?;
     Ok(BreakdownResult { breakdown, model, cached_at: None, cost_usd })
 }
+
+// —— 英文怎么说 ——
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpressionResult {
+    pub expression: crate::expression_ai::Expression,
+    pub model: String,
+    /// 从缓存取的：当时生成的时间；刚生成的为 None
+    pub cached_at: Option<i64>,
+    /// 这次请求花了多少（美元）；缓存为 0
+    pub cost_usd: f64,
+}
+
+/// 规整输入：合并空白；空的、太长的直接报错
+fn expression_input(input: &str) -> Result<String> {
+    let input = input.split_whitespace().collect::<Vec<_>>().join(" ");
+    if input.is_empty() {
+        return Err(Error::Other("input".into()));
+    }
+    if input.chars().count() > crate::expression_ai::MAX_CHARS {
+        return Err(Error::Online(crate::i18n::t("太长了，挑一两句再试", "That's too long. Pick a sentence or two").into()));
+    }
+    Ok(input)
+}
+
+/// 只查缓存（卡片出现时用，不联网、不花钱）
+#[tauri::command]
+pub async fn expression_cached(state: State<'_, AppState>, input: String, audience: Option<String>) -> Result<Option<ExpressionResult>> {
+    use crate::expression_ai;
+    let Ok(input) = expression_input(&input) else { return Ok(None) };
+    let audience = audience.unwrap_or_default();
+    let model = state.settings.get()?.ai.deepseek_model;
+    Ok(state
+        .db
+        .with_conn(|c| expression_ai::cached(c, &input, audience.trim(), &model))?
+        .map(|(expression, at)| ExpressionResult { expression, model, cached_at: Some(at), cost_usd: 0.0 }))
+}
+
+/// 生成五种说法：先查缓存（force 时跳过），没有再问 DeepSeek
+#[tauri::command]
+pub async fn expression_generate(state: State<'_, AppState>, input: String, audience: Option<String>, force: bool) -> Result<ExpressionResult> {
+    use crate::expression_ai;
+    let input = expression_input(&input)?;
+    let audience = audience.unwrap_or_default().trim().to_string();
+    let model = state.settings.get()?.ai.deepseek_model;
+    if !force {
+        if let Some((expression, at)) = state.db.with_conn(|c| expression_ai::cached(c, &input, &audience, &model))? {
+            return Ok(ExpressionResult { expression, model, cached_at: Some(at), cost_usd: 0.0 });
+        }
+    }
+    let key = credentials::read(ai::KEY_ID)?.ok_or_else(|| {
+        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 服务）", "No {} API key yet (Settings › AI)", ai::NAME))
+    })?;
+    let user = expression_ai::prompt(&input, Some(&audience));
+    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, expression_ai::SYSTEM, &user, expression_ai::JSON_FORMAT, 3000, std::time::Duration::from_secs(60)).await?;
+    let expression = expression_ai::parse(&text)?;
+    let now = now_ms();
+    let label: String = input.chars().take(40).collect();
+    let cost_usd = state.db.with_conn(|c| {
+        expression_ai::store(c, &input, &audience, &model, &expression, now)?;
+        ai::record(c, &model, &label, usage, now)
+    })?;
+    Ok(ExpressionResult { expression, model, cached_at: None, cost_usd })
+}

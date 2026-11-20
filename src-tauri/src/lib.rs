@@ -32,6 +32,7 @@ mod query;
 mod review;
 mod scan;
 mod sentence_ai;
+mod expression_ai;
 mod study;
 mod wiki;
 mod guide_ai;
@@ -387,6 +388,8 @@ pub fn run() {
             commands::articles::book_pdf,
             commands::articles::book_pdf_state,
             commands::ai::sentence_breakdown,
+            commands::ai::expression_generate,
+            commands::ai::expression_cached,
             commands::annotations::annotation_list,
             commands::annotations::annotation_add,
             commands::annotations::annotation_set_color,

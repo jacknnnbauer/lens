@@ -218,7 +218,7 @@ pub async fn sentence_breakdown(state: State<'_, AppState>, sentence: String, be
         Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 服务）", "No {} API key yet (Settings › AI)", ai::NAME))
     })?;
     let user = sentence_ai::prompt(&sentence, before.as_deref(), after.as_deref());
-    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, sentence_ai::SYSTEM, &user, sentence_ai::JSON_FORMAT, 2000, std::time::Duration::from_secs(90)).await?;
+    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, sentence_ai::SYSTEM, &user, sentence_ai::JSON_FORMAT, 6000, std::time::Duration::from_secs(90)).await?;
     let breakdown = sentence_ai::parse(&text)?;
     let now = now_ms();
     let label: String = sentence.chars().take(40).collect();

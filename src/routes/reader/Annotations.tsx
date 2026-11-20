@@ -6,6 +6,7 @@ import { ANNOTATION_COLORS, type Annotation, type AnnotationColor } from "../../
 import { isoMinute } from "../../export-templates/template";
 import { useAnnotations } from "../../stores/annotations";
 import { toastUndo, type BarState, type CardState } from "./useReaderAnnotations";
+import { breakdownFit, contextAround } from "../../sentence/select";
 import styles from "./Annotations.module.css";
 
 const COLOR_NAME: Record<AnnotationColor, string> = { yellow: "黄色", green: "绿色", blue: "蓝色", pink: "粉色" };
@@ -32,7 +33,7 @@ function Dots({ value, onPick }: { value?: AnnotationColor; onPick: (c: Annotati
 }
 
 /** 选中文字后浮在选区上方 */
-export function AnnotationBar({ bar, onCreate, onClose }: { bar: BarState; onCreate: (c: AnnotationColor, note: boolean) => void; onClose: () => void }) {
+export function AnnotationBar({ bar, onCreate, onClose, onBreakdown }: { bar: BarState; onCreate: (c: AnnotationColor, note: boolean) => void; onClose: () => void; onBreakdown: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -45,12 +46,17 @@ export function AnnotationBar({ bar, onCreate, onClose }: { bar: BarState; onCre
       <button type="button" className={styles.text} onMouseDown={(e) => e.preventDefault()} onClick={() => onCreate("yellow", true)}>
         {tr("笔记")}
       </button>
+      {bar.fit !== "short" && (
+        <button type="button" className={styles.text} onMouseDown={(e) => e.preventDefault()} onClick={onBreakdown}>
+          {tr("拆解")}
+        </button>
+      )}
     </div>
   );
 }
 
 /** 点了一条标注 */
-export function AnnotationCard({ card, onClose }: { card: CardState; onClose: () => void }) {
+export function AnnotationCard({ card, onClose, onBreakdown }: { card: CardState; onClose: () => void; onBreakdown: (sentence: string, before: string | null, after: string | null) => void }) {
   const item = useAnnotations((s) => s.items.find((a) => a.id === card.id));
   const [editing, setEditing] = useState(card.editing || !!item?.note);
   const [draft, setDraft] = useState(item?.note ?? "");
@@ -104,6 +110,22 @@ export function AnnotationCard({ card, onClose }: { card: CardState; onClose: ()
         {!editing && (
           <button type="button" className={styles.text} onClick={() => setEditing(true)}>
             {tr("写笔记")}
+          </button>
+        )}
+        {breakdownFit(item.quote) === "ok" && (
+          <button
+            type="button"
+            className={styles.text}
+            onClick={() => {
+              // 前后文从存下的定位信息里取
+              const whole = item.prefix + item.quote + item.suffix;
+              const c = contextAround(whole, item.prefix.length, item.prefix.length + item.quote.length);
+              save();
+              onClose();
+              onBreakdown(item.quote, c.before, c.after);
+            }}
+          >
+            {tr("拆解这句")}
           </button>
         )}
         <button

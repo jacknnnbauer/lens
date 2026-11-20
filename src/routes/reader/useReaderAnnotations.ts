@@ -7,6 +7,8 @@ import { locate, makeAnchor } from "../../annotations/anchor";
 import { MARK_CLASS, offsetsOf, paint, plainText, unpaint } from "../../annotations/paint";
 import { useAnnotations } from "../../stores/annotations";
 import { toast } from "../../stores/toast";
+import { breakdownFit, contextAround } from "../../sentence/select";
+import { useSentences } from "../../stores/sentences";
 
 /** 选区上方的颜色条：选中的纯文本起止和条的位置 */
 export interface BarState {
@@ -14,6 +16,8 @@ export interface BarState {
   end: number;
   x: number;
   y: number;
+  /** 选中的内容能不能拆解（太短不显示「拆解」，太长点了会提示） */
+  fit: "ok" | "short" | "long";
 }
 
 /** 点了一条标注：哪条、卡片位置、是否直接打开笔记框 */
@@ -106,7 +110,7 @@ export function useReaderAnnotations({ body, articleId, chapter, rendered, enabl
       if (!at || !sel.toString().trim()) return setBar(null);
       const r = range.getBoundingClientRect();
       setCard(null);
-      setBar({ start: at[0], end: at[1], x: r.left + r.width / 2, y: r.top });
+      setBar({ start: at[0], end: at[1], x: r.left + r.width / 2, y: r.top, fit: breakdownFit(sel.toString()) });
     }, 0);
   }, [body, enabled]);
 
@@ -140,6 +144,21 @@ export function useReaderAnnotations({ body, articleId, chapter, rendered, enabl
     },
     [body, bar, articleId, chapter],
   );
+
+  /** 拆解选中的句子：取前后各一句作参考；太长时提示、不请求。返回是否开始了 */
+  const breakdown = useCallback(() => {
+    const el = body.current;
+    if (!el || !bar) return false;
+    if (bar.fit === "long") {
+      toast(tr("一次拆一两句效果最好"));
+      return false;
+    }
+    const c = contextAround(plainText(el), bar.start, bar.end);
+    void useSentences.getState().run(c.sentence, c.before, c.after);
+    window.getSelection()?.removeAllRanges();
+    setBar(null);
+    return true;
+  }, [body, bar]);
 
   /** 从批注列表跳过去：换章的话等排好再滚过去并闪一下 */
   const reveal = useCallback(
@@ -182,5 +201,5 @@ export function useReaderAnnotations({ body, articleId, chapter, rendered, enabl
     setCard(null);
   }, [chapter, articleId, enabled]);
 
-  return { items, missing, bar, card, setBar, setCard, onMouseUp, onClick, create, reveal };
+  return { items, missing, bar, card, setBar, setCard, onMouseUp, onClick, create, reveal, breakdown };
 }

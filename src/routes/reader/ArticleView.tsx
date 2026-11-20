@@ -19,6 +19,8 @@ import { AnnotationBar, AnnotationCard, AnnotationList } from "./Annotations";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { htmlWithoutMarks, unpaint } from "../../annotations/paint";
 import { exportNotesPdf } from "./notesExport";
+import { SentencePanel } from "./SentencePanel";
+import { useSentences } from "../../stores/sentences";
 import { useAnnotations } from "../../stores/annotations";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
 import { clearKnownWords, importKnownWords, saveScannedWords, scanText, setKnownWords, type ScanResult, type ScanStatus, type ScanWord } from "../../ipc/scan";
@@ -138,7 +140,7 @@ export function ArticleView({ id, onBack }: Props) {
   const pickLevel = (choice: "me" | number) => updateSettings({ vocab: chooseLevel(choice, vocab?.estimate ?? 0) });
   const [marks, setMarks] = useState<boolean>(() => readPref("lens.reader.marks", true, (v) => typeof v === "boolean"));
   const [autoSave, setAutoSave] = useState<boolean>(() => readPref("lens.reader.autoSave", true, (v) => typeof v === "boolean"));
-  const [tab, setTab] = useState<"dict" | "words" | "notes">("words");
+  const [tab, setTab] = useState<"dict" | "words" | "notes" | "sentence">("words");
   const [scan, setScan] = useState<ScanResult | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -277,6 +279,13 @@ export function ArticleView({ id, onBack }: Props) {
   // 阅读批注：正文排好后画上本章标注；选中文字给颜色条，点标注给卡片
   const ann = useReaderAnnotations({ body: bodyRef, articleId, chapter: book ? (at?.idx ?? 0) : 0, rendered, enabled: !!article && draft === null && pdfView === "reflow" });
   const annCount = useAnnotations((s) => s.items.length);
+  // 长难句拆解：换文章清空；开始拆就打开右栏、切到「拆解」页
+  const sentenceCount = useSentences((s) => s.items.length);
+  useEffect(() => useSentences.getState().reset(articleId ?? null), [articleId]);
+  const showSentence = () => {
+    setTab("sentence");
+    if (!useReader.getState().sideHost) useSettings.getState().updateLayout({ showContext: true });
+  };
 
   const onPdfPage = (page: number, total: number) => {
     pdfAt.current = { page, total };
@@ -845,8 +854,27 @@ export function ArticleView({ id, onBack }: Props) {
         {article && draft === null && <p className={styles.faint}>{tr("点一个词查词，拖选可以查短语。")}</p>}
       </div>
 
-      {ann.bar && <AnnotationBar bar={ann.bar} onCreate={(c, note) => void ann.create(c, note)} onClose={() => ann.setBar(null)} />}
-      {ann.card && <AnnotationCard key={ann.card.id} card={ann.card} onClose={() => ann.setCard(null)} />}
+      {ann.bar && (
+        <AnnotationBar
+          bar={ann.bar}
+          onCreate={(c, note) => void ann.create(c, note)}
+          onClose={() => ann.setBar(null)}
+          onBreakdown={() => {
+            if (ann.breakdown()) showSentence();
+          }}
+        />
+      )}
+      {ann.card && (
+        <AnnotationCard
+          key={ann.card.id}
+          card={ann.card}
+          onClose={() => ann.setCard(null)}
+          onBreakdown={(s, before, after) => {
+            void useSentences.getState().run(s, before, after);
+            showSentence();
+          }}
+        />
+      )}
 
       <ArticleExportDialog
         open={exporting}
@@ -882,8 +910,13 @@ export function ArticleView({ id, onBack }: Props) {
                 <button type="button" role="tab" aria-selected={tab === "notes"} aria-pressed={tab === "notes"} onClick={() => setTab("notes")}>
                   {tr("批注")} {annCount || ""}
                 </button>
+                <button type="button" role="tab" aria-selected={tab === "sentence"} aria-pressed={tab === "sentence"} onClick={() => setTab("sentence")}>
+                  {tr("拆解")} {sentenceCount || ""}
+                </button>
               </div>
-              {tab === "notes" ? (
+              {tab === "sentence" ? (
+                <SentencePanel />
+              ) : tab === "notes" ? (
                 <AnnotationList
                   chapterTitles={book ? book.chapters.map((c) => c.title) : null}
                   missing={ann.missing}

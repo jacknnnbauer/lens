@@ -650,6 +650,7 @@
 
 .segmented button,
 .segmentedSmall button {
+  white-space: nowrap;
   padding: 3px 12px;
   border: 0;
   border-radius: 6px;
@@ -670,6 +671,16 @@
   color: var(--text);
   font-weight: 500;
   box-shadow: 0 0 0 1px var(--line);
+}
+
+/* 右栏的标签（释义 / 生词 / 批注 / 拆解）：四个排一行，窄栏里收紧间距 */
+.panel > .segmented {
+  align-self: stretch;
+  display: flex;
+}
+.panel > .segmented button {
+  flex: 1 1 auto;
+  padding: 3px 6px;
 }
 
 .dictPanel,

@@ -392,6 +392,37 @@ impl Default for Immersive {
     }
 }
 
+/// 英文怎么说的对象（设置 › AI）：名字和一行描述
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Audience {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// 英文怎么说：存好的对象、上次选的哪个（空 = 不指定）
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Expression {
+    pub audiences: Vec<Audience>,
+    pub last_audience: String,
+}
+
+impl Default for Expression {
+    fn default() -> Self {
+        let a = |id: &str, name: &str, note: &str| Audience { id: id.into(), name: name.into(), note: note.into() };
+        Self {
+            audiences: vec![
+                a("jordan-sub", "约旦分包商", "英语一般，阿拉伯语母语，合作方；句子要短，少用习语和缩写"),
+                a("uk-employer", "英国业主代表", "英语母语，正式，甲方；用英式拼写和说法（programme、site）"),
+            ],
+            last_audience: String::new(),
+        }
+    }
+}
+
 /// 阅读页点词时用的词典（设置 › 场景配置组）
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -419,6 +450,7 @@ pub struct Settings {
     pub study: Study,
     pub vocab: Vocab,
     pub reading: Reading,
+    pub expression: Expression,
     /// 自定义主题（主题库里「复制并编辑」或导入的）
     pub custom_themes: Vec<crate::themes::CustomTheme>,
     pub active_profile: String,
@@ -445,6 +477,7 @@ impl Default for Settings {
             study: Study::default(),
             vocab: Vocab::default(),
             reading: Reading::default(),
+            expression: Expression::default(),
             custom_themes: Vec::new(),
             active_profile: "reading".into(),
             keys: Default::default(),
@@ -546,6 +579,17 @@ mod tests {
         assert_eq!(reloaded.appearance.theme, "dark");
         assert_eq!(reloaded.appearance.accent, "teal");
         assert_eq!(reloaded.rest["future"]["x"], 500);
+        Ok(())
+    }
+
+    #[test]
+    fn expression_defaults_have_two_presets() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("settings.json");
+        fs::write(&path, r#"{"layout":{"preset":"compact"}}"#)?;
+        let e = SettingsStore::load(path)?.get()?.expression;
+        assert_eq!(e.audiences.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["约旦分包商", "英国业主代表"]);
+        assert!(e.last_audience.is_empty());
         Ok(())
     }
 

@@ -192,11 +192,26 @@ export interface Settings {
   vocab: VocabPrefs;
   /** 阅读页点词用的词典 */
   reading: ReadingPrefs;
+  /** 英文怎么说：对象 */
+  expression: ExpressionPrefs;
   customThemes: CustomTheme[];
   activeProfile: string;
   /** 应用内快捷键：只存改过的（动作 id → 组合键），见 src/keys.ts */
   keys: Record<string, string>;
   [section: string]: unknown;
+}
+
+/** 英文怎么说的对象：名字和一行描述 */
+export interface Audience {
+  id: string;
+  name: string;
+  note: string;
+}
+
+/** 英文怎么说：存好的对象、上次选的哪个（空 = 不指定） */
+export interface ExpressionPrefs {
+  audiences: Audience[];
+  lastAudience: string;
 }
 
 /** 阅读页点词用的词典：profile 空 = 跟随当前配置组；"custom" = dicts；其余是配置组 id */

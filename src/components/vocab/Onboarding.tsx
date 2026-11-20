@@ -68,7 +68,7 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
       {step === "read" && (
         <div className={styles.panel}>
           <h1>{tr("试读一段")}</h1>
-          <p>{tr("接下来打开《白鲸》的开头，生词已经标好，点任意一个词就能查。这篇文章会留在文章库里，不需要时可以删除。")}</p>
+          <p>{tr("接下来打开《简·爱》的开头，生词已经标好，点任意一个词就能查。这篇文章会留在文章库里，不需要时可以删除。")}</p>
           <div className={styles.actions}>
             <button type="button" className={styles.ghost} onClick={() => advance("skipAll")}>
               {tr("以后再说")}

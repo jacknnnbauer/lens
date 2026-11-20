@@ -1563,7 +1563,7 @@ export const en: Record<string, string> = {
   "开始测试": "Start the test",
   "下一步": "Next",
   "试读一段": "Try reading",
-  "接下来打开《白鲸》的开头，生词已经标好，点任意一个词就能查。这篇文章会留在文章库里，不需要时可以删除。": "Next you will open the start of Moby-Dick with new words marked. Click any word to look it up. The article stays in your library until you delete it.",
+  "接下来打开《简·爱》的开头，生词已经标好，点任意一个词就能查。这篇文章会留在文章库里，不需要时可以删除。": "Next you will open the start of Jane Eyre with new words marked. Click any word to look it up. The article stays in your library until you delete it.",
   "以后再说": "Maybe later",
   "开始阅读": "Start reading",
   "内置词典和词汇量测试的释义来自 ECDICT（skywind3000，MIT 许可）。": "The built-in dictionary and vocabulary test glosses come from ECDICT (skywind3000, MIT License).",

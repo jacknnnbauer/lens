@@ -977,3 +977,40 @@
   background: var(--raised);
   color: var(--warn);
 }
+
+/* ---------- 阅读批注：正文里的标注底色 ---------- */
+.prose :global(mark.lens-hl) {
+  padding: 0;
+  border-radius: 2px;
+  color: inherit;
+  background: color-mix(in srgb, var(--hl) 38%, transparent);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.prose :global(mark.lens-hl[data-color="yellow"]) {
+  --hl: #f2c94c;
+}
+.prose :global(mark.lens-hl[data-color="green"]) {
+  --hl: #6fcf97;
+}
+.prose :global(mark.lens-hl[data-color="blue"]) {
+  --hl: #56ccf2;
+}
+.prose :global(mark.lens-hl[data-color="pink"]) {
+  --hl: #f497b6;
+}
+/* 重叠处颜色叠深一点 */
+.prose :global(mark.lens-hl mark.lens-hl) {
+  background: color-mix(in srgb, var(--hl) 55%, transparent);
+}
+/* 有笔记：末尾一个小笔 */
+.prose :global(mark.lens-hl[data-note])::after {
+  content: "✎";
+  margin-left: 2px;
+  font-size: 0.7em;
+  vertical-align: super;
+  color: color-mix(in srgb, var(--hl) 70%, var(--text));
+}
+.prose :global(mark.lens-hl.lens-hl-flash) {
+  background: color-mix(in srgb, var(--hl) 80%, transparent);
+}

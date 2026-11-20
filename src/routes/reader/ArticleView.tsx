@@ -15,6 +15,10 @@ import { acceptable, paragraphOf } from "../../components/inAppLookup";
 import { bookChapter, openArticle, openBook, renameArticle, saveReadingContext, setArticleProgress, setBookPdfState, setBookProgress, updateArticleBody, type Article, type BookInfo, type TocItem } from "../../ipc/articles";
 import { chapterFor } from "../../pdf/viewMap";
 import { PdfPages, type PdfStart } from "./PdfPages";
+import { AnnotationBar, AnnotationCard, AnnotationList } from "./Annotations";
+import { useReaderAnnotations } from "./useReaderAnnotations";
+import { exportNotesPdf } from "./notesExport";
+import { useAnnotations } from "../../stores/annotations";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
 import { clearKnownWords, importKnownWords, saveScannedWords, scanText, setKnownWords, type ScanResult, type ScanStatus, type ScanWord } from "../../ipc/scan";
 import { saveWord, wordId } from "../../ipc/words";
@@ -133,7 +137,7 @@ export function ArticleView({ id, onBack }: Props) {
   const pickLevel = (choice: "me" | number) => updateSettings({ vocab: chooseLevel(choice, vocab?.estimate ?? 0) });
   const [marks, setMarks] = useState<boolean>(() => readPref("lens.reader.marks", true, (v) => typeof v === "boolean"));
   const [autoSave, setAutoSave] = useState<boolean>(() => readPref("lens.reader.autoSave", true, (v) => typeof v === "boolean"));
-  const [tab, setTab] = useState<"dict" | "words">("words");
+  const [tab, setTab] = useState<"dict" | "words" | "notes">("words");
   const [scan, setScan] = useState<ScanResult | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -268,6 +272,10 @@ export function ArticleView({ id, onBack }: Props) {
     }
     setPdfView(view);
   };
+
+  // 阅读批注：正文排好后画上本章标注；选中文字给颜色条，点标注给卡片
+  const ann = useReaderAnnotations({ body: bodyRef, articleId, chapter: book ? (at?.idx ?? 0) : 0, rendered, enabled: !!article && draft === null && pdfView === "reflow" });
+  const annCount = useAnnotations((s) => s.items.length);
 
   const onPdfPage = (page: number, total: number) => {
     pdfAt.current = { page, total };
@@ -810,8 +818,15 @@ export function ArticleView({ id, onBack }: Props) {
           className={styles.prose}
           data-reader=""
           data-marks={marks || undefined}
-          onClick={onClick}
-          onMouseUp={onMouseUp}
+          onClick={(e) => {
+            // 点在标注上：只打开批注卡片，不查词（开着「查词自动收藏」时不想顺手收进生词本）
+            if (!(e.target as HTMLElement).closest("mark.lens-hl")) onClick(e);
+            ann.onClick(e);
+          }}
+          onMouseUp={(e) => {
+            onMouseUp(e);
+            ann.onMouseUp();
+          }}
         />
         {book && at && draft === null && pdfView === "reflow" && (
           <nav className={styles.chapterNav} aria-label={tr("翻章")}>
@@ -826,6 +841,9 @@ export function ArticleView({ id, onBack }: Props) {
         )}
         {article && draft === null && <p className={styles.faint}>{tr("点一个词查词，拖选可以查短语。")}</p>}
       </div>
+
+      {ann.bar && <AnnotationBar bar={ann.bar} onCreate={(c, note) => void ann.create(c, note)} onClose={() => ann.setBar(null)} />}
+      {ann.card && <AnnotationCard key={ann.card.id} card={ann.card} onClose={() => ann.setCard(null)} />}
 
       <ArticleExportDialog
         open={exporting}
@@ -858,8 +876,29 @@ export function ArticleView({ id, onBack }: Props) {
                 <button type="button" role="tab" aria-selected={tab === "words"} aria-pressed={tab === "words"} onClick={() => setTab("words")}>
                   {tr("生词")} {scan ? scan.words.filter((w) => w.status === "new").length : ""}
                 </button>
+                <button type="button" role="tab" aria-selected={tab === "notes"} aria-pressed={tab === "notes"} onClick={() => setTab("notes")}>
+                  {tr("批注")} {annCount || ""}
+                </button>
               </div>
-              {tab === "dict" ? (
+              {tab === "notes" ? (
+                <AnnotationList
+                  chapterTitles={book ? book.chapters.map((c) => c.title) : null}
+                  missing={ann.missing}
+                  onReveal={(a) => {
+                    if (pdfView === "pages") switchPdfView("reflow");
+                    ann.reveal(a, (idx) => goChapter(idx));
+                  }}
+                  onExport={() =>
+                    void exportNotesPdf({
+                      title: article?.title ?? "",
+                      author: article?.author ?? null,
+                      chapterTitles: book ? book.chapters.map((c) => c.title) : null,
+                      items: useAnnotations.getState().items,
+                      missing: ann.missing,
+                    })
+                  }
+                />
+              ) : tab === "dict" ? (
                 <DictPanel
                   picked={picked}
                   autoSave={autoSave}

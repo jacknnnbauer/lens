@@ -1,0 +1,214 @@
+/* 4 种标注色：正文底色、圆点、列表色条共用 */
+.dot,
+.item {
+  --hl-yellow: #f2c94c;
+  --hl-green: #6fcf97;
+  --hl-blue: #56ccf2;
+  --hl-pink: #f497b6;
+}
+
+/* ---------- 选区上方的颜色条 ---------- */
+.bar {
+  position: fixed;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: var(--line);
+}
+
+.dot {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line);
+  cursor: pointer;
+}
+
+.dot[data-color="yellow"] {
+  background: var(--hl-yellow);
+}
+.dot[data-color="green"] {
+  background: var(--hl-green);
+}
+.dot[data-color="blue"] {
+  background: var(--hl-blue);
+}
+.dot[data-color="pink"] {
+  background: var(--hl-pink);
+}
+
+.dot:hover {
+  transform: scale(1.12);
+}
+
+.dot[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.text,
+.danger {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.text:hover {
+  background: var(--raised);
+}
+
+.danger {
+  color: var(--warn);
+}
+
+.danger:hover {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+
+/* ---------- 点标注的小卡片 ---------- */
+.card {
+  position: fixed;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 300px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, 8px);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.note {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font: 13px/1.6 inherit;
+  color: var(--text);
+  resize: vertical;
+}
+
+.meta {
+  margin: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+
+/* ---------- 右栏批注列表 ---------- */
+.empty {
+  margin: 16px 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sub);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.chapter {
+  margin: 10px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--faint);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 8px 10px 8px 12px;
+  border: 0;
+  border-left: 3px solid var(--hl, var(--line));
+  border-radius: 0 8px 8px 0;
+  background: var(--bg);
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.item:hover {
+  background: var(--raised);
+}
+
+.item[data-color="yellow"] {
+  --hl: var(--hl-yellow);
+}
+.item[data-color="green"] {
+  --hl: var(--hl-green);
+}
+.item[data-color="blue"] {
+  --hl: var(--hl-blue);
+}
+.item[data-color="pink"] {
+  --hl: var(--hl-pink);
+}
+
+.quote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font: 13px/1.55 var(--font-gloss);
+  quotes: none;
+}
+
+.itemNote {
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--sub);
+}
+
+.lost {
+  font-style: normal;
+  color: var(--warn);
+}

@@ -22,3 +22,20 @@
 .note {
   opacity: 0.7;
 }
+
+/* 提示上的按钮（撤销）：外层不接收鼠标，按钮单独打开 */
+.action {
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.action:hover {
+  text-decoration: underline;
+}

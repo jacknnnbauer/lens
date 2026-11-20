@@ -17,6 +17,7 @@ import { chapterFor } from "../../pdf/viewMap";
 import { PdfPages, type PdfStart } from "./PdfPages";
 import { AnnotationBar, AnnotationCard, AnnotationList } from "./Annotations";
 import { useReaderAnnotations } from "./useReaderAnnotations";
+import { htmlWithoutMarks, unpaint } from "../../annotations/paint";
 import { exportNotesPdf } from "./notesExport";
 import { useAnnotations } from "../../stores/annotations";
 import { wordGlosses, type WordGloss } from "../../ipc/lookup";
@@ -596,8 +597,10 @@ export function ArticleView({ id, onBack }: Props) {
   const exportHtml = () => {
     const el = bodyRef.current;
     if (!el) return "";
-    if (!book) return el.innerHTML;
+    // 阅读批注的底色不进导出文件
+    if (!book) return htmlWithoutMarks(el);
     const copy = el.cloneNode(true) as HTMLElement;
+    unpaint(copy);
     for (const img of Array.from(copy.querySelectorAll("img"))) {
       const span = document.createElement("span");
       span.className = "lens-img";

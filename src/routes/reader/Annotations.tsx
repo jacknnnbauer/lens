@@ -64,8 +64,13 @@ export function AnnotationCard({ card, onClose }: { card: CardState; onClose: ()
     if (card.editing) area.current?.focus();
   }, [card.editing]);
 
+  // 失焦和点外面会先后触发：同一份内容只存一次（否则撤销要按两下）
+  const lastSaved = useRef<string | null>(null);
   const save = () => {
-    if (item && (draft.trim() || null) !== (item.note ?? null)) void useAnnotations.getState().setNote(item.id, draft).then(() => toastUndo(tr("笔记已保存")));
+    const clean = draft.trim() || null;
+    if (!item || clean === (item.note ?? null) || clean === lastSaved.current) return;
+    lastSaved.current = clean;
+    void useAnnotations.getState().setNote(item.id, draft).then(() => toastUndo(tr("笔记已保存")));
   };
 
   // 点卡片外面、按 Esc：存好笔记再关

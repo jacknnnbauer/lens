@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { wrapWords } from "../routes/reader/markdown";
-import { MARK_CLASS, offsetsOf, paint, plainText, unpaint } from "./paint";
+import { htmlWithoutMarks, MARK_CLASS, offsetsOf, paint, plainText, unpaint } from "./paint";
 
 function root(html: string): HTMLElement {
   const el = document.createElement("div");
@@ -77,5 +77,15 @@ describe("paint", () => {
     paint(el, [{ id: 3, start: s, end: s + 9, color: "yellow", note: false }]);
     expect(marks(el).map((m) => m.textContent).join("")).toBe("years ago");
     expect(el.querySelectorAll(".lens-w").length).toBeGreaterThan(5);
+  });
+});
+
+describe("htmlWithoutMarks", () => {
+  it("export_html_has_no_marks", () => {
+    const el = root("<p>alpha <i>beta</i> gamma</p>");
+    paint(el, [{ id: 1, start: 0, end: 10, color: "pink", note: true }]);
+    const out = htmlWithoutMarks(el);
+    expect(out).toBe("<p>alpha <i>beta</i> gamma</p>");
+    expect(el.querySelectorAll("mark").length).toBeGreaterThan(0);
   });
 });

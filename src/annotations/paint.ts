@@ -76,3 +76,10 @@ export function unpaint(root: HTMLElement): void {
   for (const m of Array.from(root.querySelectorAll<HTMLElement>(`mark.${MARK_CLASS}`))) m.replaceWith(...Array.from(m.childNodes));
   root.normalize();
 }
+
+/** 不带标注的 HTML（导出文章用；页面上的标注保持不动） */
+export function htmlWithoutMarks(root: HTMLElement): string {
+  const copy = root.cloneNode(true) as HTMLElement;
+  unpaint(copy);
+  return copy.innerHTML;
+}

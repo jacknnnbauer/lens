@@ -341,6 +341,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_settings,
             commands::settings::main_ready,
+            commands::settings::set_ui_zoom,
             commands::settings::hide_to_tray,
             commands::settings::quit_app,
             commands::settings::check_update,

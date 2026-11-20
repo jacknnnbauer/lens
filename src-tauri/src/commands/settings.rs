@@ -167,3 +167,30 @@ pub async fn check_update(state: State<'_, AppState>, auto: bool) -> Result<Opti
     }
     crate::update::check(state.online.client()).await.map(Some)
 }
+
+/// 主窗口缩放的范围（百分比）
+pub const ZOOM_MIN: u32 = 80;
+pub const ZOOM_MAX: u32 = 150;
+
+/// 把缩放百分比限制在范围内
+pub fn clamp_zoom(percent: u32) -> u32 {
+    percent.clamp(ZOOM_MIN, ZOOM_MAX)
+}
+
+/// 设主窗口缩放（WebView 自身缩放，点词、选区坐标不受影响），返回实际用的百分比
+#[tauri::command]
+pub fn set_ui_zoom(window: tauri::WebviewWindow, percent: u32) -> Result<u32> {
+    let p = clamp_zoom(percent);
+    window.set_zoom(f64::from(p) / 100.0).map_err(|e| crate::error::Error::Other(e.to_string()))?;
+    Ok(p)
+}
+
+#[cfg(test)]
+mod zoom_tests {
+    use super::clamp_zoom;
+
+    #[test]
+    fn zoom_is_kept_in_range() {
+        assert_eq!((clamp_zoom(50), clamp_zoom(110), clamp_zoom(300)), (80, 110, 150));
+    }
+}

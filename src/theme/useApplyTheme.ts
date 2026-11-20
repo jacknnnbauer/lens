@@ -45,11 +45,13 @@ export function useApplyTheme(): { theme: ThemeId; accent: AccentId } | null {
   // 释义字号与字体（设置 › 外观）
   const glossSize = appearance?.glossFontSize;
   const glossFont = appearance?.glossFont;
+  const readerSize = appearance?.readerFontSize;
   useEffect(() => {
     const root = document.documentElement;
     if (glossSize) root.style.setProperty("--gloss-size", `${glossSize}px`);
     if (glossFont) root.dataset.glossFont = glossFont;
-  }, [glossSize, glossFont]);
+    if (readerSize) root.style.setProperty("--reader-size", `${readerSize}px`);
+  }, [glossSize, glossFont, readerSize]);
 
   return resolved;
 }

@@ -503,7 +503,7 @@
   margin: 0 auto;
   width: 100%;
   font-family: var(--font-gloss);
-  font-size: 17px;
+  font-size: var(--reader-size, 17px);
   line-height: 1.8;
   color: var(--text);
   overflow-wrap: anywhere;

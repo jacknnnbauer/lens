@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { comboOf, pressed, type KeyAction } from "../../keys";
-import { checkUpdate, mainReady } from "../../ipc/settings";
+import { checkUpdate, mainReady, setUiZoom } from "../../ipc/settings";
 import { toast } from "../../stores/toast";
 import { Onboarding } from "../../components/vocab/Onboarding";
 import { TrayHint } from "../../components/TrayHint";
@@ -197,6 +197,37 @@ export function MainWindow() {
   const toggleWall = useCallback(() => {
     const cur = useSettings.getState().settings?.layout.cardWall ?? false;
     useSettings.getState().updateLayout({ cardWall: !cur });
+  }, []);
+  // 主窗口缩放：设置 › 外观「界面缩放」，Ctrl + / − / 0、Ctrl+滚轮
+  const uiZoom = useSettings((s) => s.settings?.appearance.uiZoom);
+  useEffect(() => {
+    if (uiZoom) void setUiZoom(uiZoom).catch(() => undefined);
+  }, [uiZoom]);
+  useEffect(() => {
+    const step = (d: number) => {
+      const cur = useSettings.getState().settings?.appearance.uiZoom ?? 100;
+      const next = d === 0 ? 100 : Math.min(150, Math.max(80, cur + d));
+      if (next !== cur) useSettings.getState().update({ appearance: { uiZoom: next } });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.altKey || e.shiftKey) return;
+      const d = e.key === "=" || e.key === "+" ? 10 : e.key === "-" ? -10 : e.key === "0" ? 0 : null;
+      if (d === null) return;
+      e.preventDefault();
+      step(d);
+    };
+    const onWheel = (e: WheelEvent) => {
+      // PDF 原版页面自己用 Ctrl+滚轮缩放页面
+      if (!e.ctrlKey || (e.target as Element | null)?.closest?.("[data-pdf-pages]")) return;
+      e.preventDefault();
+      step(e.deltaY < 0 ? 10 : -10);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", onWheel);
+    };
   }, []);
   const toggleContext = useCallback(() => {
     const cur = useSettings.getState().settings?.layout.showContext ?? false;

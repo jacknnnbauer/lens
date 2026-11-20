@@ -491,6 +491,9 @@ export const en: Record<string, string> = {
   "强调色": "Accent color",
   "每种强调色在亮色、暗色主题下各有一套值，保证文字对比度。": "Each accent has separate light and dark values to keep text readable.",
   "释义字号": "Definition font size",
+  "阅读正文字号": "Reading text size",
+  "界面缩放": "Interface zoom",
+  "Ctrl + / Ctrl − / Ctrl 0 或 Ctrl + 滚轮也能调": "Ctrl + / Ctrl − / Ctrl 0 or Ctrl + mouse wheel also work",
   "释义字体": "Definition font",
   "运行词典自带的脚本": "Run dictionaries' own scripts",
   "有的 mdx 词典靠脚本实现折叠展开、点喇叭发音等交互。脚本在隔离的沙盒里运行，碰不到 Lens 和你的文件":

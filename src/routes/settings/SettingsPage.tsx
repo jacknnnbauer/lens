@@ -663,6 +663,19 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               <input type="range" min={13} max={22} value={a.glossFontSize} onChange={(e) => setA({ glossFontSize: Number(e.target.value) })} />
             </label>
             <label className={styles.stack}>
+              <span>
+                {tr("阅读正文字号")} <code>{a.readerFontSize ?? 17}px</code>
+              </span>
+              <input type="range" min={14} max={26} value={a.readerFontSize ?? 17} onChange={(e) => setA({ readerFontSize: Number(e.target.value) })} />
+            </label>
+            <label className={styles.stack}>
+              <span>
+                {tr("界面缩放")} <code>{a.uiZoom ?? 100}%</code>
+              </span>
+              <input type="range" min={80} max={150} step={10} value={a.uiZoom ?? 100} onChange={(e) => setA({ uiZoom: Number(e.target.value) })} />
+              <small className={styles.hint}>{tr("Ctrl + / Ctrl − / Ctrl 0 或 Ctrl + 滚轮也能调")}</small>
+            </label>
+            <label className={styles.stack}>
               <span>{tr("释义字体")}</span>
               <select value={a.glossFont} onChange={(e) => setA({ glossFont: e.target.value as "serif" | "sans" })}>
                 <option value="serif">{tr("衬线 · Source Serif 4 + 思源宋体")}</option>

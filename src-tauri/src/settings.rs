@@ -22,6 +22,10 @@ pub struct Appearance {
     pub accent: String,
     pub gloss_font_size: u32,
     pub gloss_font: String,
+    /// 阅读正文字号（px）
+    pub reader_font_size: u32,
+    /// 主窗口缩放（百分比，80–150）
+    pub ui_zoom: u32,
     /// 界面语言：zh | en
     pub language: String,
     /// 运行词典自带的脚本（放在隔离的沙盒里）
@@ -37,6 +41,8 @@ impl Default for Appearance {
             dark_theme: "dark".into(),
             accent: "blue".into(),
             gloss_font_size: 17,
+            reader_font_size: 17,
+            ui_zoom: 100,
             gloss_font: "serif".into(),
             language: "zh".into(),
             dict_scripts: true,
@@ -552,6 +558,8 @@ mod tests {
         let l = store.get()?.layout;
         assert_eq!(l.preset, "three-column");
         assert!(l.show_jump_bar && !l.show_nav, "未写的字段取默认值");
+        let a = store.get()?.appearance;
+        assert_eq!((a.reader_font_size, a.ui_zoom), (17, 100), "正文字号、界面缩放的默认值");
         let l = store.patch(json!({ "layout": { "showNav": true } }))?.layout;
         assert_eq!((l.preset.as_str(), l.show_nav), ("three-column", true));
         Ok(())

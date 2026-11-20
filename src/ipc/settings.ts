@@ -15,6 +15,10 @@ export interface Appearance {
   accent: string;
   glossFontSize: number;
   glossFont: "serif" | "sans";
+  /** 阅读正文字号（px） */
+  readerFontSize: number;
+  /** 主窗口缩放（百分比，80–150） */
+  uiZoom: number;
   /** 界面语言 */
   language: "zh" | "en";
   /** 运行词典自带的脚本（沙盒里） */
@@ -262,4 +266,9 @@ export interface UpdateInfo {
 /** auto：启动时自动检查（关了或一天内查过返回 null，失败也返回 null） */
 export function checkUpdate(auto: boolean): Promise<UpdateInfo | null> {
   return invoke<UpdateInfo | null>("check_update", { auto });
+}
+
+/** 设主窗口缩放（百分比），返回实际用的值 */
+export function setUiZoom(percent: number): Promise<number> {
+  return invoke<number>("set_ui_zoom", { percent });
 }

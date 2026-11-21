@@ -15,6 +15,19 @@ import styles from "./ExpressionCard.module.css";
 
 const EDIT = "__edit__";
 
+/** 打开设置并滚到某一节（设置页按需加载，等它出现再滚） */
+function openSettingsAt(id: string) {
+  useRoute.getState().go("settings");
+  let n = 0;
+  const t = setInterval(() => {
+    const el = document.getElementById(id);
+    if (el || ++n > 40) {
+      clearInterval(t);
+      el?.scrollIntoView({ block: "start" });
+    }
+  }, 100);
+}
+
 // 和长难句拆解一样按 1 美元 ≈ 7.2 元折算
 const fen = (usd: number) => (usd * 7.2 * 100 < 0.1 ? tr("不到 0.1 分") : tr("{n} 分", { n: (usd * 7.2 * 100).toFixed(1) }));
 
@@ -57,8 +70,7 @@ export function ExpressionCard({ input, onLookup }: { input: string; onLookup: (
 
   const pickAudience = (v: string) => {
     if (v === EDIT) {
-      useRoute.getState().go("settings");
-      setTimeout(() => document.getElementById("set-expression")?.scrollIntoView({ block: "start" }), 200);
+      openSettingsAt("set-expression");
       return;
     }
     update({ expression: { lastAudience: v } });
@@ -148,10 +160,7 @@ export function ExpressionCard({ input, onLookup }: { input: string; onLookup: (
           <button
             type="button"
             className={styles.link}
-            onClick={() => {
-              useRoute.getState().go("settings");
-              setTimeout(() => document.getElementById("set-ai")?.scrollIntoView({ block: "start" }), 200);
-            }}
+            onClick={() => openSettingsAt("set-ai")}
           >
             {tr("去填写")}
           </button>

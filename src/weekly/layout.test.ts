@@ -56,6 +56,20 @@ describe("卡片排版", () => {
   });
 });
 
+describe("卡片高度和折线", () => {
+  it("card_without_quote_is_shorter", () => {
+    expect(layoutCard(full, 0, measure, "2026-11-16")!.height).toBe(1620);
+    const h = layoutCard({ ...full, quotes: [] }, 0, measure, "2026-11-16")!.height;
+    expect(h).toBeLessThan(1620);
+    expect(h).toBeGreaterThanOrEqual(900);
+  });
+
+  it("vocab_line_starts_from_last_week", () => {
+    const one = { ...full, vocab: { value: 7820, previous: 7700, points: [["2026-11-13", 7820]] as [string, number][] } };
+    expect(layoutCard(one, 0, measure, "2026-11-16")!.vocab!.points).toEqual([7700, 7820]);
+  });
+});
+
 describe("换行", () => {
   it("wrap_keeps_english_words_whole", () => {
     expect(wrapText("hello brave new world", 120, measure, 5)).toEqual(["hello brave", "new world"]);

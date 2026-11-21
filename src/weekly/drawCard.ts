@@ -2,7 +2,7 @@
 
 import { tr } from "../i18n";
 import type { Week } from "./week";
-import { CONTENT, FONT, FOOT_Y, H, NOTE_FONT, NOTE_LINE, PAD, QUOTE_FONT, QUOTE_LINE, W, WORDS_FONT, type CardLayout } from "./layout";
+import { CONTENT, FONT, FOOT_GAP, NOTE_FONT, NOTE_LINE, PAD, QUOTE_FONT, QUOTE_LINE, W, WORDS_FONT, type CardLayout } from "./layout";
 
 const C = {
   bg: "#f6f1e7",
@@ -39,7 +39,7 @@ function bigNumber(ctx: CanvasRenderingContext2D, s: string, x: number, y: numbe
   let cx = x;
   for (const part of s.split(/(\d[\d,]*)/).filter(Boolean)) {
     const isNum = /^\d/.test(part);
-    cx += text(ctx, isNum ? part : part.trim(), cx, y, isNum ? `700 96px ${FONT.serif}` : `40px ${FONT.serif}`, C.ink);
+    cx += text(ctx, isNum ? part : part.trim(), cx, y, isNum ? `700 96px ${FONT.number}` : `40px ${FONT.serif}`, C.ink);
     if (!isNum) cx += 8;
   }
 }
@@ -58,6 +58,8 @@ function roundTop(ctx: CanvasRenderingContext2D, x: number, y: number, w: number
 
 export function drawCard(ctx: CanvasRenderingContext2D, layout: CardLayout, week: Week) {
   ctx.textBaseline = "alphabetic";
+  const H = layout.height;
+  const FOOT_Y = H - FOOT_GAP;
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, W, H);
 
@@ -97,7 +99,7 @@ export function drawCard(ctx: CanvasRenderingContext2D, layout: CardLayout, week
   if (layout.vocab) {
     const v = layout.vocab;
     label(tr("词汇量"), v.x, v.top + 26);
-    text(ctx, v.value.toLocaleString(), v.x, v.top + 128, `700 96px ${FONT.serif}`, C.ink);
+    text(ctx, v.value.toLocaleString(), v.x, v.top + 128, `700 96px ${FONT.number}`, C.ink);
     let sx = v.x;
     if (v.delta !== null) {
       const sign = v.delta >= 0 ? "↑ " : "↓ ";

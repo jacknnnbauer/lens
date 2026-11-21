@@ -67,9 +67,10 @@
 
 /* 1080×1620 的卡片缩小显示，高度跟窗口走 */
 .card {
-  height: min(calc(100vh - 170px), 780px);
+  max-height: min(calc(100vh - 170px), 780px);
+  max-width: 520px;
   width: auto;
-  aspect-ratio: 2 / 3;
+  height: auto;
   border-radius: 8px;
   box-shadow: 0 4px 18px color-mix(in srgb, var(--text) 12%, transparent);
   opacity: 0;

@@ -57,6 +57,8 @@ export function WeeklyDialog() {
       if (!alive || !ctx) return;
       const layout = layoutCard(report, quote, canvasMeasure(ctx), week.fromDay);
       if (!layout) return;
+      // 改尺寸会清空画布、重置状态，所以先改再画
+      el.height = layout.height;
       drawCard(ctx, layout, week);
       setDrawn(true);
     });

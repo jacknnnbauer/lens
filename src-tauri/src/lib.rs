@@ -390,6 +390,8 @@ pub fn run() {
             commands::ai::sentence_breakdown,
             commands::ai::expression_generate,
             commands::ai::expression_cached,
+            commands::weekly::reading_log_add,
+            commands::weekly::weekly_report,
             commands::annotations::annotation_list,
             commands::annotations::annotation_add,
             commands::annotations::annotation_set_color,

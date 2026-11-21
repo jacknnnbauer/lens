@@ -8,6 +8,7 @@ pub mod history;
 pub mod migrations;
 pub mod review;
 pub mod vocab;
+pub mod weekly;
 pub mod words;
 
 use std::path::Path;

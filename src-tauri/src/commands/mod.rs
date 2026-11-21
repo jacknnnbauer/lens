@@ -16,4 +16,5 @@ pub mod scan;
 pub mod settings;
 pub mod study;
 pub mod vocab;
+pub mod weekly;
 pub mod words;

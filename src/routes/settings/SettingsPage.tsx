@@ -698,7 +698,7 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               <span>
                 {tr("释义字号")} <code>{a.glossFontSize}px</code>
               </span>
-              <input type="range" min={13} max={22} value={a.glossFontSize} onChange={(e) => setA({ glossFontSize: Number(e.target.value) })} />
+              <input type="range" min={12} max={32} value={a.glossFontSize} onChange={(e) => setA({ glossFontSize: Number(e.target.value) })} />
             </label>
             <label className={styles.stack}>
               <span>

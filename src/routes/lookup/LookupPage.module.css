@@ -47,7 +47,36 @@
   font-size: 12px;
 }
 
+/* 吸顶：往下滚时贴在顶上，随时能换词典。背景只向左右补到本栏内边距，不盖住两侧栏 */
+.jump[data-sticky] {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 8px 0;
+  margin: -8px 0;
+  background: var(--bg);
+  box-shadow: 0 0 0 24px var(--bg);
+  clip-path: inset(0 -24px);
+}
+
+/* 卡片墙的卡片铺满整栏：吸顶的名称条也铺满，卡片不会从两边露出来 */
+.column[data-wall] > .jump[data-sticky] {
+  max-width: none;
+  box-shadow: 0 0 0 28px var(--bg);
+  clip-path: inset(0 -28px);
+}
+
+/* 跳到某本词典时，卡片顶端停在名称条下面 */
+.column[data-jump] article {
+  scroll-margin-top: calc(var(--jump-h, 0px) + 12px);
+}
+
 .pill {
+  /* 名称太长省略，悬停看全名；免得名称条折成好几行 */
+  max-width: 18em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 3px 10px;
   border-radius: 999px;
   border: 1px solid var(--line);

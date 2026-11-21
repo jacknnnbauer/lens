@@ -12,6 +12,7 @@ import { DownloadIcon, StarIcon } from "../../components/icons";
 import { SearchBox, type SearchBoxHandle } from "../../components/SearchBox";
 import { isHanPhrase, isSentence } from "../../components/sentence";
 import { ExpressionCard } from "../../components/ExpressionCard";
+import { jumpToDict } from "../../components/jumpToDict";
 import { Hint } from "../../components/Hint";
 import { normalizeHeadword } from "./alsoForm";
 import { SenseAtlas } from "../../components/SenseAtlas";
@@ -44,6 +45,8 @@ interface Props {
   /** 反查条的「全部」：到反查与全文页 */
   onOpenSearch: () => void;
   showJumpBar: boolean;
+  /** 名称条往下滚时贴在顶上 */
+  stickyJumpBar: boolean;
   /** 双栏/三栏：结果上方显示大号词头（画板 01） */
   showHeadword: boolean;
 }
@@ -53,7 +56,7 @@ function cardToggles(): HTMLElement[] {
 }
 
 export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPage(
-  { actions, onOpenLibrary, onOpenSearch, showJumpBar, showHeadword },
+  { actions, onOpenLibrary, onOpenSearch, showJumpBar, stickyJumpBar, showHeadword },
   ref,
 ) {
   const { handle, cards, done, suggestions, error, search, queryOnline } = useLookup();
@@ -249,17 +252,32 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
     if (card) void copyCard(card, copyCfg.defaultFormat, copyCfg);
   };
 
-  const jumpTo = (id: string) => {
-    const el = document.getElementById(`dict-${id}`);
-    el?.scrollIntoView({ block: "start", behavior: "smooth" });
-    el?.querySelector<HTMLElement>("[data-card-toggle]")?.focus({ preventScroll: true });
-  };
+  // 名称条吸顶：量出它的高度，跳转时卡片停在它下面
+  const jumpBar = useRef<HTMLElement>(null);
+  const [jumpH, setJumpH] = useState(0);
+  const jumpShown = showJumpBar && visible.length > 0;
+  const jumpSticky = jumpShown && stickyJumpBar;
+  useEffect(() => {
+    const el = jumpBar.current;
+    if (!jumpSticky || !el) return;
+    const ro = new ResizeObserver(() => setJumpH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [jumpSticky]);
+
+  const jumpTo = jumpToDict;
 
   return (
     <div
       className={styles.column}
       data-wall={wall || undefined}
-      style={wall && wallMaxHeight > 0 ? ({ "--card-max-h": `${wallMaxHeight}px`, "--card-overflow": "auto" } as React.CSSProperties) : undefined}
+      data-jump={jumpSticky || undefined}
+      style={
+        {
+          ...(wall && wallMaxHeight > 0 ? { "--card-max-h": `${wallMaxHeight}px`, "--card-overflow": "auto" } : {}),
+          ...(jumpSticky ? { "--jump-h": `${jumpH}px` } : {}),
+        } as React.CSSProperties
+      }
     >
       <div className={styles.searchRow}>
         <SearchBox ref={searchBox} onSearch={onSearchBox} onPickInSentence={pickInSentence} onTabOut={() => cardToggles()[0]?.focus()} />
@@ -328,13 +346,14 @@ export const LookupPage = forwardRef<LookupPageHandle, Props>(function LookupPag
         {tr("点框里的某一个字，可以只查这个字。")}
       </Hint>
 
-      {showJumpBar && visible.length > 0 && (
-        <nav aria-label={tr("跳转到词典")} className={styles.jump}>
+      {jumpShown && (
+        <nav ref={jumpBar} aria-label={tr("跳转到词典")} className={styles.jump} data-sticky={jumpSticky || undefined}>
           {visible.map((c) => (
             <a
               key={c.id}
               href={`#dict-${c.id}`}
               className={styles.pill}
+              title={c.name}
               data-ui="chip"
               data-pending={c.status === "pending" || undefined}
               onClick={(e) => {

@@ -773,6 +773,13 @@ export function SettingsPage({ onBack, onOpenThemes }: { onBack: () => void; onO
               onChange={(v) => setL({ showJumpBar: v })}
             />
             <Toggle
+              label={tr("名称条吸顶")}
+              hint={tr("往下看释义时，词典名称条贴在顶上，随时能换词典")}
+              checked={l.stickyJumpBar ?? true}
+              disabled={!l.showJumpBar}
+              onChange={(v) => setL({ stickyJumpBar: v })}
+            />
+            <Toggle
               label={tr("当前语境")}
               hint={tr("有语境句时（划词、窗口内查词，或自己粘贴一句话），结果上方说明这个词在句中是哪个意思、依据是什么。查词小窗在「取词」里单独设置")}
               checked={l.showContextSense ?? true}

@@ -61,6 +61,8 @@ pub struct Layout {
     pub show_context: bool,
     pub show_status_bar: bool,
     pub show_jump_bar: bool,
+    /// 词典名称条往下滚时贴在顶上
+    pub sticky_jump_bar: bool,
     /// 有语境句时，查词结果上方显示「当前语境」：这句话里是哪个意思、依据
     pub show_context_sense: bool,
     /// 查词结果里显示「词汇网络」：派生词、同根词、易混词、近义词
@@ -74,7 +76,7 @@ pub struct Layout {
     /// 左侧导航、右侧栏宽度（px，拖动侧栏边缘调整）
     pub nav_width: u32,
     pub context_width: u32,
-    /// 右侧栏显示哪些内容、按什么顺序：coca | vocab | ai | query | dicts | dict:<词典 id>
+    /// 右侧栏显示哪些内容、按什么顺序：jump | coca | vocab | ai | query | dicts | dict:<词典 id>
     pub panel: Vec<PanelItem>,
     /// 卡片墙：各词典卡片按自身高度铺满多列（瀑布流），而不是上下一列
     pub card_wall: bool,
@@ -94,7 +96,7 @@ pub struct PanelItem {
 
 /// 右侧栏默认内容（新装时的顺序）
 pub fn default_panel() -> Vec<PanelItem> {
-    ["coca", "vocab", "ai", "query", "dicts"].iter().map(|id| PanelItem { id: (*id).to_string(), show: true }).collect()
+    ["jump", "coca", "vocab", "ai", "query", "dicts"].iter().map(|id| PanelItem { id: (*id).to_string(), show: true }).collect()
 }
 
 impl Default for Layout {
@@ -106,6 +108,7 @@ impl Default for Layout {
             show_context: false,
             show_status_bar: false,
             show_jump_bar: true,
+            sticky_jump_bar: true,
             show_context_sense: true,
             show_word_family: true,
             word_family_view: "graph".into(),

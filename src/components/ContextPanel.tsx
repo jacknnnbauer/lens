@@ -7,6 +7,7 @@ import { useLookup, type Card } from "../stores/lookup";
 import { briefOf } from "../stores/save";
 import { useSettings } from "../stores/settings";
 import styles from "./ContextPanel.module.css";
+import { jumpToDict } from "./jumpToDict";
 import { dictIdOf, normalizePanel } from "./panelSections";
 import { AiSection, CocaSection, VocabSection } from "./WordInsights";
 
@@ -71,6 +72,25 @@ export function ContextPanel({ onLookup }: { onLookup: (w: string) => void }) {
         return ready ? <VocabSection key={`vocab-${key}`} word={word} /> : null;
       case "ai":
         return ready ? <AiSection key={`ai-${key}`} word={word} brief={briefOf(cards, word)} /> : null;
+      case "jump": {
+        // 和查词页上方的名称条一样：有结果（或还在查）的词典，点一下跳过去
+        const shown = cards.filter((c) => c.status !== "miss" && c.status !== "skipped");
+        if (!shown.length) return null;
+        return (
+          <nav key="jump" className={styles.section} aria-label={tr("词典名称（点击跳转）")}>
+            <div className={styles.label}>{tr("词典")}</div>
+            <ul className={styles.jumpList}>
+              {shown.map((c) => (
+                <li key={c.id}>
+                  <button type="button" className={styles.jump} data-pending={c.status === "pending" || undefined} onClick={() => jumpToDict(c.id)}>
+                    {c.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        );
+      }
       case "query":
         return (
           <section key="query" className={styles.section}>

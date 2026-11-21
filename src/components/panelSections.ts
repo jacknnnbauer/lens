@@ -3,6 +3,7 @@
 import type { PanelItem } from "../ipc/settings";
 
 export const BUILTIN_SECTIONS = [
+  { id: "jump", name: "词典名称（点击跳转）" },
   { id: "coca", name: "COCA 词频与搭配" },
   { id: "vocab", name: "真实例句（vocabulary.com）" },
   { id: "ai", name: "AI 双语例句" },
@@ -16,7 +17,8 @@ export function dictIdOf(itemId: string): string | null {
   return itemId.startsWith(DICT_PREFIX) ? itemId.slice(DICT_PREFIX.length) : null;
 }
 
-/** 整理设置里的列表：去重、去掉不认识的项；以后新增的内置项补在末尾（默认显示）。 */
+/** 整理设置里的列表：去重、去掉不认识的项；以后新增的内置项补进去（默认显示）：
+ *  词典名称排在最前（右侧栏一打开就能点），其余补在末尾。 */
 export function normalizePanel(list: PanelItem[] | undefined): PanelItem[] {
   const known = new Set<string>(BUILTIN_SECTIONS.map((s) => s.id));
   const out: PanelItem[] = [];
@@ -26,6 +28,10 @@ export function normalizePanel(list: PanelItem[] | undefined): PanelItem[] {
     seen.add(it.id);
     out.push({ id: it.id, show: it.show !== false });
   }
-  for (const s of BUILTIN_SECTIONS) if (!seen.has(s.id)) out.push({ id: s.id, show: true });
+  for (const s of BUILTIN_SECTIONS) {
+    if (seen.has(s.id)) continue;
+    if (s.id === "jump") out.unshift({ id: s.id, show: true });
+    else out.push({ id: s.id, show: true });
+  }
   return out;
 }

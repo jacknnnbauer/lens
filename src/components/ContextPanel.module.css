@@ -87,3 +87,37 @@
   margin: 0;
   color: var(--faint);
 }
+
+/* 词典名称（点击跳转）：一行一个，整行可点 */
+.jumpList {
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.jump {
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--sub);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jump:hover,
+.jump:focus-visible {
+  background: var(--hl);
+  color: var(--text);
+}
+
+.jump[data-pending] {
+  opacity: 0.6;
+}

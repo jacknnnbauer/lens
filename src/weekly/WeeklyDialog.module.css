@@ -1,0 +1,128 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--text) 35%, transparent);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100vh - 48px);
+  padding: 16px 20px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--text) 25%, transparent);
+}
+
+.head,
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.range {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.nav,
+.close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nav:hover:not(:disabled),
+.close:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.stage {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+}
+
+/* 1080×1620 的卡片缩小显示，高度跟窗口走 */
+.card {
+  height: min(calc(100vh - 170px), 780px);
+  width: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--text) 12%, transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.card[data-ready] {
+  opacity: 1;
+}
+
+.empty {
+  margin: 60px 80px;
+  color: var(--sub);
+}
+
+.ghost,
+.primary {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ghost {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+}
+
+.primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+
+.ghost:disabled,
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 书库顶上那一行 */
+.line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sub);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}

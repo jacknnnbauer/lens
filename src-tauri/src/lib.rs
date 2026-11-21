@@ -392,6 +392,7 @@ pub fn run() {
             commands::ai::expression_cached,
             commands::weekly::reading_log_add,
             commands::weekly::weekly_report,
+            commands::weekly::weekly_save_png,
             commands::annotations::annotation_list,
             commands::annotations::annotation_add,
             commands::annotations::annotation_set_color,

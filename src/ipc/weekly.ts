@@ -29,3 +29,6 @@ export const readingLogAdd = (day: string, articleId: number, seconds: number, w
   invoke<void>("reading_log_add", { day, articleId, seconds, words });
 
 export const weeklyReport = (w: Week) => invoke<WeeklyReport>("weekly_report", { fromDay: w.fromDay, toDay: w.toDay, fromMs: w.fromMs, toMs: w.toMs });
+
+/** 存卡片 PNG（Canvas toDataURL 的结果） */
+export const weeklySavePng = (path: string, base64: string) => invoke<void>("weekly_save_png", { path, base64 });

@@ -121,6 +121,8 @@ export interface General {
   builtinDictRemoved: boolean;
   /** 看过的一次性提示 */
   hintsSeen: string[];
+  /** 最后提示过「上周周报已生成」的那周周一（YYYY-MM-DD） */
+  weeklySeen: string;
 }
 
 /** 词汇量和阅读的生词门槛 */

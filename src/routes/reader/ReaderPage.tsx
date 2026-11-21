@@ -9,6 +9,7 @@ import { useReader } from "../../stores/reader";
 import { usePdfImport } from "../../stores/pdfImport";
 import { toast } from "../../stores/toast";
 import { ArticleView } from "./ArticleView";
+import { WeeklyLine } from "../../weekly/WeeklyLine";
 import styles from "./ReaderPage.module.css";
 import { getLang, tr } from "../../i18n";
 
@@ -118,6 +119,7 @@ export function ReaderPage() {
           {tr("粘贴新文章")}
         </button>
       </header>
+      <WeeklyLine />
       <p className={styles.sub}>{tr("把英文文章和电子书存进 Lens 来读：点词就在右边查词，查过的词连同所在句子自动收进生词本；生词按词频标在正文上。支持 Markdown，也可以把 .md / .txt / .epub / .mobi / .azw3 / .pdf 文件拖进窗口。")}</p>
 
       {error && (

@@ -32,6 +32,9 @@ import { subscribeLookupEvents, useLookup } from "../../stores/lookup";
 import { useReader } from "../../stores/reader";
 import { useRoute } from "../../stores/route";
 import { useSettings } from "../../stores/settings";
+import { hasContent, useWeekly, WeeklyDialog } from "../../weekly/WeeklyDialog";
+import { shiftWeek, weekOf } from "../../weekly/week";
+import { weeklyReport } from "../../ipc/weekly";
 import { useApplyTheme } from "../../theme/useApplyTheme";
 import styles from "./MainWindow.module.css";
 import { tr } from "../../i18n";
@@ -183,6 +186,15 @@ export function MainWindow() {
     }
     if (layout.startCompact) {
       useSettings.getState().updateLayout({ preset: "compact", showNav: false, showContext: false, showStatusBar: false });
+    }
+    // 每周第一次打开：上周有阅读数据就提示一次周报
+    const last = shiftWeek(weekOf(new Date()), -1);
+    if (useSettings.getState().settings?.general.weeklySeen !== last.fromDay) {
+      useSettings.getState().update({ general: { weeklySeen: last.fromDay } });
+      void weeklyReport(last).then(
+        (r) => hasContent(r) && toast(tr("上周周报已生成"), null, { label: tr("查看"), run: () => useWeekly.getState().show(last) }),
+        () => undefined,
+      );
     }
   }, [layout]);
 
@@ -419,6 +431,7 @@ export function MainWindow() {
         {tr("阅读、生词本、设置都在左侧导航里：点这里或按 Ctrl+\\ 打开。")}
       </Hint>
       <PdfImportProgress />
+      <WeeklyDialog />
       <Toast />
       <BatchDialog />
       {!immersive && <BatchChip />}

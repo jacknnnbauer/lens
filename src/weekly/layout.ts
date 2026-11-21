@@ -2,7 +2,7 @@
 // 版式见 design/prototypes/weekly-card.html：1080×1620，四块——阅读时长、词汇量、新收生词、金句；没数据的块不画，下面的往上排。
 
 import type { WeeklyReport } from "../ipc/weekly";
-import { tr } from "../i18n";
+import { getLang, tr } from "../i18n";
 
 export const W = 1080;
 export const H = 1620;
@@ -49,7 +49,8 @@ export function formatDuration(seconds: number): string {
 }
 
 function wordsText(n: number): string {
-  return n >= 10_000 ? tr("约 {n} 万词", { n: (n / 10_000).toFixed(1) }) : tr("约 {n} 词", { n: n.toLocaleString() });
+  // 「万」只有中文用；英文直接写全数
+  return n >= 10_000 && getLang() === "zh" ? tr("约 {n} 万词", { n: (n / 10_000).toFixed(1) }) : tr("约 {n} 词", { n: n.toLocaleString() });
 }
 
 /** 切成能换行的小块：英文按词（带后面的空格）、中文和其他字符一个一个 */

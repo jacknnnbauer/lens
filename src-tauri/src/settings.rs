@@ -175,6 +175,9 @@ pub struct General {
     pub builtin_dict_removed: bool,
     /// 看过（点了「知道了」或用过一次）的一次性提示：nav | han-char | toc
     pub hints_seen: Vec<String>,
+    /// 最后提示过「上周周报已生成」的那周周一（YYYY-MM-DD）
+    #[serde(default)]
+    pub weekly_seen: String,
 }
 
 fn yes() -> bool {
@@ -183,7 +186,7 @@ fn yes() -> bool {
 
 impl Default for General {
     fn default() -> Self {
-        Self { check_updates: true, last_update_check: 0, close_to_tray: false, tray_hint_shown: false, intro_done: false, builtin_dict_removed: false, hints_seen: Vec::new() }
+        Self { check_updates: true, last_update_check: 0, close_to_tray: false, tray_hint_shown: false, intro_done: false, builtin_dict_removed: false, hints_seen: Vec::new(), weekly_seen: String::new() }
     }
 }
 

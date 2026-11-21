@@ -17,3 +17,14 @@ pub async fn reading_log_add(state: State<'_, AppState>, day: String, article_id
 pub async fn weekly_report(state: State<'_, AppState>, from_day: String, to_day: String, from_ms: i64, to_ms: i64) -> Result<WeeklyReport> {
     state.db.with_conn(|c| weekly::weekly_report(c, &from_day, &to_day, from_ms, to_ms))
 }
+
+/// 存周报卡片：前端 Canvas 导出的 PNG（base64）写到用户选的路径
+#[tauri::command]
+pub async fn weekly_save_png(path: std::path::PathBuf, base64: String) -> Result<()> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64.trim_start_matches("data:image/png;base64,"))
+        .map_err(|e| crate::error::Error::Other(e.to_string()))?;
+    std::fs::write(&path, bytes)?;
+    Ok(())
+}

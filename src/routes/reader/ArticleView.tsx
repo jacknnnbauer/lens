@@ -41,6 +41,7 @@ import { WysiwygEditor, type WysiwygApi } from "./WysiwygEditor";
 import { renderBookChapter, renderMarkdown, resolveBookPath, WORD_CLASS, wrapWords, type WordIndex } from "./markdown";
 import styles from "./ReaderPage.module.css";
 import { currentPos, scrollToPos } from "./position";
+import { useReadingTimer } from "../../weekly/useReadingTimer";
 import { tr } from "../../i18n";
 import { syncVocab } from "../../stores/vocabSync";
 import { chooseLevel, effectiveLevel, migrateLevel } from "./levelPrefs";
@@ -383,6 +384,23 @@ export function ArticleView({ id, onBack }: Props) {
     };
   }, [article, draft]);
 
+  // 阅读计时（周报用）；往前读的位置换算成读过的词数（只算往前，回翻和刚打开时跳到上次的位置不算）
+  const readingTimer = useReadingTimer(articleId, !!article && draft === null);
+  const readMax = useRef<{ key: string; pos: number } | null>(null);
+  const countWords = (key: string, pos: number) => {
+    const ix = index.current;
+    if (!ix) return;
+    const m = readMax.current;
+    if (!m || m.key !== key) {
+      readMax.current = { key, pos };
+      return;
+    }
+    if (pos > m.pos) {
+      readingTimer.current?.addWords((pos - m.pos) * ix.spans.length);
+      m.pos = pos;
+    }
+  };
+
   // 记下读到哪里
   const chapterIdx = at?.idx;
   useEffect(() => {
@@ -394,6 +412,7 @@ export function ArticleView({ id, onBack }: Props) {
       t = setTimeout(() => {
         if (root.scrollHeight <= root.clientHeight) return;
         const pos = currentPos(index.current, root);
+        countWords(`${article.id}:${chapterIdx ?? 0}`, pos);
         const el = bodyRef.current;
         if (book && chapterIdx !== undefined && el) setTocAt(tocIndexAt(book.toc, chapterIdx, el, root.getBoundingClientRect().top));
         void (chapterIdx === undefined ? setArticleProgress(article.id, pos) : setBookProgress(article.id, chapterIdx, pos)).catch(() => undefined);

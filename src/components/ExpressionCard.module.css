@@ -166,3 +166,114 @@
   font-size: 13px;
   color: var(--warn);
 }
+
+/* —— 更多说法 —— */
+.more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sub);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.more:hover,
+.more:focus-visible {
+  color: var(--accent);
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupName {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sub);
+}
+
+.groupName::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+.entryList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entryItem {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  align-items: baseline;
+}
+
+.entryItem .note {
+  grid-column: 1 / 3;
+}
+
+.entryItem:hover .copy {
+  opacity: 1;
+}
+
+.star {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.tag {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: var(--font-ui, inherit);
+  font-size: 11px;
+  color: var(--sub);
+  vertical-align: 2px;
+}
+
+.dialogue {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.who {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.dialogueZh {
+  margin: 0 0 0 1.6em;
+  font-size: 12.5px;
+  color: var(--sub);
+}
+
+.tip {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text);
+}

@@ -18,3 +18,13 @@ export const MAX_CHARS = 600;
 export function tooLong(text: string): boolean {
   return [...text.trim()].length > MAX_CHARS;
 }
+
+/** 「更多说法」只给短的中文说法：去掉标点、符号、空白后 1–12 个字 */
+export const SHORT_PHRASE_MAX = 12;
+
+export function isShortPhrase(text: string): boolean {
+  const t = text.trim();
+  if (expressionMode(t) !== "zh") return false;
+  const n = [...t.replace(/[\p{P}\p{S}\s]/gu, "")].length;
+  return n >= 1 && n <= SHORT_PHRASE_MAX;
+}

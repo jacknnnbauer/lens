@@ -3,7 +3,8 @@
 
 import { useEffect } from "react";
 import { tr } from "../i18n";
-import { expressionMode, tooLong } from "../expression/detect";
+import { expressionMode, isShortPhrase, tooLong } from "../expression/detect";
+import type { EntryResult } from "../ipc/expression";
 import { useExpression } from "../stores/expression";
 import { useSettings } from "../stores/settings";
 import { useRoute } from "../stores/route";
@@ -47,6 +48,112 @@ function ClickableEnglish({ text, onLookup }: { text: string; onLookup: (w: stri
   });
   if (pos < text.length) out.push(text.slice(pos));
   return <>{out}</>;
+}
+
+// 和长难句拆解一样的费用说明
+const footText = (r: { cachedAt: number | null; costUsd: number }) =>
+  `DeepSeek · ${r.cachedAt !== null ? `${tr("已存本机，再看不花钱")} · ${isoMinute(r.cachedAt)}` : fen(r.costUsd)}`;
+
+/** 「更多说法」：短的中文说法在五种风格下面可以展开分组词条 */
+function EntrySection({ text, onLookup, onCopy }: { text: string; onLookup: (w: string) => void; onCopy: (en: string) => void }) {
+  const { entryOpen, entryStatus, entryResult, entryError, openEntry, closeEntry } = useExpression();
+  if (!entryOpen) {
+    return (
+      <button type="button" className={styles.more} onClick={() => void openEntry(text)}>
+        {tr("更多说法")} ›
+      </button>
+    );
+  }
+  return (
+    <div className={styles.entry}>
+      <button type="button" className={styles.more} aria-expanded="true" onClick={closeEntry}>
+        {tr("更多说法")} ⌄
+      </button>
+      {entryStatus === "loading" && (
+        <div aria-busy="true" className={styles.list}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={styles.skeleton} />
+          ))}
+        </div>
+      )}
+      {entryStatus === "done" && entryResult && <EntryBody result={entryResult} onLookup={onLookup} onCopy={onCopy} onRedo={() => void openEntry(text, true)} />}
+      {entryStatus === "error" && (
+        <p className={styles.error}>
+          {entryError}{" "}
+          <button type="button" className={styles.link} onClick={() => void openEntry(text)}>
+            {tr("重试")}
+          </button>
+        </p>
+      )}
+      {entryStatus === "nokey" && (
+        <p className={styles.error}>
+          {tr("要先填写 DeepSeek API Key。")}{" "}
+          <button type="button" className={styles.link} onClick={() => openSettingsAt("set-ai")}>
+            {tr("去填写")}
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function EntryBody({ result, onLookup, onCopy, onRedo }: { result: EntryResult; onLookup: (w: string) => void; onCopy: (en: string) => void; onRedo: () => void }) {
+  const { groups, dialogue, tip } = result.entry;
+  return (
+    <>
+      {groups.map((g, gi) => (
+        <section key={gi} className={styles.group} aria-label={g.name}>
+          <h4 className={styles.groupName}>{g.name}</h4>
+          <ul className={styles.entryList}>
+            {g.items.map((it, i) => (
+              <li key={i} className={styles.entryItem}>
+                <p className={styles.en}>
+                  <ClickableEnglish text={it.en} onLookup={onLookup} />
+                  {it.star && (
+                    <span className={styles.star} title={tr("常用")}>
+                      ★
+                    </span>
+                  )}
+                  {it.tag && <span className={styles.tag}>{tr(it.tag)}</span>}
+                </p>
+                <button type="button" className={styles.copy} aria-label={tr("复制这一句")} title={tr("复制这一句")} onClick={() => onCopy(it.en)}>
+                  <CopyIcon />
+                </button>
+                {(it.zh || it.when) && (
+                  <p className={styles.note}>
+                    {it.zh}
+                    {it.when && ` · ${it.when}`}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      {dialogue.length > 0 && (
+        <section className={styles.group} aria-label={tr("对话")}>
+          <h4 className={styles.groupName}>{tr("对话")}</h4>
+          <div className={styles.dialogue}>
+            {dialogue.map((l, i) => (
+              <div key={i}>
+                <p className={styles.en}>
+                  {l.who && <span className={styles.who}>{l.who}:</span>} <ClickableEnglish text={l.en} onLookup={onLookup} />
+                </p>
+                {l.zh && <p className={styles.dialogueZh}>{l.zh}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {tip && <p className={styles.tip}>{tr("记整块：{tip}", { tip })}</p>}
+      <footer className={styles.foot}>
+        <span>{footText(result)}</span>
+        <button type="button" className={styles.link} onClick={onRedo}>
+          {tr("换一批")}
+        </button>
+      </footer>
+    </>
+  );
 }
 
 export function ExpressionCard({ input, onLookup }: { input: string; onLookup: (w: string) => void }) {
@@ -134,10 +241,9 @@ export function ExpressionCard({ input, onLookup }: { input: string; onLookup: (
               </li>
             ))}
           </ol>
+          {mode === "zh" && isShortPhrase(text) && <EntrySection text={text} onLookup={onLookup} onCopy={(en) => void copy(en)} />}
           <footer className={styles.foot}>
-            <span>
-              DeepSeek · {result.cachedAt !== null ? `${tr("已存本机，再看不花钱")} · ${isoMinute(result.cachedAt)}` : fen(result.costUsd)}
-            </span>
+            <span>{footText(result)}</span>
             <button type="button" className={styles.link} onClick={() => void run(text, note, true)}>
               {tr("换一批")}
             </button>

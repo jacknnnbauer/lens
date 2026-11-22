@@ -293,3 +293,54 @@ pub async fn expression_generate(state: State<'_, AppState>, input: String, audi
     })?;
     Ok(ExpressionResult { expression, model, cached_at: None, cost_usd })
 }
+
+// —— 英文怎么说 · 更多说法 ——
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryResult {
+    pub entry: crate::expression_entry::Entry,
+    pub model: String,
+    /// 从缓存取的：当时生成的时间；刚生成的为 None
+    pub cached_at: Option<i64>,
+    /// 这次请求花了多少（美元）；缓存为 0
+    pub cost_usd: f64,
+}
+
+/// 只查缓存（不联网、不花钱）
+#[tauri::command]
+pub async fn expression_entry_cached(state: State<'_, AppState>, input: String) -> Result<Option<EntryResult>> {
+    use crate::expression_entry;
+    let Ok(input) = expression_input(&input) else { return Ok(None) };
+    let model = state.settings.get()?.ai.deepseek_model;
+    Ok(state
+        .db
+        .with_conn(|c| expression_entry::cached(c, &input, &model))?
+        .map(|(entry, at)| EntryResult { entry, model, cached_at: Some(at), cost_usd: 0.0 }))
+}
+
+/// 生成「更多说法」词条：先查缓存（force 时跳过），没有再问 DeepSeek
+#[tauri::command]
+pub async fn expression_entry_generate(state: State<'_, AppState>, input: String, force: bool) -> Result<EntryResult> {
+    use crate::expression_entry;
+    let input = expression_input(&input)?;
+    let model = state.settings.get()?.ai.deepseek_model;
+    if !force {
+        if let Some((entry, at)) = state.db.with_conn(|c| expression_entry::cached(c, &input, &model))? {
+            return Ok(EntryResult { entry, model, cached_at: Some(at), cost_usd: 0.0 });
+        }
+    }
+    let key = credentials::read(ai::KEY_ID)?.ok_or_else(|| {
+        Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 服务）", "No {} API key yet (Settings › AI)", ai::NAME))
+    })?;
+    let user = expression_entry::prompt(&input);
+    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, expression_entry::SYSTEM, &user, expression_entry::JSON_FORMAT, 3000, std::time::Duration::from_secs(60)).await?;
+    let entry = expression_entry::parse(&text)?;
+    let now = now_ms();
+    let label = format!("更多说法 · {}", input.chars().take(40).collect::<String>());
+    let cost_usd = state.db.with_conn(|c| {
+        expression_entry::store(c, &input, &model, &entry, now)?;
+        ai::record(c, &model, &label, usage, now)
+    })?;
+    Ok(EntryResult { entry, model, cached_at: None, cost_usd })
+}

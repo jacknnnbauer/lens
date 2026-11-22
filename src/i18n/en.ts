@@ -1181,8 +1181,6 @@ export const en: Record<string, string> = {
   "设置 › 关于 › 去下载": "Settings › About › Download",
   "包含": "Include",
   "词典名称条": "Dictionary name bar",
-  "名称条吸顶": "Keep name bar on top",
-  "往下看释义时，词典名称条贴在顶上，随时能换词典": "The dictionary name bar stays at the top while you scroll, so you can switch any time",
   "词典名称（点击跳转）": "Dictionary names (click to jump)",
   "查词结果上方一排词典名称，点一下跳到那本词典": "A row of dictionary names above the results; click one to jump to it",
   "划词时加入生词本": "Add captured words to the wordbook",

@@ -366,7 +366,6 @@ export function MainWindow() {
             onOpenLibrary={() => setLibraryOpen(true)}
             onOpenSearch={() => go("search")}
             showJumpBar={layout?.showJumpBar ?? true}
-            stickyJumpBar={layout?.stickyJumpBar ?? true}
             showHeadword={showNav && !immersive}
             // 只留查词相关的按钮，历史、生词本、设置从左侧导航或 Ctrl+H / Ctrl+B / Ctrl+, 进入
             actions={

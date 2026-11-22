@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { normalizePanel } from "./panelSections";
 
 describe("右侧栏内容", () => {
-  it("jump_is_first_for_new_installs", () => {
-    expect(normalizePanel(undefined).map((p) => p.id)).toEqual(["jump", "coca", "vocab", "ai", "query", "dicts"]);
+  it("jump_is_listed_for_new_installs", () => {
+    expect(normalizePanel(undefined).map((p) => p.id)).toEqual(["coca", "vocab", "ai", "query", "dicts", "jump"]);
   });
 
-  it("old_settings_get_jump_at_the_top_shown", () => {
+  it("old_settings_get_jump_appended_like_other_new_items", () => {
     const old = [
       { id: "dict:oald", show: true },
       { id: "coca", show: false },
@@ -16,14 +16,14 @@ describe("右侧栏内容", () => {
       { id: "dicts", show: true },
     ];
     const out = normalizePanel(old);
-    expect(out[0]).toEqual({ id: "jump", show: true });
-    expect(out.slice(1)).toEqual(old);
+    expect(out.slice(0, old.length)).toEqual(old);
+    expect(out[old.length]).toEqual({ id: "jump", show: true });
   });
 
   it("user_order_and_hidden_jump_are_kept", () => {
     const mine = [
-      { id: "coca", show: true },
       { id: "jump", show: false },
+      { id: "coca", show: true },
     ];
     expect(normalizePanel(mine).slice(0, 2)).toEqual(mine);
   });

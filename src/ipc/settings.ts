@@ -34,8 +34,6 @@ export interface Layout {
   showContext: boolean;
   showStatusBar: boolean;
   showJumpBar: boolean;
-  /** 词典名称条往下滚时贴在顶上 */
-  stickyJumpBar: boolean;
   /** 查词结果上方的「当前语境」 */
   showContextSense: boolean;
   /** 查词结果里的「词汇网络」 */

@@ -261,7 +261,7 @@ function AiSettings() {
           ]}
           onChange={(v) => setAi({ count: v })}
         />
-        <Toggle label={tr("查词后自动生成")} hint={tr("关闭时点「生成双语例句」才调用；生成过的词直接显示缓存")} checked={ai.auto} onChange={(v) => setAi({ auto: v })} />
+        <Toggle label={tr("查词后自动生成")} hint={tr("关闭时点右侧栏的「AI 双语例句」标题才调用；生成过的词直接显示缓存")} checked={ai.auto} onChange={(v) => setAi({ auto: v })} />
       </div>
       {message && (
         <p className={styles.hint} role={message.error ? "alert" : "status"} data-error={message.error || undefined}>

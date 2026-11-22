@@ -118,19 +118,29 @@
   line-height: 1.5;
 }
 
-.generate {
-  align-self: flex-start;
-  padding: 6px 12px;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
+/* 手动模式下的标题：整行可点，点了才生成 */
+.labelButton {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  border: 0;
   background: transparent;
-  color: var(--accent);
   font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
   cursor: pointer;
 }
 
-.generate:hover {
-  background: var(--hl);
+.labelSub {
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+.labelButton:hover,
+.labelButton:focus-visible {
+  color: var(--text);
 }
 
 .examples {

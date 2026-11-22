@@ -158,10 +158,20 @@ export function AiSection({ word, brief }: { word: string; brief: string | null 
     // 换了模型也重新取（缓存按模型区分）
   }, [word, auto, model]);
 
+  const canGenerate = !!hasKey && !data && !busy;
+
   return (
     <section className={styles.section} aria-label={tr("AI 双语例句")} data-word-lookup="">
       <div className={styles.labelRow}>
-        <span className={styles.label}>{tr("AI 双语例句")}</span>
+        {canGenerate ? (
+          // 手动模式：点标题才调用 DeepSeek
+          <button type="button" className={styles.labelButton} onClick={() => void run(false, false)}>
+            {tr("AI 双语例句")}
+            <span className={styles.labelSub}>{tr("点一下生成")}</span>
+          </button>
+        ) : (
+          <span className={styles.label}>{tr("AI 双语例句")}</span>
+        )}
         {hasKey && data && (
           <button type="button" className={styles.link} disabled={busy} onClick={() => void run(true, false)}>
             {tr("重新生成")}
@@ -175,11 +185,6 @@ export function AiSection({ word, brief }: { word: string; brief: string | null 
             {tr("去设置")}
           </button>
         </p>
-      )}
-      {hasKey && !data && !busy && (
-        <button type="button" className={styles.generate} onClick={() => void run(false, false)}>
-          {tr("生成双语例句")}
-        </button>
       )}
       {busy && <p className={styles.hint} aria-live="polite">{tr("正在生成…")}</p>}
       {error && (

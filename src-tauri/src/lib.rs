@@ -33,6 +33,7 @@ mod review;
 mod scan;
 mod sentence_ai;
 mod expression_ai;
+mod expression_entry;
 mod study;
 mod wiki;
 mod guide_ai;

@@ -31,16 +31,18 @@
     <p>把电子书和文章放进 Lens 里读：生词先标好，点词就查，查过的词带着原句自动收藏。读大部头之前，还能先拿到一本按章节排好的预习包；想更省力，让 AI 先替你通读一遍。</p>
     <nav class="jump" aria-label="本页内容">
       <a href="#library">文章库与电子书</a><a href="#mark">标生词</a><a href="#words">生词页</a><a href="#click">点词查词</a><a href="#bookmark">书签</a>
+      <a href="#annotate">批注</a><a href="#breakdown">长难句拆解</a><a href="#weekly">阅读周报</a>
       <a href="#edit">编辑</a><a href="#export">导出 PDF</a><a href="#pack">全书预习包</a><a href="#digest">导读与精读本</a>
     </nav>
   </div>
 
   <section class="block" id="library">
     <div class="wrap">
-      <h2>文章库与 EPUB 电子书</h2>
+      <h2>文章库与电子书</h2>
       <figure class="shot wide" style="margin-bottom:32px"><img src="assets/reader.webp" srcset="assets/reader-1600.webp 1600w, assets/reader.webp 2561w" sizes="(max-width: 1488px) 100vw, 1440px" width="2561" height="1392" loading="lazy" alt="阅读《白鲸》第一章：点了 spleen，右栏显示牛津高阶等词典的释义，其中「（文学）怒气」正是书中的意思"></figure>
       <ul class="points cols">
-        <li><b>放进来的方式</b>：粘贴文章、打开文件（.epub、.md、.txt）、拖进窗口，或在资源管理器里右击文件「用 Lens 打开」。</li>
+        <li><b>放进来的方式</b>：粘贴文章、打开文件（.epub、.mobi、.azw3、.pdf、.md、.txt）、拖进窗口，或在资源管理器里右击文件「用 Lens 打开」。</li>
+        <li><b>Kindle 和 PDF</b>：没有 DRM 的 mobi / azw3 和 epub 一样读。文字版 PDF 默认按 Lens 的排版重排，也能切到原版页面，点页面上的单词同样能查；扫描版和加密的书会直接说明为什么打不开。</li>
         <li><b>电子书</b>：一次一章，点章节名打开目录；图片、脚注、尾注照常显示；书复制一份存进 Lens，原文件删了也不影响。</li>
         <li><b>编码自动识别</b>：UTF-8、UTF-16、GBK 的文本都能正确打开。</li>
         <li><b>三栏</b>：左边导航、中间正文、右边查词，两侧都能关掉只留正文；往下读时工具栏自动收起。</li>
@@ -89,6 +91,39 @@
     <div class="wrap">
       <h2>书签与阅读进度</h2>
       <p class="intro">每篇文章、每本书都记住读到哪一章哪个位置，下次打开回到原处。读到想回头看的地方，按 <kbd>Ctrl</kbd>+<kbd>D</kbd> 加个书签：名字取屏幕上第一段原文，注明第几章、百分之几，点一下跳过去，换章也行。</p>
+    </div>
+  </section>
+
+  <section class="block" id="annotate">
+    <div class="wrap">
+      <h2>批注：划线、笔记、读书笔记 PDF</h2>
+      <figure class="shot wide" style="margin-bottom:32px"><img src="assets/annotate.webp" srcset="assets/annotate-1600.webp 1600w, assets/annotate.webp 2120w" sizes="(max-width: 1488px) 100vw, 1440px" width="2120" height="1440" loading="lazy" alt="阅读批注：正文里一句话标成黄色，下面弹出四色选择和笔记框"></figure>
+      <ul class="points cols">
+        <li><b>划线</b>：选中一段文字，浮出颜色条，点一个颜色就划好，四种颜色。短的选区照常查词。</li>
+        <li><b>笔记</b>：给标注写一段想法，随时改；改颜色、删除都能 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销。</li>
+        <li><b>批注列表</b>：右栏「批注」页按章节列出全书标注，点一条跳回原文。文章改过、找不到原句时会标出来，不会贴错位置。</li>
+        <li><b>读书笔记 PDF</b>：一键导出，带书名、作者、导出日期、按章节分组，每条有颜色、原文、笔记和时间。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="breakdown">
+    <div class="wrap">
+      <h2>长难句拆解</h2>
+      <figure class="shot wide" style="margin-bottom:32px"><img src="assets/breakdown.webp" srcset="assets/breakdown-1600.webp 1600w, assets/breakdown.webp 2120w" sizes="(max-width: 1488px) 100vw, 1440px" width="2120" height="1440" loading="lazy" alt="长难句拆解：右栏标出主干和三个修饰成分，下面是整句译文"></figure>
+      <ul class="points cols">
+        <li><b>怎么用</b>：选中一句或两句，在颜色条上点「拆解」；点已有的标注也能「拆解这句」。</li>
+        <li><b>给什么</b>：主干（主谓宾 / 主系表）、各从句和短语的类型、修饰谁、各自的中文，整句译文，1～3 条难点讲解。</li>
+        <li><b>原句上标结构</b>：主干加粗，各成分用不同颜色的下划线，和下面的说明一一对应。</li>
+        <li><b>花费</b>：用 DeepSeek，只发送这句话和前后各一句。拆过的句子存在本机，再看不花钱；每次花费计入 AI 用量统计。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="weekly">
+    <div class="wrap">
+      <h2>阅读周报与分享卡片</h2>
+      <p class="intro">书库顶上显示「本周阅读 X 小时 · 查看周报」。周报卡片包含阅读时长和一周七天的柱状图、词汇量变化、新收生词数和一句你标注过的金句；可以翻看以前的周，换一句金句，复制图片直接贴到微信，或存成 PNG。每周第一次打开 Lens 会提示上周的周报。阅读时长只在阅读页、窗口在前台时计时，停下来一分钟就暂停。</p>
     </div>
   </section>
 

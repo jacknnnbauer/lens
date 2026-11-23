@@ -31,7 +31,7 @@
     <p>Lens 读你自己的 MDict、StarDict 词典，十几部同时查也即时出结果。在这之上，它帮你对齐义项、判断词义、找相关词、从中文反查英文。</p>
     <nav class="jump" aria-label="本页内容">
       <a href="#wall">多词典与卡片墙</a><a href="#atlas">义项图谱</a><a href="#context">当前语境</a><a href="#network">词汇网络</a>
-      <a href="#search">搜索框</a><a href="#reverse">中文反查</a><a href="#side">COCA 与例句</a><a href="#profiles">配置组</a><a href="#online">在线词典</a><a href="#export">复制与导出</a>
+      <a href="#search">搜索框</a><a href="#reverse">中文反查</a><a href="#side">COCA 与例句</a><a href="#expression">英文怎么说</a><a href="#profiles">配置组</a><a href="#online">在线词典</a><a href="#export">复制与导出</a>
     </nav>
   </div>
 
@@ -132,7 +132,25 @@
         <li><b>COCA 词频与搭配</b>：导入 COCA 2 万词表后，显示排名、频次、语体分布（口语 / 小说 / 新闻 / 学术），按词性分组的搭配词和近义词，点搭配词直接查。</li>
         <li><b>内置 WordNet 3.1</b>：约 15 万词。没有 COCA 也能提供词性、派生关系、近义词和不规则变形。</li>
         <li><b>真实例句</b>：来自出版物的例句，按小说、新闻、科技等来源筛选。</li>
-        <li><b>AI 双语例句（可选）</b>：用 DeepSeek 按这个词的真实搭配生成中英例句；只发送单词、简释和搭配词，生成过的直接用缓存。</li>
+        <li><b>AI 双语例句（可选）</b>：用 DeepSeek 按这个词的真实搭配生成中英例句；只发送单词、简释和搭配词，生成过的直接用缓存。例句长度可选短、适中、长；还能指定从句类型（主语从句、定语从句、各种状语从句等 15 种），每种各写一句并标出句型。可以设成查词就生成，或者点标题再生成。</li>
+        <li><b>词典名称</b>：把所有查到的词典列在右栏，看到哪里都能点名字跳到那部词典。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="expression">
+    <div class="wrap">
+      <h2>英文怎么说</h2>
+      <div class="split" style="margin-bottom:32px">
+        <figure class="shot"><img src="assets/expression.webp" width="1396" height="1150" loading="lazy" alt="英文怎么说：「气死我了」的五种英文说法"></figure>
+        <figure class="shot"><img src="assets/expression-more.webp" width="1410" height="1160" loading="lazy" alt="更多说法：分组的英文说法、中文语感、标签和小对话"></figure>
+      </div>
+      <ul class="points cols">
+        <li><b>输入中文</b>：一个短语、一句话，或带着目的和顾虑的几句话都行。结果最上面出现「英文怎么说」，点开后按简单、地道、母语级、幽默、含蓄各给一种说法和一句说明。</li>
+        <li><b>按对象调整</b>：选一个说话对象（比如英语一般的分包商、英国业主代表），用词、长度、礼貌程度跟着变。对象可以自己编辑。</li>
+        <li><b>更多说法</b>：短的中文说法还能展开一整套英文表达，按强度或场景分组，每条带中文语感，常用的标星，正式和粗口另有标签，最后是一段小对话和一个值得整块记的表达。</li>
+        <li><b>英文句子</b>：输入整句英文，就变成「换个说法」，给出五种改写。</li>
+        <li><b>花费</b>：用 DeepSeek，不点开不调用；生成过的内容存在本机，再看不花钱。</li>
       </ul>
     </div>
   </section>

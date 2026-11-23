@@ -695,3 +695,26 @@ kbd {
   align-items: center;
   margin-bottom: 8px;
 }
+
+/* AI 例句的句型勾选 */
+.clauseGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin-top: 8px;
+}
+
+.clauseGroupName {
+  flex: 0 0 6em;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.clauseItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}

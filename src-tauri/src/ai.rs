@@ -34,7 +34,74 @@ pub struct Example {
     pub en: String,
     pub zh: String,
     /// 例句用到的搭配（来自 COCA 或常见搭配）
+    #[serde(default)]
     pub collocation: String,
+    /// 指定了句型时：这句是哪种从句（CLAUSES 里的 id）；旧缓存没有
+    #[serde(default)]
+    pub clause: String,
+}
+
+/// 可指定的 15 种从句：(id, 给模型看的英文名)
+pub const CLAUSES: [(&str, &str); 15] = [
+    ("subject", "subject clause (noun clause as subject)"),
+    ("object", "object clause (noun clause as object)"),
+    ("predicative", "predicative clause (noun clause after a linking verb)"),
+    ("appositive", "appositive clause (that-clause explaining a noun such as fact, news, idea)"),
+    ("restrictive", "restrictive (defining) relative clause"),
+    ("nonrestrictive", "non-restrictive (non-defining) relative clause, set off by commas"),
+    ("time", "adverbial clause of time"),
+    ("place", "adverbial clause of place"),
+    ("reason", "adverbial clause of reason"),
+    ("condition", "conditional clause"),
+    ("purpose", "adverbial clause of purpose"),
+    ("result", "adverbial clause of result"),
+    ("concession", "concessive clause"),
+    ("comparison", "comparative clause"),
+    ("manner", "adverbial clause of manner"),
+];
+
+/// 例句的长度与句型（来自设置）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Style {
+    /// short | medium | long
+    pub length: &'static str,
+    /// 按 CLAUSES 顺序、去重后的句型 id
+    pub clauses: Vec<String>,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self { length: "medium", clauses: Vec::new() }
+    }
+}
+
+impl Style {
+    /// 规整：未知长度当适中，未知句型丢掉，按清单顺序去重
+    pub fn new(length: &str, clauses: &[String]) -> Self {
+        let length = match length {
+            "short" => "short",
+            "long" => "long",
+            _ => "medium",
+        };
+        let clauses = CLAUSES.iter().filter(|(id, _)| clauses.iter().any(|c| c == id)).map(|(id, _)| (*id).to_string()).collect();
+        Self { length, clauses }
+    }
+
+    /// 缓存键：适中且不限句型为空串（和旧缓存一致）
+    pub fn key(&self) -> String {
+        if self.length == "medium" && self.clauses.is_empty() {
+            return String::new();
+        }
+        format!("{}|{}", self.length, self.clauses.join(","))
+    }
+
+    fn words(&self) -> &'static str {
+        match self.length {
+            "short" => "5–10 words",
+            "long" => "20–35 words",
+            _ => "8–22 words",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -51,10 +118,10 @@ const SYSTEM: &str = "You write example sentences for a Chinese learner's Englis
 Sentences must sound like natural, contemporary American English that a native speaker would actually write or say. \
 Build each sentence around a real, high-frequency collocation of the headword; prefer the COCA collocations provided, \
 and never invent unusual word combinations. Vary the senses, structures and contexts (daily life, work, news, academic). \
-Keep sentences 8–22 words. Give a faithful, natural Simplified Chinese translation of each sentence, \
+Give a faithful, natural Simplified Chinese translation of each sentence, \
 not a word-by-word gloss. In `collocation`, write the exact collocation the sentence uses, e.g. \"generation gap\".";
 
-pub fn prompt(word: &str, brief: Option<&str>, collocations: &str, count: usize) -> String {
+pub fn prompt(word: &str, brief: Option<&str>, collocations: &str, count: usize, style: &Style) -> String {
     let mut p = format!("Headword: {word}\n");
     if let Some(b) = brief.filter(|b| !b.trim().is_empty()) {
         p.push_str(&format!("Dictionary gloss: {}\n", b.trim()));
@@ -64,7 +131,21 @@ pub fn prompt(word: &str, brief: Option<&str>, collocations: &str, count: usize)
     } else {
         p.push_str(&format!("COCA collocations (most frequent first):\n{collocations}\n"));
     }
-    p.push_str(&format!("\nWrite {count} example sentences."));
+    p.push_str(&format!("\nEach sentence should be {} long.", style.words()));
+    if style.clauses.is_empty() {
+        p.push_str(&format!("\nWrite {count} example sentences. Leave `clause` empty."));
+    } else {
+        p.push_str(&format!(
+            "\nWrite {} example sentences, exactly one for each clause type below, in this order. \
+Each sentence must really contain that type of clause, used correctly, and must use the headword. \
+Set `clause` to the id before the colon.\n",
+            style.clauses.len()
+        ));
+        for id in &style.clauses {
+            let name = CLAUSES.iter().find(|(c, _)| c == id).map(|(_, n)| *n).unwrap_or_default();
+            p.push_str(&format!("- {id}: {name}\n"));
+        }
+    }
     p
 }
 
@@ -116,15 +197,15 @@ pub fn usage_of(v: &Value) -> Usage {
 
 /// DeepSeek 的 JSON Output 要求提示里出现 "json" 并给出格式示例
 const JSON_FORMAT: &str = "Reply with JSON only, in exactly this format:\n\
-{\"examples\": [{\"en\": \"English sentence\", \"zh\": \"中文翻译\", \"collocation\": \"generation gap\"}]}";
+{\"examples\": [{\"en\": \"English sentence\", \"zh\": \"中文翻译\", \"collocation\": \"generation gap\", \"clause\": \"\"}]}";
 
-pub fn request_body(model: &str, word: &str, brief: Option<&str>, collocations: &str, count: usize) -> Value {
+pub fn request_body(model: &str, word: &str, brief: Option<&str>, collocations: &str, count: usize, style: &Style) -> Value {
     json!({
         "model": model,
         "max_tokens": 4000,
         "messages": [
             { "role": "system", "content": format!("{SYSTEM}\n\n{JSON_FORMAT}") },
-            { "role": "user", "content": prompt(word, brief, collocations, count) }
+            { "role": "user", "content": prompt(word, brief, collocations, count, style) }
         ],
         "response_format": { "type": "json_object" },
         "stream": false
@@ -343,20 +424,20 @@ pub fn clear_usage(conn: &Connection) -> Result<()> {
 
 // —— 缓存（迁移 0004 的 ai_examples 表）——
 
-pub fn cached(conn: &Connection, word: &str, model: &str) -> Result<Option<(Vec<Example>, i64)>> {
+pub fn cached(conn: &Connection, word: &str, model: &str, style: &str) -> Result<Option<(Vec<Example>, i64)>> {
     let row: Option<(String, i64)> = conn
-        .query_row("SELECT payload, created_at FROM ai_examples WHERE word = ?1 AND model = ?2", params![word, model], |r| {
+        .query_row("SELECT payload, created_at FROM ai_examples WHERE word = ?1 AND model = ?2 AND style = ?3", params![word, model, style], |r| {
             Ok((r.get(0)?, r.get(1)?))
         })
         .optional()?;
     Ok(row.and_then(|(p, t)| serde_json::from_str(&p).ok().map(|v| (v, t))))
 }
 
-pub fn store(conn: &Connection, word: &str, model: &str, examples: &[Example], now: i64) -> Result<()> {
+pub fn store(conn: &Connection, word: &str, model: &str, style: &str, examples: &[Example], now: i64) -> Result<()> {
     conn.execute(
-        "INSERT INTO ai_examples (word, model, payload, created_at) VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT (word, model) DO UPDATE SET payload = excluded.payload, created_at = excluded.created_at",
-        params![word, model, serde_json::to_string(examples)?, now],
+        "INSERT INTO ai_examples (word, model, style, payload, created_at) VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT (word, model, style) DO UPDATE SET payload = excluded.payload, created_at = excluded.created_at",
+        params![word, model, style, serde_json::to_string(examples)?, now],
     )?;
     Ok(())
 }
@@ -376,7 +457,7 @@ mod tests {
 
     #[test]
     fn request_and_response() -> Result<()> {
-        let b = request_body("deepseek-flash", "generation", Some("一代人"), "noun (n): generation gap", 3);
+        let b = request_body("deepseek-flash", "generation", Some("一代人"), "noun (n): generation gap", 3, &Style::default());
         assert_eq!(b["response_format"]["type"], "json_object");
         let sys = b["messages"][0]["content"].as_str().unwrap_or_default();
         assert!(sys.to_lowercase().contains("json") && sys.contains("\"examples\""), "JSON Output 要求提示里有 json 和格式示例");
@@ -420,12 +501,69 @@ mod tests {
     fn caches_per_word_and_model() -> Result<()> {
         let db = Db::open_in_memory()?;
         db.with_conn(|c| {
-            let ex = vec![Example { en: "a".into(), zh: "甲".into(), collocation: "x".into() }];
-            store(c, "word", "m1", &ex, 1)?;
-            store(c, "word", "m1", &ex, 2)?;
-            assert_eq!(cached(c, "word", "m1")?.map(|(_, t)| t), Some(2));
-            assert!(cached(c, "word", "m2")?.is_none());
+            let ex = vec![Example { en: "a".into(), zh: "甲".into(), collocation: "x".into(), clause: String::new() }];
+            store(c, "word", "m1", "", &ex, 1)?;
+            store(c, "word", "m1", "", &ex, 2)?;
+            assert_eq!(cached(c, "word", "m1", "")?.map(|(_, t)| t), Some(2));
+            assert!(cached(c, "word", "m2", "")?.is_none());
             Ok(())
         })
+    }
+
+    #[test]
+    fn style_key_is_empty_for_default_and_normalized() {
+        assert_eq!(Style::default().key(), "");
+        assert_eq!(Style::new("medium", &[]).key(), "");
+        // 未知长度当适中；未知句型丢掉；按清单顺序、去重
+        assert_eq!(Style::new("huge", &["bogus".into()]).key(), "");
+        let s = Style::new("short", &["time".into(), "subject".into(), "time".into(), "x".into()]);
+        assert_eq!(s.clauses, ["subject", "time"]);
+        assert_eq!(s.key(), "short|subject,time");
+        assert_eq!(Style::new("long", &[]).key(), "long|");
+        assert_eq!(CLAUSES.len(), 15);
+    }
+
+    #[test]
+    fn prompt_has_length_and_clauses() {
+        let p = prompt("abroad", None, "", 5, &Style::default());
+        assert!(p.contains("8–22 words") && p.contains("Write 5"));
+        let p = prompt("abroad", None, "", 5, &Style::new("short", &[]));
+        assert!(p.contains("5–10 words"));
+        let p = prompt("abroad", None, "", 5, &Style::new("long", &["subject".into(), "concession".into()]));
+        assert!(p.contains("20–35 words"));
+        // 有句型时每种一句：句数 = 句型数，不再按 count
+        assert!(p.contains("Write 2") && !p.contains("Write 5"));
+        assert!(p.contains("subject") && p.contains("concession") && p.contains("subject clause"));
+        let b = request_body("m", "abroad", None, "", 5, &Style::new("short", &["time".into()]));
+        let sys = b["messages"][0]["content"].as_str().unwrap_or_default();
+        assert!(sys.contains("\"clause\""), "格式示例里要有 clause 字段");
+        assert!(!sys.contains("8–22"), "长度不再写死在系统提示里");
+    }
+
+    #[test]
+    fn cache_is_keyed_by_style_and_old_payload_reads() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        db.with_conn(|c| {
+            let ex = vec![Example { en: "a".into(), zh: "甲".into(), collocation: String::new(), clause: "subject".into() }];
+            store(c, "abroad", "m", "short|subject", &ex, 1)?;
+            assert!(cached(c, "abroad", "m", "")?.is_none());
+            assert_eq!(cached(c, "abroad", "m", "short|subject")?.map(|(v, _)| v[0].clause.clone()), Some("subject".into()));
+            // 旧版存的 payload 没有 clause 字段
+            c.execute("INSERT INTO ai_examples (word, model, style, payload, created_at) VALUES ('old', 'm', '', '[{\"en\":\"x\",\"zh\":\"y\",\"collocation\":\"z\"}]', 5)", [])?;
+            assert_eq!(cached(c, "old", "m", "")?.map(|(v, _)| v[0].clause.clone()), Some(String::new()));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn migration_0019_keeps_old_rows() -> Result<()> {
+        let c = Connection::open_in_memory()?;
+        c.execute_batch(include_str!("../migrations/0004_ai.sql"))?;
+        c.execute("INSERT INTO ai_examples (word, model, payload, created_at) VALUES ('w', 'm', '[]', 3)", [])?;
+        c.execute_batch(include_str!("../migrations/0019_ai_example_style.sql"))?;
+        assert_eq!(cached(&c, "w", "m", "")?.map(|(_, t)| t), Some(3));
+        store(&c, "w", "m", "long|", &[], 4)?;
+        assert_eq!(cached(&c, "w", "m", "")?.map(|(_, t)| t), Some(3), "不同样式各存一份");
+        Ok(())
     }
 }

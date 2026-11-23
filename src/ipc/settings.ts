@@ -175,6 +175,10 @@ export interface AiPrefs {
   count: number;
   /** 查词后自动生成（否则点按钮） */
   auto: boolean;
+  /** 例句长度：short | medium | long */
+  length: "short" | "medium" | "long";
+  /** 指定的从句类型（空 = 不限）；每种各一句 */
+  clauses: string[];
 }
 
 /** 目前建模到 appearance、layout、immersive、capture、online、copy、export、batch；其他分组由 Rust 原样保留，接入时再补类型。 */

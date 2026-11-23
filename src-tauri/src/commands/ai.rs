@@ -111,8 +111,10 @@ pub async fn ai_examples(
     }
     let cfg = state.settings.get()?.ai;
     let model = cfg.deepseek_model.clone();
+    let style = ai::Style::new(&cfg.length, &cfg.clauses);
+    let style_key = style.key();
     if !force {
-        if let Some((examples, at)) = state.db.with_conn(|c| ai::cached(c, &word, &model))? {
+        if let Some((examples, at)) = state.db.with_conn(|c| ai::cached(c, &word, &model, &style_key))? {
             return Ok(Some(Examples { word, model, examples, cached_at: Some(at) }));
         }
     }
@@ -127,11 +129,11 @@ pub async fn ai_examples(
         ))
     })?;
     let hint = coca_of(&state).map(|c| coca::collocation_hint(&c.lookup(&word), 8)).unwrap_or_default();
-    let body = ai::request_body(&model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10));
+    let body = ai::request_body(&model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10), &style);
     let (examples, usage) = ai::generate(state.online.client(), &key, &body).await?;
     let now = now_ms();
     state.db.with_conn(|c| {
-        ai::store(c, &word, &model, &examples, now)?;
+        ai::store(c, &word, &model, &style_key, &examples, now)?;
         ai::record(c, &model, &word, usage, now)?;
         Ok(())
     })?;

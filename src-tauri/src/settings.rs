@@ -265,11 +265,15 @@ pub struct Ai {
     pub count: usize,
     /// 查词后自动生成（否则点按钮再生成）；有缓存时总是直接显示
     pub auto: bool,
+    /// 例句长度：short | medium | long
+    pub length: String,
+    /// 指定的从句类型（ai::CLAUSES 的 id）；空 = 不限，否则每种各一句
+    pub clauses: Vec<String>,
 }
 
 impl Default for Ai {
     fn default() -> Self {
-        Self { deepseek_model: "deepseek-flash".into(), count: 5, auto: false }
+        Self { deepseek_model: "deepseek-flash".into(), count: 5, auto: false, length: "medium".into(), clauses: Vec::new() }
     }
 }
 
@@ -563,7 +567,7 @@ mod tests {
     fn old_claude_ai_settings_still_load() {
         // 旧版存过 Claude 的 provider、model：读得进来，其余设置不丢
         let a: Ai = serde_json::from_str(r#"{"provider":"claude","model":"claude-opus-4-8","deepseekModel":"deepseek-v4-pro","count":3,"auto":true}"#).unwrap();
-        assert_eq!(a, Ai { deepseek_model: "deepseek-v4-pro".into(), count: 3, auto: true });
+        assert_eq!(a, Ai { deepseek_model: "deepseek-v4-pro".into(), count: 3, auto: true, ..Ai::default() });
     }
     use serde_json::json;
 

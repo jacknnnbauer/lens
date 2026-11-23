@@ -25,6 +25,8 @@ export interface Example {
   en: string;
   zh: string;
   collocation: string;
+  /** 指定了句型时：这句是哪种从句（id，见 src/ai/style.ts）；旧缓存没有 */
+  clause?: string;
 }
 
 export interface Examples {

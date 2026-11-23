@@ -177,3 +177,11 @@
   color: var(--faint);
   font-size: 11px;
 }
+
+/* 指定句型时，例句前的从句类型 */
+.clause {
+  display: inline-block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  color: var(--accent);
+}

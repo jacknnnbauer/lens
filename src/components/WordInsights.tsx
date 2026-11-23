@@ -8,6 +8,7 @@ import { useRoute } from "../stores/route";
 import { useSettings } from "../stores/settings";
 import { scrollRoot } from "../windows/main/scroll";
 import { VocabExamples } from "./VocabExamples";
+import { clauseName, styleKey } from "../ai/style";
 import styles from "./WordInsights.module.css";
 
 const POS: Record<string, string> = {
@@ -121,6 +122,8 @@ export function CocaSection({ word }: { word: string }) {
 export function AiSection({ word, brief }: { word: string; brief: string | null }) {
   const auto = useSettings((s) => s.settings?.ai?.auto ?? false);
   const model = useSettings((s) => s.settings?.ai?.deepseekModel);
+  // 长度、句型变了要换一份缓存
+  const style = useSettings((s) => styleKey(s.settings?.ai));
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [data, setData] = useState<Examples | null>(null);
   const [busy, setBusy] = useState(false);
@@ -155,8 +158,8 @@ export function AiSection({ word, brief }: { word: string; brief: string | null 
     return () => {
       alive = false;
     };
-    // 换了模型也重新取（缓存按模型区分）
-  }, [word, auto, model]);
+    // 换了模型、长度或句型也重新取（缓存按它们区分）
+  }, [word, auto, model, style]);
 
   const canGenerate = !!hasKey && !data && !busy;
 
@@ -196,6 +199,7 @@ export function AiSection({ word, brief }: { word: string; brief: string | null 
         <ol className={styles.examples}>
           {data.examples.map((x, i) => (
             <li key={i}>
+              {x.clause && clauseName(x.clause) && <span className={styles.clause}>{tr(clauseName(x.clause) ?? "")}</span>}
               <p className={styles.en}>{x.en}</p>
               <p className={styles.zh}>{x.zh}</p>
               {x.collocation && <span className={styles.chip}>{x.collocation}</span>}

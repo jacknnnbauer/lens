@@ -2,6 +2,7 @@
 // 完整的主题库（15 套内置 + 自定义）在单独的页面（routes/themes）。
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { CLAUSE_GROUPS, CLAUSES, LENGTHS, normalizeClauses } from "../../ai/style";
 import { PanelSettings } from "./PanelSettings";
 import { ProfileSettings } from "./ProfileSettings";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -115,6 +116,39 @@ function PopupDicts() {
       </div>
       <p className={styles.hint}>{tr("只影响划词弹出的查词小窗，主窗口照旧按当前配置组查。选「自选词典」后，「场景配置组」表格最右边多出「查词小窗」一列，勾上小窗要查的词典即可（比如只留两三部简明词典）；顺序和词典库一致。")}</p>
     </>
+  );
+}
+
+/** AI 例句的句型：不勾 = 不限；勾了每种各一句 */
+function ClausePicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const on = new Set(value);
+  const toggle = (id: string, checked: boolean) => onChange(normalizeClauses(checked ? [...value, id] : value.filter((x) => x !== id)));
+  return (
+    <fieldset className={styles.fieldset}>
+      <legend>{tr("句型")}</legend>
+      <p className={styles.hint}>
+        {value.length
+          ? tr("已选 {n} 种：每种各生成一句，「每次生成」不起作用。", { n: value.length })
+          : tr("不勾选时由 AI 自由变化句式。勾选后每种从句各生成一句。")}{" "}
+        <button type="button" className={styles.linkBtn} onClick={() => onChange(CLAUSES.map((c) => c.id))}>
+          {tr("全选")}
+        </button>{" "}
+        <button type="button" className={styles.linkBtn} disabled={!value.length} onClick={() => onChange([])}>
+          {tr("清空")}
+        </button>
+      </p>
+      {CLAUSE_GROUPS.map((g) => (
+        <div key={g} className={styles.clauseGroup}>
+          <span className={styles.clauseGroupName}>{tr(g)}</span>
+          {CLAUSES.filter((c) => c.group === g).map((c) => (
+            <label key={c.id} className={styles.clauseItem}>
+              <input type="checkbox" checked={on.has(c.id)} onChange={(e) => toggle(c.id, e.target.checked)} />
+              {tr(c.name)}
+            </label>
+          ))}
+        </div>
+      ))}
+    </fieldset>
   );
 }
 
@@ -261,8 +295,10 @@ function AiSettings() {
           ]}
           onChange={(v) => setAi({ count: v })}
         />
+        <Select label={tr("例句长度")} value={ai.length ?? "medium"} options={LENGTHS} onChange={(v) => setAi({ length: v })} />
         <Toggle label={tr("查词后自动生成")} hint={tr("关闭时点右侧栏的「AI 双语例句」标题才调用；生成过的词直接显示缓存")} checked={ai.auto} onChange={(v) => setAi({ auto: v })} />
       </div>
+      <ClausePicker value={normalizeClauses(ai.clauses)} onChange={(clauses) => setAi({ clauses })} />
       {message && (
         <p className={styles.hint} role={message.error ? "alert" : "status"} data-error={message.error || undefined}>
           {message.text}

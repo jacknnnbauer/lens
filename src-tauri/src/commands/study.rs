@@ -199,10 +199,12 @@ pub async fn book_guide_ai(state: State<'_, AppState>, id: i64, cached_only: boo
     let author = article.meta.author.clone();
     let input = crate::guide_ai::Input { title: &article.meta.title, author: author.as_deref(), parts: &titles, excerpt: &excerpt, spoilers };
     let user = crate::guide_ai::prompt(&input);
-    let (text, usage) = crate::ai::complete_json(
+    let (text, _) = crate::ai::complete_json(
         state.online.client(),
+        &state.db,
         &key,
         &model,
+        &article.meta.title,
         crate::guide_ai::SYSTEM,
         &user,
         crate::guide_ai::JSON_FORMAT,
@@ -212,7 +214,6 @@ pub async fn book_guide_ai(state: State<'_, AppState>, id: i64, cached_only: boo
     .await?;
     let out = crate::guide_ai::parse(&text)?;
     let guide = crate::guide_ai::to_guide(&out, &article.meta.title, author.as_deref(), &model, spoilers);
-    state.db.with_conn(|c| crate::ai::record(c, &model, &article.meta.title, usage, crate::db::now_ms()).map(|_| ()))?;
     if let Some(dir) = file.parent() {
         std::fs::create_dir_all(dir)?;
     }

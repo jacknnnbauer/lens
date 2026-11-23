@@ -221,7 +221,8 @@ fn parse_examples(text: &str) -> Result<Vec<Example>> {
     Ok(out.examples.into_iter().filter(|e| !e.en.trim().is_empty()).collect())
 }
 
-/// 解析 OpenAI 兼容的 chat/completions 响应
+/// 解析 OpenAI 兼容的 chat/completions 响应（正式调用走 settle；这里留给测试检查解析规则）
+#[cfg(test)]
 pub fn parse_chat_response(v: &Value) -> Result<Vec<Example>> {
     let choice = v.pointer("/choices/0").ok_or_else(|| Error::Online(crate::i18n::t("模型没有返回内容", "The model returned no content").into()))?;
     if choice.get("finish_reason").and_then(Value::as_str) == Some("length") {
@@ -282,8 +283,8 @@ pub async fn ping(client: &reqwest::Client, key: &str, model: &str) -> Result<Us
     Ok(usage_of(&v))
 }
 
-/// 发送请求（body 来自 request_body）并解析；同时返回这次用掉的 token。
-pub async fn generate(client: &reqwest::Client, key: &str, body: &Value) -> Result<(Vec<Example>, Usage)> {
+/// 发送请求（body 来自 request_body）并解析。用量当场记账（失败的调用也记，见 settle）
+pub async fn generate(client: &reqwest::Client, db: &crate::db::Db, key: &str, label: &str, body: &Value) -> Result<Vec<Example>> {
     let resp = request(client, key, body)
         .timeout(TIMEOUT)
         .send()
@@ -295,8 +296,25 @@ pub async fn generate(client: &reqwest::Client, key: &str, body: &Value) -> Resu
         return Err(http_error(status, &text));
     }
     let v: Value = serde_json::from_str(&text).map_err(|e| Error::Online(e.to_string()))?;
-    let usage = usage_of(&v);
-    Ok((parse_chat_response(&v)?, usage))
+    let model = body["model"].as_str().unwrap_or_default().to_string();
+    let (out, _) = db.with_conn(|c| settle(c, &model, label, &v, crate::db::now_ms()))?;
+    parse_examples(&out)
+}
+
+/// 模型已经回话（钱已经花了）：先把这次用量记进 ai_usage，再检查有没有截断、是不是空内容。
+/// 这样截断、空内容、后面解析失败的调用也都算进用量统计。返回模型输出的文本和这次花费（美元）
+pub fn settle(conn: &Connection, model: &str, label: &str, v: &Value, now: i64) -> Result<(String, f64)> {
+    let cost = record(conn, model, label, usage_of(v), now)?;
+    if v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
+        return Err(truncated_error());
+    }
+    let out = v
+        .pointer("/choices/0/message/content")
+        .and_then(Value::as_str)
+        .filter(|t| !t.trim().is_empty())
+        // JSON Output 模式偶尔返回空内容（官方文档注明），提示重试
+        .ok_or_else(|| Error::Online(crate::i18n::t("模型返回了空内容，请重试", "The model returned an empty reply. Please try again").into()))?;
+    Ok((out.to_string(), cost))
 }
 
 fn truncated_error() -> Error {
@@ -308,19 +326,21 @@ pub fn is_truncated(e: &Error) -> bool {
     matches!((e, &truncated_error()), (Error::Online(a), Error::Online(b)) if a == b)
 }
 
-/// 通用的 JSON 输出调用（读前导读、精读本用）：`system`、`user` 两段提示，JSON 模式输出
-/// （`json_format` 是提示里要给的格式示例）。返回模型输出的 JSON 文本和用量
+/// 通用的 JSON 输出调用（读前导读、精读本、拆解、英文怎么说用）：`system`、`user` 两段提示，JSON 模式输出
+/// （`json_format` 是提示里要给的格式示例）。用量以 `label` 当场记账（失败也记）。返回模型输出的 JSON 文本和这次花费（美元）
 #[allow(clippy::too_many_arguments)]
 pub async fn complete_json(
     client: &reqwest::Client,
+    db: &crate::db::Db,
     key: &str,
     model: &str,
+    label: &str,
     system: &str,
     user: &str,
     json_format: &str,
     max_tokens: u32,
     timeout: Duration,
-) -> Result<(String, Usage)> {
+) -> Result<(String, f64)> {
     let body = json!({
         "model": model,
         "max_tokens": max_tokens,
@@ -342,16 +362,7 @@ pub async fn complete_json(
         return Err(http_error(status, &text));
     }
     let v: Value = serde_json::from_str(&text).map_err(|e| Error::Online(e.to_string()))?;
-    let usage = usage_of(&v);
-    if v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
-        return Err(truncated_error());
-    }
-    let out = v
-        .pointer("/choices/0/message/content")
-        .and_then(Value::as_str)
-        .filter(|t| !t.trim().is_empty())
-        .ok_or_else(|| Error::Online(crate::i18n::t("模型返回了空内容，请重试", "The model returned an empty reply. Please try again").into()))?;
-    Ok((out.to_string(), usage))
+    db.with_conn(|c| settle(c, model, label, &v, crate::db::now_ms()))
 }
 
 // —— 用量记账（迁移 0006 的 ai_usage 表）——
@@ -565,5 +576,30 @@ mod tests {
         store(&c, "w", "m", "long|", &[], 4)?;
         assert_eq!(cached(&c, "w", "m", "")?.map(|(_, t)| t), Some(3), "不同样式各存一份");
         Ok(())
+    }
+
+    #[test]
+    fn failed_calls_are_still_charged() -> Result<()> {
+        let db = Db::open_in_memory()?;
+        let usage = json!({"prompt_tokens": 100, "prompt_cache_hit_tokens": 0, "prompt_cache_miss_tokens": 100, "completion_tokens": 3000});
+        let rows = |c: &Connection| -> Result<i64> { Ok(c.query_row("SELECT COUNT(*) FROM ai_usage", [], |r| r.get(0))?) };
+        db.with_conn(|c| {
+            // 输出被截断：钱已经花了，要记账，同时报「截断」让调用方拆小重试
+            let cut = json!({"choices": [{"finish_reason": "length", "message": {"content": "{"}}], "usage": usage});
+            let e = settle(c, "deepseek-flash", "长句", &cut, 1).unwrap_err();
+            assert!(is_truncated(&e));
+            assert_eq!(rows(c)?, 1);
+            // 返回空内容：同样记账
+            let empty = json!({"choices": [{"finish_reason": "stop", "message": {"content": " "}}], "usage": usage});
+            assert!(settle(c, "deepseek-flash", "空", &empty, 2).is_err());
+            assert_eq!(rows(c)?, 2);
+            // 正常：返回内容和花费
+            let ok = json!({"choices": [{"finish_reason": "stop", "message": {"content": "{\"a\":1}"}}], "usage": usage});
+            let (text, cost) = settle(c, "deepseek-flash", "好", &ok, 3)?;
+            assert_eq!(text, "{\"a\":1}");
+            assert!(cost > 0.0);
+            assert_eq!(rows(c)?, 3);
+            Ok(())
+        })
     }
 }

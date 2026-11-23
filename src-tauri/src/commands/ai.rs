@@ -130,13 +130,9 @@ pub async fn ai_examples(
     })?;
     let hint = coca_of(&state).map(|c| coca::collocation_hint(&c.lookup(&word), 8)).unwrap_or_default();
     let body = ai::request_body(&model, &word, brief.as_deref(), &hint, cfg.count.clamp(1, 10), &style);
-    let (examples, usage) = ai::generate(state.online.client(), &key, &body).await?;
+    let examples = ai::generate(state.online.client(), &state.db, &key, &word, &body).await?;
     let now = now_ms();
-    state.db.with_conn(|c| {
-        ai::store(c, &word, &model, &style_key, &examples, now)?;
-        ai::record(c, &model, &word, usage, now)?;
-        Ok(())
-    })?;
+    state.db.with_conn(|c| ai::store(c, &word, &model, &style_key, &examples, now))?;
     Ok(Some(Examples { word, model, examples, cached_at: None }))
 }
 
@@ -220,14 +216,11 @@ pub async fn sentence_breakdown(state: State<'_, AppState>, sentence: String, be
         Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 服务）", "No {} API key yet (Settings › AI)", ai::NAME))
     })?;
     let user = sentence_ai::prompt(&sentence, before.as_deref(), after.as_deref());
-    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, sentence_ai::SYSTEM, &user, sentence_ai::JSON_FORMAT, 6000, std::time::Duration::from_secs(90)).await?;
+    let label: String = sentence.chars().take(40).collect();
+    let (text, cost_usd) = ai::complete_json(state.online.client(), &state.db, &key, &model, &label, sentence_ai::SYSTEM, &user, sentence_ai::JSON_FORMAT, 6000, std::time::Duration::from_secs(90)).await?;
     let breakdown = sentence_ai::parse(&text)?;
     let now = now_ms();
-    let label: String = sentence.chars().take(40).collect();
-    let cost_usd = state.db.with_conn(|c| {
-        sentence_ai::store(c, &sentence, &model, &breakdown, now)?;
-        ai::record(c, &model, &label, usage, now)
-    })?;
+    state.db.with_conn(|c| sentence_ai::store(c, &sentence, &model, &breakdown, now))?;
     Ok(BreakdownResult { breakdown, model, cached_at: None, cost_usd })
 }
 
@@ -285,14 +278,11 @@ pub async fn expression_generate(state: State<'_, AppState>, input: String, audi
         Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 服务）", "No {} API key yet (Settings › AI)", ai::NAME))
     })?;
     let user = expression_ai::prompt(&input, Some(&audience));
-    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, expression_ai::SYSTEM, &user, expression_ai::JSON_FORMAT, 3000, std::time::Duration::from_secs(60)).await?;
+    let label: String = input.chars().take(40).collect();
+    let (text, cost_usd) = ai::complete_json(state.online.client(), &state.db, &key, &model, &label, expression_ai::SYSTEM, &user, expression_ai::JSON_FORMAT, 3000, std::time::Duration::from_secs(60)).await?;
     let expression = expression_ai::parse(&text)?;
     let now = now_ms();
-    let label: String = input.chars().take(40).collect();
-    let cost_usd = state.db.with_conn(|c| {
-        expression_ai::store(c, &input, &audience, &model, &expression, now)?;
-        ai::record(c, &model, &label, usage, now)
-    })?;
+    state.db.with_conn(|c| expression_ai::store(c, &input, &audience, &model, &expression, now))?;
     Ok(ExpressionResult { expression, model, cached_at: None, cost_usd })
 }
 
@@ -336,13 +326,10 @@ pub async fn expression_entry_generate(state: State<'_, AppState>, input: String
         Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 服务）", "No {} API key yet (Settings › AI)", ai::NAME))
     })?;
     let user = expression_entry::prompt(&input);
-    let (text, usage) = ai::complete_json(state.online.client(), &key, &model, expression_entry::SYSTEM, &user, expression_entry::JSON_FORMAT, 3000, std::time::Duration::from_secs(60)).await?;
+    let label = format!("更多说法 · {}", input.chars().take(40).collect::<String>());
+    let (text, cost_usd) = ai::complete_json(state.online.client(), &state.db, &key, &model, &label, expression_entry::SYSTEM, &user, expression_entry::JSON_FORMAT, 3000, std::time::Duration::from_secs(60)).await?;
     let entry = expression_entry::parse(&text)?;
     let now = now_ms();
-    let label = format!("更多说法 · {}", input.chars().take(40).collect::<String>());
-    let cost_usd = state.db.with_conn(|c| {
-        expression_entry::store(c, &input, &model, &entry, now)?;
-        ai::record(c, &model, &label, usage, now)
-    })?;
+    state.db.with_conn(|c| expression_entry::store(c, &input, &model, &entry, now))?;
     Ok(EntryResult { entry, model, cached_at: None, cost_usd })
 }

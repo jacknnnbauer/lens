@@ -182,10 +182,6 @@ pub async fn book_digest_plan(state: State<'_, AppState>, id: i64) -> Result<Dig
     })
 }
 
-fn add(a: crate::ai::Usage, b: crate::ai::Usage) -> crate::ai::Usage {
-    crate::ai::Usage { input: a.input + b.input, cached: a.cached + b.cached, output: a.output + b.output }
-}
-
 fn read_notes(c: &Ctx) -> Result<Vec<ChunkNotes>> {
     (0..c.chunks.len())
         .map(|k| {
@@ -227,13 +223,12 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         Error::Online(crate::tf!("还没有填写 {} API Key（设置 › AI 例句）", "No {} API key yet (Settings › AI examples)", crate::ai::NAME))
     })?;
     let author = c.author.as_deref();
-    let (output, usage) = if step < n {
+    let output = if step < n {
         // 这一段各章的正文（太长的章只发前面一部分）
         let texts: Vec<(ChapterRef, String)> = c.chunks[step].iter().map(|(r, t)| (r.clone(), digest::clip_words(t, digest::MAX_CHAPTER_WORDS).to_string())).collect();
         // 输出超过上限被截断时把这一段拆成两半再读；只剩一章还写不下，就要求它写短一点
         let mut queue: std::collections::VecDeque<(Vec<(ChapterRef, String)>, bool)> = std::collections::VecDeque::from([(texts, false)]);
         let mut parts: Vec<ChunkNotes> = Vec::new();
-        let mut usage = crate::ai::Usage::default();
         while let Some((group, shorter)) = queue.pop_front() {
             let mut user = digest::read_prompt(&c.title, author, &group);
             if shorter {
@@ -241,8 +236,10 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
             }
             let res = crate::ai::complete_json(
                 state.online.client(),
+                &state.db,
                 &key,
                 &c.model,
+                &c.title,
                 digest::READ_SYSTEM,
                 &user,
                 digest::READ_FORMAT,
@@ -251,8 +248,7 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
             )
             .await;
             match res {
-                Ok((text, u)) => {
-                    usage = add(usage, u);
+                Ok((text, _)) => {
                     parts.push(digest::check_chunk(&digest::parse_read(&text)?, &group));
                 }
                 Err(e) if crate::ai::is_truncated(&e) && (group.len() > 1 || !shorter) => {
@@ -272,12 +268,14 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         }
         let notes = digest::join_chunks(parts);
         tracing::info!(id, step, quotes = notes.quotes.len(), dropped = notes.dropped, "精读本：通读一段");
-        (serde_json::to_string(&notes)?, usage)
+        serde_json::to_string(&notes)?
     } else if let Some((part, chapters)) = scene_part {
-        let (text, usage) = crate::ai::complete_json(
+        let (text, _) = crate::ai::complete_json(
             state.online.client(),
+            &state.db,
             &key,
             &c.model,
+            &c.title,
             digest::SCENE_SYSTEM,
             &digest::scene_prompt(&c.title, author, &part, &chapters),
             digest::SCENE_FORMAT,
@@ -286,15 +284,17 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         )
         .await?;
         digest::parse_scenes(&text)?;
-        (text, usage)
+        text
     } else {
         let s = step - n;
         let (chapters, quotes, _) = digest::merge(read_notes(&c)?);
         let notes = digest::notes_text(&c.title, author, &chapters, &quotes);
-        let (text, usage) = crate::ai::complete_json(
+        let (text, _) = crate::ai::complete_json(
             state.online.client(),
+            &state.db,
             &key,
             &c.model,
+            &c.title,
             digest::SYNTH_SYSTEM,
             &digest::synth_prompt(&notes, s),
             digest::synth_format(s),
@@ -304,9 +304,8 @@ pub async fn book_digest_step(state: State<'_, AppState>, id: i64, step: usize) 
         .await?;
         // 先确认能解析再存
         digest::merge_synth(&mut Synthesis::default(), &text)?;
-        (text, usage)
+        text
     };
-    state.db.with_conn(|conn| crate::ai::record(conn, &c.model, &c.title, usage, crate::db::now_ms()).map(|_| ()))?;
     std::fs::create_dir_all(&c.dir)?;
     // 先写临时文件再改名：并发的几步、中途退出都不会留下半个文件
     let tmp = file.with_extension("tmp");

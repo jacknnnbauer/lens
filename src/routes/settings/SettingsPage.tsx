@@ -140,12 +140,14 @@ function ClausePicker({ value, onChange }: { value: string[]; onChange: (v: stri
       {CLAUSE_GROUPS.map((g) => (
         <div key={g} className={styles.clauseGroup}>
           <span className={styles.clauseGroupName}>{tr(g)}</span>
-          {CLAUSES.filter((c) => c.group === g).map((c) => (
-            <label key={c.id} className={styles.clauseItem}>
-              <input type="checkbox" checked={on.has(c.id)} onChange={(e) => toggle(c.id, e.target.checked)} />
-              {tr(c.name)}
-            </label>
-          ))}
+          <div className={styles.clauseItems}>
+            {CLAUSES.filter((c) => c.group === g).map((c) => (
+              <label key={c.id} className={styles.clauseItem}>
+                <input type="checkbox" checked={on.has(c.id)} onChange={(e) => toggle(c.id, e.target.checked)} />
+                {tr(c.name)}
+              </label>
+            ))}
+          </div>
         </div>
       ))}
     </fieldset>

@@ -699,9 +699,8 @@ kbd {
 /* AI 例句的句型勾选 */
 .clauseGroup {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px 14px;
+  gap: 14px;
   margin-top: 8px;
 }
 
@@ -709,6 +708,14 @@ kbd {
   flex: 0 0 6em;
   font-size: 12px;
   color: var(--faint);
+}
+
+/* 一组放不下时换行，第二行和第一行的勾选框对齐，不缩到组名底下 */
+.clauseItems {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
 }
 
 .clauseItem {

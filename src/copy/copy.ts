@@ -37,7 +37,7 @@ function renderedBodies(dictId: string): (ShadowRoot | null)[] {
   return Array.from(document.querySelectorAll<HTMLElement>(`[data-dict-body="${CSS.escape(dictId)}"]`)).map((h) => h.shadowRoot);
 }
 
-function cardPayload(card: Card, format: CopyFormat, cfg: Copy, heading: boolean): Payload {
+export function cardPayload(card: Card, format: CopyFormat, cfg: Copy, heading: boolean): Payload {
   const opts = { includeExamples: cfg.includeExamples, imagesAsLinks: cfg.mdImagesAsLinks };
   const headword = card.entries[0]?.headword ?? "";
   const src = { dict: card.name, headword };
@@ -52,7 +52,8 @@ function cardPayload(card: Card, format: CopyFormat, cfg: Copy, heading: boolean
     let html = parts.join("<hr>");
     if (heading) html = `<h2>${escapeHtml(card.name)}</h2>${html}`;
     if (cfg.appendSource) html += sourceLine("html", src);
-    const text = card.entries.map((e) => htmlToText(e.html, opts)).join("\n\n");
+    // 附带的纯文本（只认纯文本的软件粘出来的就是它）和「复制纯文本」一样按看得见的版式转
+    const text = card.entries.map((e, i) => htmlToText(bodies[i] ? visibleHtml(bodies[i]) : e.html, opts)).join("\n\n");
     return { html, text: (heading ? `${card.name}\n` : "") + text };
   }
 

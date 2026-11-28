@@ -95,3 +95,52 @@ describe("source and context", () => {
     );
   });
 });
+
+// 牛津高阶这类词典：全是 span，靠 CSS 分块；这里是 visibleHtml 处理后的样子（块已换成 div）。内容是自己写的示例
+const SPAN_DICT = `
+<div class="top-g"><span class="h"><b>lan·tern</b></span> <span class="ei-g">/ <span class="phon-gb">ˈlæntən</span> <span class="z">; <span class="z_phon-us"><i>NAmE</i></span></span> <span class="phon-us">ˈlæntərn</span> /</span>
+  <div class="pos-g"><span class="pos"><b>noun</b></span></div></div>
+<div class="n-g"><span class="z_n">1</span> <span class="def-g"><span class="d">a lamp with a cover that you can carry <span class="chn">灯笼</span></span></span>
+  <div class="x-g"><span class="x">She lit the <span class="cl">paper lantern</span>.</span> <span class="tx">她点亮了纸灯笼。</span></div>
+  <span class="xr-g">see also <b>lamp</b></span></div>
+<div class="n-g"><span class="z_n">2</span> <span class="label-g">( <span class="g"><i>especially NAmE</i></span> )</span> <span class="xr-g">= <b>torch</b></span></div>`;
+
+describe("span-based dictionaries", () => {
+  const md = htmlToMarkdown(SPAN_DICT, ON);
+  const lines = md.split("\n");
+
+  it("puts the part of speech on its own line and every numbered block becomes a sense", () => {
+    expect(lines).toContain("**noun**");
+    expect(lines).toContain("1. a lamp with a cover that you can carry 灯笼");
+    expect(md).toMatch(/^1\. \(\*especially NAmE\*\) = \*\*torch\*\*$/m);
+  });
+
+  it("only real IPA becomes inline code; labels like NAmE stay text", () => {
+    expect(md).toContain("`ˈlæntən`");
+    expect(md).toContain("`ˈlæntərn`");
+    expect(md).not.toContain("`NAmE`");
+    expect(md).not.toMatch(/\S {2,}\S/);
+  });
+
+  it("an example group with an example inside becomes one item, not nested markers", () => {
+    expect(md).toContain("   - *She lit the paper lantern. 她点亮了纸灯笼。*");
+    expect(md).not.toMatch(/- \*-/);
+  });
+
+  it("plain text: no double indent for nested examples, no space inside brackets", () => {
+    const t = htmlToText(SPAN_DICT, ON).split("\n");
+    expect(t).toContain("  She lit the paper lantern. 她点亮了纸灯笼。");
+    expect(t.some((l) => l.includes("(especially NAmE)"))).toBe(true);
+    expect(t).toContain("noun");
+  });
+});
+
+describe("sense numbers shown in bold, definitions in their own block", () => {
+  const html = `<div class="n-g"><span class="z_n"><b>3</b></span><div class="def-g">a small light <span class="chn">小灯</span></div></div>`;
+  it("Markdown drops a bold sense number", () => {
+    expect(htmlToMarkdown(html, ON)).toBe("1. a small light 小灯");
+  });
+  it("plain text keeps the number on the definition's line", () => {
+    expect(htmlToText(html, ON)).toBe("3 a small light 小灯");
+  });
+});

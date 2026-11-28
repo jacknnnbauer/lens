@@ -65,3 +65,21 @@ describe("block spans", () => {
     expect(out).toBe("<div>one</div><div>two</div><span>inline</span>");
   });
 });
+
+describe("visibleHtml keeps layout for Markdown / plain text", () => {
+  it("turns spans displayed as blocks into divs, keeping their classes", async () => {
+    const { visibleHtml } = await import("./inlineHtml");
+    const div = document.createElement("div");
+    div.innerHTML = `<span class="n-g" style="display:block"><span class="z_n">1</span> one</span><span class="pos">noun</span>`;
+    document.body.append(div);
+    expect(visibleHtml(div)).toBe('<div class="n-g"><span class="z_n">1</span> one</div><span class="pos">noun</span>');
+  });
+
+  it("marks text shown bold or italic so Markdown can keep the emphasis", async () => {
+    const { visibleHtml } = await import("./inlineHtml");
+    const div = document.createElement("div");
+    div.innerHTML = `<span class="h" style="font-weight:700">word</span> <span class="g" style="font-style:italic">label</span> <b>already</b>`;
+    document.body.append(div);
+    expect(visibleHtml(div)).toBe('<span class="h"><b>word</b></span> <span class="g"><i>label</i></span> <b>already</b>');
+  });
+});

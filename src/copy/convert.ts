@@ -34,6 +34,23 @@ const cls = (el: Element) => (typeof el.className === "string" ? el.className : 
 export const isExample = (el: Element) => EXAMPLE_RE.test(cls(el));
 export const isSense = (el: Element) => SENSE_RE.test(cls(el));
 export const isPhonetic = (el: Element) => PHONETIC_RE.test(cls(el));
+/** 像音标的文字：含国际音标专用符号，或写在 /…/、[…] 里（牛津把「NAmE」这类标签也放在 phon 开头的 class 里） */
+const IPA_RE = /[ˈˌːəɪʊʃʒθðŋæɑɒɔʌɜɛɐɚɝ]|^\s*[/[]/;
+const looksIpa = (el: Element) => IPA_RE.test(el.textContent ?? "");
+/** 以编号开头的块（牛津的 n-g：<span class="z_n">1</span> 释义…）也是一个义项 */
+function isNumbered(el: Element): boolean {
+  if (!BLOCK_TAGS.has(el.tagName)) return false;
+  const first = el.firstElementChild;
+  if (!first || !/^\d{1,2}[.)]?$/.test((first.textContent ?? "").trim())) return false;
+  // 编号前面不能有别的文字
+  for (let n = el.firstChild; n && n !== first; n = n.nextSibling) if ((n.textContent ?? "").trim()) return false;
+  return true;
+}
+const senseLike = (el: Element) => isSense(el) || isNumbered(el);
+function hasAncestor(el: Element, test: (e: Element) => boolean): boolean {
+  for (let p = el.parentElement; p; p = p.parentElement) if (test(p)) return true;
+  return false;
+}
 
 /** 解析成 DOM 片段，去掉样式表、脚本、发音按钮；按选项去掉例句。 */
 export function parseEntry(html: string, opts: CopyOptions): HTMLElement {
@@ -44,9 +61,16 @@ export function parseEntry(html: string, opts: CopyOptions): HTMLElement {
   return root;
 }
 
-function hasSenseAncestor(el: Element): boolean {
-  for (let p = el.parentElement; p; p = p.parentElement) if (isSense(p)) return true;
-  return false;
+const hasSenseAncestor = (el: Element) => hasAncestor(el, senseLike);
+
+/** 括号内侧、词与词之间多余的空格（词典 HTML 的换行缩进留下的） */
+function tidy(line: string): string {
+  return line
+    .replace(/(\S)[ \t]{2,}(?=\S)/g, "$1 ")
+    // Turndown 把文字片段开头的「=」当成标题下划线转义；不在行首时不需要
+    .replace(/(\S.*?)\\=/g, "$1=")
+    .replace(/([(（[]) +/g, "$1")
+    .replace(/ +([)）\]])/g, "$1");
 }
 
 function service(opts: CopyOptions): TurndownService {
@@ -59,7 +83,7 @@ function service(opts: CopyOptions): TurndownService {
   });
 
   td.addRule("phonetic", {
-    filter: (node) => node.nodeType === 1 && isPhonetic(node as Element),
+    filter: (node) => node.nodeType === 1 && isPhonetic(node as Element) && looksIpa(node as Element),
     replacement: (content) => {
       const t = content.trim();
       return t ? ` \`${t.replace(/`/g, "")}\` ` : "";
@@ -68,6 +92,8 @@ function service(opts: CopyOptions): TurndownService {
   td.addRule("example", {
     filter: (node) => node.nodeType === 1 && isExample(node as Element),
     replacement: (content, node) => {
+      // 例句组里又套着例句（牛津的 x-g 里有 x）：只有最外层成为列表项
+      if (hasAncestor(node as Element, isExample)) return content;
       const t = content.replace(/\*/g, "").replace(/\s+/g, " ").trim();
       if (!t) return "";
       // 只有在义项列表项里才缩进（3 格，对齐「1. 」后的正文）；
@@ -78,9 +104,12 @@ function service(opts: CopyOptions): TurndownService {
     },
   });
   td.addRule("sense", {
-    filter: (node) => node.nodeType === 1 && isSense(node as Element) && !(node as Element).closest("li"),
-    replacement: (content) => {
-      const t = content.trim().replace(/^\d+[.)]?\s+/, "");
+    filter: (node) => node.nodeType === 1 && senseLike(node as Element) && !(node as Element).closest("li"),
+    replacement: (content, node) => {
+      // 义项里套着义项（牛津的 n-g 里有 def-g）：只有最外层编号
+      if (hasSenseAncestor(node as Element)) return content;
+      // 去掉词典自带的编号（可能加粗：**1**）
+      const t = content.trim().replace(/^(\*{1,3})\d+[.)]?\1\s*|^\d+[.)]?\s+/, "");
       return t ? `\n1. ${t}\n` : "";
     },
   });
@@ -112,6 +141,9 @@ function service(opts: CopyOptions): TurndownService {
 export function htmlToMarkdown(html: string, opts: CopyOptions): string {
   const md = service(opts).turndown(parseEntry(html, opts));
   return md
+    .split("\n")
+    .map(tidy)
+    .join("\n")
     .replace(/[ \t]+\n/g, "\n")
     // 列表项之间不留空行（紧凑列表），也避免空行后的缩进行被当成代码块
     .replace(/\n{2,}(?=(?: {3})?- |1\. )/g, "\n")
@@ -123,12 +155,20 @@ export function htmlToMarkdown(html: string, opts: CopyOptions): string {
 export function htmlToText(html: string, opts: CopyOptions): string {
   const lines: string[] = [];
   let line = "";
+  // 只有一个编号的行（义项编号后面的释义另起一块）：接到下一行开头
+  let num = "";
   const flush = (indent = "") => {
-    const t = line.replace(/\s+/g, " ").trim();
-    if (t) lines.push(indent + t);
+    const t = tidy(line.replace(/\s+/g, " ").trim());
     line = "";
+    if (!t) return;
+    if (/^\d{1,2}[.)]?$/.test(t)) {
+      num = t;
+      return;
+    }
+    lines.push(indent + (num ? `${num} ` : "") + t);
+    num = "";
   };
-  const walk = (node: Node, indent: string) => {
+  const walk = (node: Node, indent: string, inExample: boolean) => {
     if (node.nodeType === 3) {
       line += node.textContent ?? "";
       return;
@@ -136,13 +176,15 @@ export function htmlToText(html: string, opts: CopyOptions): string {
     if (node.nodeType !== 1) return;
     const el = node as Element;
     if (el.tagName === "BR") return flush(indent);
-    const block = BLOCK_TAGS.has(el.tagName) || isExample(el) || isSense(el);
-    const childIndent = isExample(el) ? `${indent}  ` : indent;
+    // 例句组里套着的例句不再另起一行、不再多缩进（英文和译文留在同一行）
+    const example = isExample(el) && !inExample;
+    const block = BLOCK_TAGS.has(el.tagName) || example || isSense(el);
+    const childIndent = example ? `${indent}  ` : indent;
     if (block) flush(indent);
-    for (const c of Array.from(el.childNodes)) walk(c, childIndent);
+    for (const c of Array.from(el.childNodes)) walk(c, childIndent, inExample || example);
     if (block) flush(childIndent);
   };
-  walk(parseEntry(html, opts), "");
+  walk(parseEntry(html, opts), "", false);
   flush();
   return lines.join("\n");
 }

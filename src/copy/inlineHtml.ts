@@ -91,27 +91,46 @@ export function inlineHtml(root: ParentNode, opts: InlineOptions): string {
   return holder.innerHTML.trim();
 }
 
+const BOLD_TAGS = new Set(["B", "STRONG", "H1", "H2", "H3", "H4", "H5", "H6", "TH"]);
+const ITALIC_TAGS = new Set(["I", "EM", "CITE", "DFN", "VAR"]);
+const isBold = (cs: CSSStyleDeclaration) => cs.fontWeight === "bold" || parseInt(cs.fontWeight, 10) >= 600;
+
 /**
  * 已渲染正文里「看得见」的部分：去掉 display:none 的元素（词典常用 CSS 隐藏内部编号等），
- * 保留标签与 class（Markdown / 纯文本转换靠 class 识别义项、例句）。
+ * 保留 class（Markdown / 纯文本转换靠 class 识别义项、例句）。
+ * 还要按实际显示保留版式：牛津高阶这类词典全用 span、靠 CSS 分块和加粗，只看标签会挤成一行、丢掉粗斜体——
+ * 显示成块的 span 换成 div；词典 CSS 加粗 / 斜体的文字包上 <b> / <i>。
  */
 export function visibleHtml(root: ParentNode): string {
   const holder = document.createElement("div");
-  const walk = (src: Node, dest: Node) => {
+  const walk = (src: Node, dest: Node, bold: boolean, italic: boolean) => {
     for (const n of Array.from(src.childNodes)) {
       if (n.nodeType === 3) {
         dest.appendChild(document.createTextNode(n.textContent ?? ""));
       } else if (n.nodeType === 1) {
         const el = n as HTMLElement;
-        if (SKIP.has(el.tagName) || getComputedStyle(el).display === "none") continue;
-        const copy = el.cloneNode(false) as HTMLElement;
+        const cs = getComputedStyle(el);
+        if (SKIP.has(el.tagName) || cs.display === "none") continue;
+        const blockish = /^(block|flex|grid|list-item|table)/.test(cs.display);
+        let copy: HTMLElement;
+        if (blockish && ["SPAN", "FONT"].includes(el.tagName)) {
+          copy = document.createElement("div");
+          for (const a of Array.from(el.attributes)) copy.setAttribute(a.name, a.value);
+        } else copy = el.cloneNode(false) as HTMLElement;
         copy.removeAttribute("style");
         dest.appendChild(copy);
-        walk(el, copy);
+        const b = isBold(cs);
+        const i = cs.fontStyle === "italic";
+        let inner: HTMLElement = copy;
+        if (b && !bold && !BOLD_TAGS.has(el.tagName)) inner = inner.appendChild(document.createElement("b"));
+        if (i && !italic && !ITALIC_TAGS.has(el.tagName)) inner = inner.appendChild(document.createElement("i"));
+        walk(el, inner, b, i);
       }
     }
   };
-  walk(root, holder);
+  const host = root instanceof ShadowRoot ? root.host : (root as Element);
+  const hs = host instanceof Element ? getComputedStyle(host) : null;
+  walk(root, holder, !!hs && isBold(hs), hs?.fontStyle === "italic");
   return holder.innerHTML;
 }
 

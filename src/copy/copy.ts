@@ -6,7 +6,7 @@ import type { Card } from "../stores/lookup";
 import { toast } from "../stores/toast";
 import { useAppliedTheme } from "../theme/useApplyTheme";
 import { contextMarkdown, escapeHtml, htmlToMarkdown, htmlToText, sourceLine, type ContextMeta, type CopyFormat } from "./convert";
-import { basicHtml, inlineHtml, visibleHtml } from "./inlineHtml";
+import { basicHtml, embedImages, inlineHtml, visibleHtml } from "./inlineHtml";
 import { tr } from "../i18n";
 
 export const FORMAT_NAME: Record<CopyFormat, string> = { md: "Markdown", html: "HTML", text: "纯文本" };
@@ -67,7 +67,9 @@ function cardPayload(card: Card, format: CopyFormat, cfg: Copy, heading: boolean
 }
 
 async function write(p: Payload) {
-  await invoke("write_clipboard", { text: p.text, html: p.html });
+  // 发音图标等 Lens 图片转成内嵌的 data 地址，粘到别的程序里也能显示
+  const html = p.html ? await embedImages(p.html) : null;
+  await invoke("write_clipboard", { text: p.text, html });
 }
 
 /** 复制一部词典；context 给出时（弹窗划词）在 Markdown / 纯文本末尾附上语境句。 */

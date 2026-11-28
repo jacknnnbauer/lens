@@ -35,7 +35,33 @@ function styleOf(cs: CSSStyleDeclaration, opts: InlineOptions, parentColor: stri
   return out.join(";");
 }
 
-function cloneInto(src: Node, dest: Node, doc: Document, opts: InlineOptions, parentColor: string) {
+/** 父元素已经是粗体 / 斜体：子元素不再重复包 <b> <i> */
+interface Emph {
+  bold: boolean;
+  italic: boolean;
+}
+
+/** Lens 自己的资源（发音图标、词典图片）：离开 Lens 打不开，标记出来，复制前转成内嵌的 data 地址 */
+const isLensUrl = (u: string) => /^lens:/i.test(u) || /^https?:\/\/[^/]*\.localhost\//i.test(u);
+
+function imageCopy(el: Element, doc: Document): HTMLImageElement | null {
+  const srcUrl = el.getAttribute("src") ?? "";
+  const img = doc.createElement("img");
+  img.setAttribute("src", srcUrl);
+  if (isLensUrl(srcUrl)) img.setAttribute("data-embed", "");
+  else if (!/^(https?:|data:image\/)/i.test(srcUrl)) return null;
+  const alt = el.getAttribute("alt");
+  if (alt) img.setAttribute("alt", alt);
+  // 按 Lens 里显示的大小（发音图标原图比显示的大，不写尺寸粘到 Word 里会很大）
+  const r = el.getBoundingClientRect();
+  if (r.width > 0 && r.height > 0) {
+    img.setAttribute("width", String(Math.round(r.width)));
+    img.setAttribute("height", String(Math.round(r.height)));
+  }
+  return img;
+}
+
+function cloneInto(src: Node, dest: Node, doc: Document, opts: InlineOptions, parentColor: string, parent: Emph = { bold: false, italic: false }) {
   for (const n of Array.from(src.childNodes)) {
     if (n.nodeType === 3) {
       dest.appendChild(doc.createTextNode(n.textContent ?? ""));
@@ -43,20 +69,23 @@ function cloneInto(src: Node, dest: Node, doc: Document, opts: InlineOptions, pa
     }
     if (n.nodeType !== 1) continue;
     const el = n as HTMLElement;
-    if (SKIP.has(el.tagName) || el.hasAttribute("data-sound")) continue;
+    if (SKIP.has(el.tagName)) continue;
     if (!opts.includeExamples && isExample(el)) continue;
     const cs = getComputedStyle(el);
     if (cs.display === "none") continue;
 
-    if (el.tagName === "IMG") {
-      const srcUrl = el.getAttribute("src") ?? "";
-      // lens:// 资源离开 Lens 打不开；只保留网络图片与内嵌图片
-      if (/^(https?:|data:image\/)/i.test(srcUrl) && !srcUrl.includes(".localhost/")) {
-        const img = doc.createElement("img");
-        img.setAttribute("src", srcUrl);
-        img.setAttribute("alt", el.getAttribute("alt") ?? "");
-        dest.appendChild(img);
+    // 发音按钮：只留里面的图标（喇叭图），按钮文字、链接都不要
+    if (el.hasAttribute("data-sound")) {
+      for (const i of Array.from(el.querySelectorAll("img"))) {
+        if (getComputedStyle(i).display === "none") continue;
+        const img = imageCopy(i, doc);
+        if (img) dest.appendChild(img);
       }
+      continue;
+    }
+    if (el.tagName === "IMG") {
+      const img = imageCopy(el, doc);
+      if (img) dest.appendChild(img);
       continue;
     }
 
@@ -78,8 +107,16 @@ function cloneInto(src: Node, dest: Node, doc: Document, opts: InlineOptions, pa
     const delinked = el.tagName === "A" && !href;
     const style = styleOf(cs, delinked ? { ...opts, colors: false } : opts, parentColor);
     if (style) copy.setAttribute("style", style);
-    cloneInto(el, copy, doc, opts, cs.color);
     dest.appendChild(copy);
+    // 除了样式再包一层 <b> <i> <u>：WPS、邮件、网页编辑器、Obsidian 粘贴时常把 style 整个扔掉，只认这些标签
+    const bold = isBold(cs);
+    const italic = cs.fontStyle === "italic";
+    const underline = (cs.textDecorationLine || cs.textDecoration || "").includes("underline");
+    let inner: HTMLElement = copy;
+    if (bold && !parent.bold && !BOLD_TAGS.has(el.tagName)) inner = inner.appendChild(doc.createElement("b"));
+    if (italic && !parent.italic && !ITALIC_TAGS.has(el.tagName)) inner = inner.appendChild(doc.createElement("i"));
+    if (underline && !["U", "INS"].includes(el.tagName)) inner = inner.appendChild(doc.createElement("u"));
+    cloneInto(el, inner, doc, opts, cs.color, { bold, italic });
   }
 }
 
@@ -87,8 +124,48 @@ function cloneInto(src: Node, dest: Node, doc: Document, opts: InlineOptions, pa
 export function inlineHtml(root: ParentNode, opts: InlineOptions): string {
   const holder = document.createElement("div");
   const host = root instanceof ShadowRoot ? root.host : (root as Element);
-  cloneInto(root, holder, document, opts, getComputedStyle(host).color);
+  const hs = getComputedStyle(host);
+  cloneInto(root, holder, document, opts, hs.color, { bold: isBold(hs), italic: hs.fontStyle === "italic" });
   return holder.innerHTML.trim();
+}
+
+/** 一张 Lens 图片 → data 地址；太大（>300 KB）或取不到时 null */
+async function loadAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    if (blob.size > 300_000 || !blob.type.startsWith("image/")) return null;
+    return await new Promise<string>((ok, fail) => {
+      const fr = new FileReader();
+      fr.onload = () => ok(String(fr.result));
+      fr.onerror = () => fail(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** 把 inlineHtml 标了 data-embed 的图片换成内嵌的 data 地址（粘到哪里都能显示）；取不到的去掉 */
+export async function embedImages(html: string, load: (url: string) => Promise<string | null> = loadAsDataUrl): Promise<string> {
+  if (!html.includes("data-embed")) return html;
+  const holder = document.createElement("div");
+  holder.innerHTML = html;
+  const imgs = Array.from(holder.querySelectorAll<HTMLImageElement>("img[data-embed]"));
+  const cache = new Map<string, Promise<string | null>>();
+  await Promise.all(
+    imgs.map(async (img) => {
+      const u = img.getAttribute("src") ?? "";
+      if (!cache.has(u)) cache.set(u, load(u));
+      const data = await cache.get(u)!;
+      if (data) {
+        img.setAttribute("src", data);
+        img.removeAttribute("data-embed");
+      } else img.remove();
+    }),
+  );
+  return holder.innerHTML;
 }
 
 const BOLD_TAGS = new Set(["B", "STRONG", "H1", "H2", "H3", "H4", "H5", "H6", "TH"]);

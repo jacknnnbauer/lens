@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { basicHtml, inlineHtml } from "./inlineHtml";
+import { basicHtml, embedImages, inlineHtml } from "./inlineHtml";
 
 describe("inlineHtml", () => {
   const host = () => {
@@ -8,7 +8,7 @@ describe("inlineHtml", () => {
     div.innerHTML = `
       <style>.hw{font-weight:bold}</style>
       <entry style="display:block"><span class="hw" style="font-weight:700;color:rgb(10, 20, 30)">run</span>
-      <a data-sound="x" href="#">🔊</a>
+      <a data-sound="x" href="#">🔊<img class="fayin" src="http://lens.localhost/res/d/uk.png"></a>
       <span class="x" style="font-style:italic;margin-left:18px">She ran home.</span>
       <a href="#" data-entry="ran">ran</a>
       <a href="https://e.com" data-external>site</a>
@@ -19,10 +19,10 @@ describe("inlineHtml", () => {
 
   it("inlines whitelisted styles and maps custom tags", () => {
     const out = inlineHtml(host(), { colors: true, includeExamples: true });
-    expect(out).toContain('<span style="font-weight:bold;color:rgb(10, 20, 30)">run</span>');
-    expect(out).toMatch(/<span style="font-style:italic;margin-left:18px">She ran home\.<\/span>/);
+    expect(out).toContain('<span style="font-weight:bold;color:rgb(10, 20, 30)"><b>run</b></span>');
+    expect(out).toMatch(/<span style="font-style:italic;margin-left:18px"><i>She ran home\.<\/i><\/span>/);
     expect(out).toMatch(/^<div/);
-    expect(out).not.toMatch(/<entry|<style|🔊|lens\.localhost|class=/);
+    expect(out).not.toMatch(/<entry|<style|🔊|class=/);
     // 链接保留 href（浏览器默认的链接颜色与正文不同，会被内联，属正常）
     expect(out).toMatch(/<a href="https:\/\/e\.com"[^>]*>site<\/a>/);
     expect(out).toContain("<span>ran</span>");
@@ -32,6 +32,46 @@ describe("inlineHtml", () => {
     const out = inlineHtml(host(), { colors: false, includeExamples: false });
     expect(out).not.toContain("color:");
     expect(out).not.toContain("She ran home");
+  });
+});
+
+describe("formatting that survives editors which ignore inline styles", () => {
+  it("adds <b> <i> tags next to the styles, without doubling real tags", () => {
+    const div = document.createElement("div");
+    div.innerHTML = `<span style="font-weight:700">a</span><b>b</b><span style="text-decoration:underline">c</span>`;
+    document.body.append(div);
+    const out = inlineHtml(div, { colors: true, includeExamples: true });
+    expect(out).toContain('<span style="font-weight:bold"><b>a</b></span>');
+    expect(out).toContain('<b style="font-weight:bold">b</b>');
+    expect(out).not.toContain("<b><b>");
+    // 下划线：jsdom 算不出 text-decoration，在真实应用里验证
+  });
+});
+
+describe("pronunciation icons and other Lens images", () => {
+  it("keeps the icon inside a sound link (without its text) and marks Lens images for embedding", () => {
+    const div = document.createElement("div");
+    div.innerHTML = `<a data-sound="s" href="#">🔊<img src="http://lens.localhost/res/d/uk.png"></a><img src="lens://x/y.png">`;
+    document.body.append(div);
+    const out = inlineHtml(div, { colors: true, includeExamples: true });
+    expect(out).not.toContain("🔊");
+    expect(out).toContain('<img src="http://lens.localhost/res/d/uk.png" data-embed="">');
+    expect(out).toContain('<img src="lens://x/y.png" data-embed="">');
+  });
+
+  it("keeps the size the image is shown at in Lens (icons stay small)", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<img src="http://lens.localhost/res/d/uk.png">';
+    document.body.append(div);
+    const img = div.querySelector("img")!;
+    img.getBoundingClientRect = () => ({ width: 15, height: 15 }) as DOMRect;
+    expect(inlineHtml(div, { colors: true, includeExamples: true })).toBe('<img src="http://lens.localhost/res/d/uk.png" data-embed="" width="15" height="15">');
+  });
+
+  it("embeds marked images as data URLs and drops the ones that fail", async () => {
+    const html = '<span><img src="http://lens.localhost/a.png" data-embed=""><img src="http://lens.localhost/b.png" data-embed=""><img src="https://e.com/c.png"></span>';
+    const out = await embedImages(html, async (u) => (u.endsWith("a.png") ? "data:image/png;base64,AAAA" : null));
+    expect(out).toBe('<span><img src="data:image/png;base64,AAAA"><img src="https://e.com/c.png"></span>');
   });
 });
 
